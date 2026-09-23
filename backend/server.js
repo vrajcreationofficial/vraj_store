@@ -1,8 +1,3 @@
-// =====================================================
-// VRAJ CREATION - DASHBOARD BACKEND SERVER
-// SECURE LOCAL + PRODUCTION VERSION
-// =====================================================
-
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -10,54 +5,20 @@ const path = require("path");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 
-// =====================================================
-// ENVIRONMENT VARIABLES
-// =====================================================
-
 dotenv.config();
 
-// =====================================================
-// ENVIRONMENT
-// =====================================================
-
-const NODE_ENV =
-  process.env.NODE_ENV || "development";
-
-const IS_PRODUCTION =
-  NODE_ENV === "production";
-
-// =====================================================
-// REQUIRED SECURITY SECRETS
-// =====================================================
+const NODE_ENV = process.env.NODE_ENV || "development";
+const IS_PRODUCTION = NODE_ENV === "production";
 
 if (!process.env.JWT_SECRET) {
-  console.error(
-    "====================================================="
-  );
-
-  console.error(
-    "ERROR: JWT_SECRET is missing in .env"
-  );
-
-  console.error(
-    "Please add a strong random JWT_SECRET."
-  );
-
-  console.error(
-    "====================================================="
-  );
-
+  console.error("=====================================================");
+  console.error("ERROR: JWT_SECRET is missing in .env");
+  console.error("Please add a strong random JWT_SECRET.");
+  console.error("=====================================================");
   process.exit(1);
 }
 
-// =====================================================
-// SECRET STATUS
-// =====================================================
-
-console.log(
-  "JWT_SECRET:",
-  "LOADED"
-);
+console.log("JWT_SECRET:", "LOADED");
 
 console.log(
   "DASHBOARD_BACKEND_URL:",
@@ -80,144 +41,43 @@ console.log(
     : "NOT CONFIGURED"
 );
 
-// =====================================================
-// DATABASE
-// =====================================================
+const connectDB = require("./config/db");
 
-const connectDB =
-  require("./config/db");
+const authRoutes = require("./routes/authRoutes");
+const userRoutes = require("./routes/userRoutes");
+const productRoutes = require("./routes/productRoutes");
+const publicProductRoutes = require("./routes/publicProductRoutes");
+const purchaseRoutes = require("./routes/purchaseRoutes");
+const saleRoutes = require("./routes/saleRoutes");
+const otherExpenseRoutes = require("./routes/otherExpenseRoutes");
+const billRoutes = require("./routes/billRoutes");
+const internalStockRoutes = require("./routes/internalStockRoutes");
+const internalProductRoutes = require("./routes/internalProductRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const orderPdfRoutes = require("./routes/orderPdfRoutes");
 
-// =====================================================
-// ROUTES
-// =====================================================
-
-// Authentication
-const authRoutes =
-  require("./routes/authRoutes");
-
-// Users / Admin
-const userRoutes =
-  require("./routes/userRoutes");
-
-// Products
-const productRoutes =
-  require("./routes/productRoutes");
-
-const publicProductRoutes =
-  require("./routes/publicProductRoutes");
-
-// Purchases
-const purchaseRoutes =
-  require("./routes/purchaseRoutes");
-
-// Sales
-const saleRoutes =
-  require("./routes/saleRoutes");
-
-// Other Expenses
-const otherExpenseRoutes =
-  require("./routes/otherExpenseRoutes");
-
-// Bills
-const billRoutes =
-  require("./routes/billRoutes");
-
-// Internal Stock
-const internalStockRoutes =
-  require("./routes/internalStockRoutes");
-
-// Internal Product Verification
-const internalProductRoutes =
-  require("./routes/internalProductRoutes");
-
-// Orders
-const orderRoutes =
-  require("./routes/orderRoutes");
-
-// Order PDF
-const orderPdfRoutes =
-  require("./routes/orderPdfRoutes");
-
-// =====================================================
-// EXPRESS APP
-// =====================================================
-
-const app =
-  express();
-
-// =====================================================
-// DATABASE CONNECTION
-// =====================================================
+const app = express();
 
 connectDB();
 
-// =====================================================
-// TRUST PROXY
-// =====================================================
-
 if (IS_PRODUCTION) {
-  app.set(
-    "trust proxy",
-    1
-  );
+  app.set("trust proxy", 1);
 }
 
-// =====================================================
-// DISABLE EXPRESS FINGERPRINT
-// =====================================================
+app.disable("x-powered-by");
 
-app.disable(
-  "x-powered-by"
-);
+app.use(compression());
 
-// =====================================================
-// PERFORMANCE
-// =====================================================
-
-app.use(
-  compression()
-);
-
-// =====================================================
-// CORS CONFIGURATION
-// =====================================================
-//
-// Production frontend:
-//
-// https://vrajstore.netlify.app
-//
-// Render Environment Variable:
-//
-// FRONTEND_URL=https://vrajstore.netlify.app
-//
-// Multiple frontend URLs can be separated by commas.
-//
-// Example:
-//
-// FRONTEND_URL=https://vrajstore.netlify.app,http://localhost:5173
-//
-// =====================================================
-
-// -----------------------------------------------------
-// Environment configured origins
-// -----------------------------------------------------
-
-const configuredOrigins =
-  String(
-    process.env.FRONTEND_URL || ""
+const configuredOrigins = String(
+  process.env.FRONTEND_URL || ""
+)
+  .split(",")
+  .map((origin) =>
+    origin
+      .trim()
+      .replace(/\/$/, "")
   )
-    .split(",")
-    .map(
-      (origin) =>
-        origin
-          .trim()
-          .replace(/\/$/, "")
-    )
-    .filter(Boolean);
-
-// -----------------------------------------------------
-// Development origins
-// -----------------------------------------------------
+  .filter(Boolean);
 
 const developmentOrigins = [
   "http://localhost:5173",
@@ -226,89 +86,45 @@ const developmentOrigins = [
   "http://127.0.0.1:5174",
 ];
 
-// -----------------------------------------------------
-// Final allowed origins
-// -----------------------------------------------------
-
 const allowedOrigins = [
   ...configuredOrigins,
   ...developmentOrigins,
 ];
 
-// -----------------------------------------------------
-// Remove duplicates and normalize
-// -----------------------------------------------------
-
 const uniqueAllowedOrigins = [
   ...new Set(
     allowedOrigins
-      .map(
-        (origin) =>
-          String(origin)
-            .trim()
-            .replace(/\/$/, "")
+      .map((origin) =>
+        String(origin)
+          .trim()
+          .replace(/\/$/, "")
       )
       .filter(Boolean)
   ),
 ];
-
-// =====================================================
-// SHOW CORS CONFIG
-// =====================================================
 
 console.log(
   "Allowed CORS Origins:",
   uniqueAllowedOrigins
 );
 
-// =====================================================
-// CORS CONFIGURATION
-// =====================================================
-
 const corsOptions = {
-  origin: (
-    origin,
-    callback
-  ) => {
-
-    // -------------------------------------------------
-    // Server-to-server / Postman / health checks
-    // -------------------------------------------------
-
+  origin: (origin, callback) => {
     if (!origin) {
-      return callback(
-        null,
-        true
-      );
+      return callback(null, true);
     }
 
-    // -------------------------------------------------
-    // Normalize origin
-    // -------------------------------------------------
-
-    const normalizedOrigin =
-      String(origin)
-        .trim()
-        .replace(/\/$/, "");
-
-    // -------------------------------------------------
-    // WHITELIST CHECK
-    // -------------------------------------------------
+    const normalizedOrigin = String(origin)
+      .trim()
+      .replace(/\/$/, "");
 
     if (
       uniqueAllowedOrigins.includes(
         normalizedOrigin
       )
     ) {
-      return callback(
-        null,
-        true
-      );
+      return callback(null, true);
     }
-
-    // -------------------------------------------------
-    // BLOCK UNKNOWN ORIGIN
-    // -------------------------------------------------
 
     console.warn(
       "CORS BLOCKED:",
@@ -316,21 +132,11 @@ const corsOptions = {
     );
 
     return callback(
-      new Error(
-        "CORS origin not allowed."
-      )
+      new Error("CORS origin not allowed.")
     );
   },
 
-  // ---------------------------------------------------
-  // Credentials
-  // ---------------------------------------------------
-
   credentials: true,
-
-  // ---------------------------------------------------
-  // Methods
-  // ---------------------------------------------------
 
   methods: [
     "GET",
@@ -341,10 +147,6 @@ const corsOptions = {
     "OPTIONS",
   ],
 
-  // ---------------------------------------------------
-  // Headers
-  // ---------------------------------------------------
-
   allowedHeaders: [
     "Content-Type",
     "Authorization",
@@ -352,38 +154,14 @@ const corsOptions = {
     "X-Internal-Secret",
   ],
 
-  // ---------------------------------------------------
-  // Exposed headers
-  // ---------------------------------------------------
-
   exposedHeaders: [
     "Content-Disposition",
   ],
 
-  // ---------------------------------------------------
-  // Preflight response
-  // ---------------------------------------------------
-
   optionsSuccessStatus: 204,
 };
 
-// =====================================================
-// APPLY CORS
-// =====================================================
-
-app.use(
-  cors(corsOptions)
-);
-
-// Explicit OPTIONS handling
-app.options(
-  "*",
-  cors(corsOptions)
-);
-
-// =====================================================
-// BODY PARSER
-// =====================================================
+app.use(cors(corsOptions));
 
 app.use(
   express.json({
@@ -399,73 +177,44 @@ app.use(
   })
 );
 
-// =====================================================
-// LOGIN RATE LIMIT
-// =====================================================
-//
-// 5 requests / 15 minutes per IP.
-//
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
 
-const loginLimiter =
-  rateLimit({
-    windowMs:
-      15 * 60 * 1000,
+  max: 5,
 
-    max: 5,
+  message: {
+    success: false,
+    message:
+      "Too many login attempts. Please try again after 15 minutes.",
+  },
 
-    message: {
-      success: false,
+  standardHeaders: true,
 
-      message:
-        "Too many login attempts. Please try again after 15 minutes.",
-    },
+  legacyHeaders: false,
 
-    standardHeaders: true,
+  skipSuccessfulRequests: false,
+});
 
-    legacyHeaders: false,
+const internalStockLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
 
-    skipSuccessfulRequests:
-      false,
-  });
+  max: 120,
 
-// =====================================================
-// INTERNAL STOCK RATE LIMIT
-// =====================================================
-//
-// 120 requests / minute per IP.
-//
+  message: {
+    success: false,
+    message:
+      "Too many internal stock requests. Please try again later.",
+  },
 
-const internalStockLimiter =
-  rateLimit({
-    windowMs:
-      1 * 60 * 1000,
+  standardHeaders: true,
 
-    max: 120,
-
-    message: {
-      success: false,
-
-      message:
-        "Too many internal stock requests. Please try again later.",
-    },
-
-    standardHeaders: true,
-
-    legacyHeaders: false,
-  });
-
-// =====================================================
-// AUTH LOGIN RATE LIMIT
-// =====================================================
+  legacyHeaders: false,
+});
 
 app.use(
   "/api/auth/login",
   loginLimiter
 );
-
-// =====================================================
-// LOCAL UPLOADS
-// =====================================================
 
 app.use(
   "/uploads",
@@ -476,57 +225,31 @@ app.use(
     ),
     {
       maxAge: "1d",
-
       index: false,
-
       dotfiles: "deny",
     }
   )
 );
-
-// =====================================================
-// API ROUTES
-// =====================================================
-
-// =====================================================
-// AUTHENTICATION
-// =====================================================
 
 app.use(
   "/api/auth",
   authRoutes
 );
 
-// =====================================================
-// USERS / ADMIN
-// =====================================================
-
 app.use(
   "/api/users",
   userRoutes
 );
-
-// =====================================================
-// BILLS
-// =====================================================
 
 app.use(
   "/api/bills",
   billRoutes
 );
 
-// =====================================================
-// ORDERS
-// =====================================================
-
 app.use(
   "/api/orders",
   orderRoutes
 );
-
-// =====================================================
-// INTERNAL STOCK SYNC
-// =====================================================
 
 app.use(
   "/api/internal/stock",
@@ -534,127 +257,75 @@ app.use(
   internalStockRoutes
 );
 
-// =====================================================
-// INTERNAL PRODUCT VERIFICATION
-// =====================================================
-
 app.use(
   "/api/internal/products",
   internalProductRoutes
 );
-
-// =====================================================
-// ORDER PDF
-// =====================================================
 
 app.use(
   "/api/order-pdf",
   orderPdfRoutes
 );
 
-// =====================================================
-// PRODUCTS - ADMIN DASHBOARD
-// =====================================================
-
 app.use(
   "/api/products",
   productRoutes
 );
-
-// =====================================================
-// PRODUCTS - PUBLIC WEBSITE
-// =====================================================
 
 app.use(
   "/api/public/products",
   publicProductRoutes
 );
 
-// =====================================================
-// PURCHASES
-// =====================================================
-
 app.use(
   "/api/purchases",
   purchaseRoutes
 );
-
-// =====================================================
-// SALES
-// =====================================================
 
 app.use(
   "/api/sales",
   saleRoutes
 );
 
-// =====================================================
-// OTHER EXPENSES
-// =====================================================
-
 app.use(
   "/api/other-expenses",
   otherExpenseRoutes
 );
-
-// =====================================================
-// HEALTH CHECK
-// =====================================================
 
 app.get(
   "/api/health",
   (req, res) => {
     return res.status(200).json({
       success: true,
-
       status: "OK",
-
       message:
         "Vraj Creation API is running",
-
-      environment:
-        NODE_ENV,
+      environment: NODE_ENV,
     });
   }
 );
-
-// =====================================================
-// ROOT
-// =====================================================
 
 app.get(
   "/",
   (req, res) => {
     return res.status(200).json({
       success: true,
-
       message:
         "Vraj Creation Store Backend is running",
-
-      environment:
-        NODE_ENV,
+      environment: NODE_ENV,
     });
   }
 );
-
-// =====================================================
-// 404 - API ROUTE NOT FOUND
-// =====================================================
 
 app.use(
   (req, res) => {
     return res.status(404).json({
       success: false,
-
       message:
         "API route not found",
     });
   }
 );
-
-// =====================================================
-// GLOBAL ERROR HANDLER
-// =====================================================
 
 app.use(
   (
@@ -663,15 +334,10 @@ app.use(
     res,
     next
   ) => {
-
     console.error(
       "SERVER ERROR:",
       err
     );
-
-    // -------------------------------------------------
-    // CORS ERROR
-    // -------------------------------------------------
 
     if (
       err.message ===
@@ -679,15 +345,10 @@ app.use(
     ) {
       return res.status(403).json({
         success: false,
-
         message:
           "Origin not allowed.",
       });
     }
-
-    // -------------------------------------------------
-    // BODY TOO LARGE
-    // -------------------------------------------------
 
     if (
       err.type ===
@@ -695,33 +356,22 @@ app.use(
     ) {
       return res.status(413).json({
         success: false,
-
         message:
           "Request payload is too large.",
       });
     }
 
-    // -------------------------------------------------
-    // INVALID JSON
-    // -------------------------------------------------
-
     if (
-      err instanceof
-        SyntaxError &&
+      err instanceof SyntaxError &&
       err.status === 400 &&
       "body" in err
     ) {
       return res.status(400).json({
         success: false,
-
         message:
           "Invalid JSON request.",
       });
     }
-
-    // -------------------------------------------------
-    // MULTER ERROR
-    // -------------------------------------------------
 
     if (
       err.name ===
@@ -729,15 +379,10 @@ app.use(
     ) {
       return res.status(400).json({
         success: false,
-
         message:
           "File upload failed.",
       });
     }
-
-    // -------------------------------------------------
-    // MONGOOSE VALIDATION ERROR
-    // -------------------------------------------------
 
     if (
       err.name ===
@@ -745,15 +390,10 @@ app.use(
     ) {
       return res.status(400).json({
         success: false,
-
         message:
           "Invalid request data.",
       });
     }
-
-    // -------------------------------------------------
-    // MONGOOSE CAST ERROR
-    // -------------------------------------------------
 
     if (
       err.name ===
@@ -761,68 +401,44 @@ app.use(
     ) {
       return res.status(400).json({
         success: false,
-
         message:
           "Invalid request data.",
       });
     }
-
-    // -------------------------------------------------
-    // DUPLICATE KEY ERROR
-    // -------------------------------------------------
 
     if (
       err.code === 11000
     ) {
       return res.status(409).json({
         success: false,
-
         message:
           "A record with this information already exists.",
       });
     }
 
-    // -------------------------------------------------
-    // PRODUCTION ERROR RESPONSE
-    // -------------------------------------------------
-
     if (IS_PRODUCTION) {
       return res.status(500).json({
         success: false,
-
         message:
           "Internal server error.",
       });
     }
 
-    // -------------------------------------------------
-    // DEVELOPMENT RESPONSE
-    // -------------------------------------------------
-
     return res.status(500).json({
       success: false,
-
       message:
         "Internal server error.",
-
-      error:
-        err.message,
+      error: err.message,
     });
   }
 );
 
-// =====================================================
-// SERVER
-// =====================================================
-
 const PORT =
-  process.env.PORT ||
-  5000;
+  process.env.PORT || 5000;
 
 app.listen(
   PORT,
   () => {
-
     console.log(
       "====================================================="
     );
@@ -857,9 +473,7 @@ app.listen(
 
     console.log(
       "Allowed CORS Origins:",
-      uniqueAllowedOrigins.join(
-        ", "
-      )
+      uniqueAllowedOrigins.join(", ")
     );
 
     console.log(

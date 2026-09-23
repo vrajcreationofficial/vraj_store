@@ -3,8 +3,9 @@ const User = require("../models/User");
 
 require("dotenv").config();
 
-const JWT_SECRET =
-  process.env.JWT_SECRET;
+const JWT_SECRET = String(
+  process.env.JWT_SECRET || ""
+).trim();
 
 if (!JWT_SECRET) {
   throw new Error(
@@ -12,35 +13,18 @@ if (!JWT_SECRET) {
   );
 }
 
-// =====================================================
-// AUTH MIDDLEWARE
-// =====================================================
-
 const protect = async (
   req,
   res,
   next
 ) => {
   try {
-    // -------------------------------------------------
-    // AUTHORIZATION HEADER
-    // -------------------------------------------------
-
     const authHeader =
       req.headers.authorization;
 
-    console.log(
-      "AUTH HEADER:",
-      authHeader
-        ? "RECEIVED"
-        : "MISSING"
-    );
-
     if (
       !authHeader ||
-      !authHeader.startsWith(
-        "Bearer "
-      )
+      !authHeader.startsWith("Bearer ")
     ) {
       return res.status(401).json({
         success: false,
@@ -49,14 +33,9 @@ const protect = async (
       });
     }
 
-    // -------------------------------------------------
-    // TOKEN
-    // -------------------------------------------------
-
-    const token =
-      authHeader
-        .slice(7)
-        .trim();
+    const token = authHeader
+      .slice(7)
+      .trim();
 
     if (!token) {
       return res.status(401).json({
@@ -66,47 +45,17 @@ const protect = async (
       });
     }
 
-    console.log(
-      "JWT TOKEN RECEIVED:",
-      "YES"
-    );
-
-    // -------------------------------------------------
-    // VERIFY TOKEN
-    // -------------------------------------------------
-
     let decoded;
 
     try {
-      decoded =
-        jwt.verify(
-          token,
-          JWT_SECRET
-        );
-
-      console.log(
-        "JWT VERIFY:",
-        "SUCCESS"
-      );
-
-      console.log(
-        "JWT USER ID:",
-        decoded?.id
-      );
-
-      console.log(
-        "JWT TOKEN VERSION:",
-        decoded?.tokenVersion
+      decoded = jwt.verify(
+        token,
+        JWT_SECRET
       );
     } catch (jwtError) {
       console.error(
         "JWT VERIFY ERROR:",
         jwtError.name
-      );
-
-      console.error(
-        "JWT VERIFY MESSAGE:",
-        jwtError.message
       );
 
       return res.status(401).json({
@@ -115,10 +64,6 @@ const protect = async (
           "Invalid or expired token.",
       });
     }
-
-    // -------------------------------------------------
-    // DECODED DATA CHECK
-    // -------------------------------------------------
 
     if (
       !decoded ||
@@ -131,10 +76,6 @@ const protect = async (
       });
     }
 
-    // -------------------------------------------------
-    // FIND USER
-    // -------------------------------------------------
-
     const user =
       await User.findById(
         decoded.id
@@ -145,11 +86,6 @@ const protect = async (
         .lean();
 
     if (!user) {
-      console.error(
-        "AUTH USER NOT FOUND:",
-        decoded.id
-      );
-
       return res.status(401).json({
         success: false,
         message:
@@ -157,43 +93,19 @@ const protect = async (
       });
     }
 
-    console.log(
-      "AUTH USER FOUND:",
-      user.email
+    const tokenVersion = Number(
+      decoded.tokenVersion ?? 0
     );
-
-    // -------------------------------------------------
-    // TOKEN VERSION
-    // -------------------------------------------------
-
-    const tokenVersion =
-      Number(
-        decoded.tokenVersion ?? 0
-      );
 
     const currentTokenVersion =
       Number(
         user.tokenVersion ?? 0
       );
 
-    console.log(
-      "TOKEN VERSION:",
-      tokenVersion
-    );
-
-    console.log(
-      "DB TOKEN VERSION:",
-      currentTokenVersion
-    );
-
     if (
       tokenVersion !==
       currentTokenVersion
     ) {
-      console.error(
-        "TOKEN VERSION MISMATCH"
-      );
-
       return res.status(401).json({
         success: false,
         message:
@@ -201,19 +113,10 @@ const protect = async (
       });
     }
 
-    // -------------------------------------------------
-    // USER STATUS
-    // -------------------------------------------------
-
     if (
       user.status !==
       "active"
     ) {
-      console.error(
-        "USER STATUS:",
-        user.status
-      );
-
       return res.status(403).json({
         success: false,
         message:
@@ -221,31 +124,16 @@ const protect = async (
       });
     }
 
-    // -------------------------------------------------
-    // ATTACH USER
-    // -------------------------------------------------
-
     req.user = {
       _id: user._id,
-
       id: user._id,
-
       name: user.name,
-
       email: user.email,
-
       role: user.role,
-
       status: user.status,
-
       tokenVersion:
         currentTokenVersion,
     };
-
-    console.log(
-      "AUTH SUCCESS:",
-      user.email
-    );
 
     next();
   } catch (error) {

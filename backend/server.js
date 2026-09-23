@@ -1,6 +1,6 @@
 // =====================================================
 // VRAJ CREATION - DASHBOARD BACKEND SERVER
-// SECURE LOCAL VERSION
+// SECURE LOCAL + PRODUCTION VERSION
 // =====================================================
 
 const express = require("express");
@@ -154,12 +154,6 @@ connectDB();
 // =====================================================
 // TRUST PROXY
 // =====================================================
-//
-// Required when deployed behind a reverse proxy such as
-// Render / Nginx / similar infrastructure.
-//
-// Do not enable it locally unless required.
-//
 
 if (IS_PRODUCTION) {
   app.set(
@@ -188,19 +182,19 @@ app.use(
 // CORS CONFIGURATION
 // =====================================================
 //
-// Local frontend:
+// Production frontend:
 //
-// http://localhost:5173
-// http://localhost:5174
-// http://127.0.0.1:5173
-// http://127.0.0.1:5174
+// https://vrajstore.netlify.app
 //
-// FRONTEND_URL can contain multiple comma-separated
-// origins.
+// Render Environment Variable:
+//
+// FRONTEND_URL=https://vrajstore.netlify.app
+//
+// Multiple frontend URLs can be separated by commas.
 //
 // Example:
 //
-// FRONTEND_URL=http://localhost:5173,http://localhost:5174
+// FRONTEND_URL=https://vrajstore.netlify.app,http://localhost:5173
 //
 // =====================================================
 
@@ -228,7 +222,6 @@ const configuredOrigins =
 const developmentOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
-
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5174",
 ];
@@ -236,10 +229,6 @@ const developmentOrigins = [
 // -----------------------------------------------------
 // Final allowed origins
 // -----------------------------------------------------
-//
-// IMPORTANT:
-// No Netlify origin is hard-coded here.
-//
 
 const allowedOrigins = [
   ...configuredOrigins,
@@ -247,16 +236,17 @@ const allowedOrigins = [
 ];
 
 // -----------------------------------------------------
-// Remove duplicates
+// Remove duplicates and normalize
 // -----------------------------------------------------
 
 const uniqueAllowedOrigins = [
   ...new Set(
     allowedOrigins
-      .map((origin) =>
-        String(origin)
-          .trim()
-          .replace(/\/$/, "")
+      .map(
+        (origin) =>
+          String(origin)
+            .trim()
+            .replace(/\/$/, "")
       )
       .filter(Boolean)
   ),
@@ -385,6 +375,12 @@ app.use(
   cors(corsOptions)
 );
 
+// Explicit OPTIONS handling
+app.options(
+  "*",
+  cors(corsOptions)
+);
+
 // =====================================================
 // BODY PARSER
 // =====================================================
@@ -392,7 +388,6 @@ app.use(
 app.use(
   express.json({
     limit: "2mb",
-
     strict: true,
   })
 );
@@ -400,7 +395,6 @@ app.use(
 app.use(
   express.urlencoded({
     extended: false,
-
     limit: "2mb",
   })
 );
@@ -408,9 +402,6 @@ app.use(
 // =====================================================
 // LOGIN RATE LIMIT
 // =====================================================
-//
-// Protects login endpoint against repeated automated
-// login attempts.
 //
 // 5 requests / 15 minutes per IP.
 //
@@ -441,8 +432,7 @@ const loginLimiter =
 // INTERNAL STOCK RATE LIMIT
 // =====================================================
 //
-// Internal stock synchronization can legitimately make
-// multiple requests, so the limit is higher.
+// 120 requests / minute per IP.
 //
 
 const internalStockLimiter =
@@ -476,9 +466,6 @@ app.use(
 // =====================================================
 // LOCAL UPLOADS
 // =====================================================
-//
-// Static uploads are served without directory listing.
-//
 
 app.use(
   "/uploads",
@@ -624,6 +611,25 @@ app.get(
 
       message:
         "Vraj Creation API is running",
+
+      environment:
+        NODE_ENV,
+    });
+  }
+);
+
+// =====================================================
+// ROOT
+// =====================================================
+
+app.get(
+  "/",
+  (req, res) => {
+    return res.status(200).json({
+      success: true,
+
+      message:
+        "Vraj Creation Store Backend is running",
 
       environment:
         NODE_ENV,

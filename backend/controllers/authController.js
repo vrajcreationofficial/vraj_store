@@ -1,6 +1,8 @@
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
+const nodemailer = require("nodemailer");
+
 require("dotenv").config();
 
 const User = require("../models/User");
@@ -10,27 +12,44 @@ const JWT_SECRET = String(
 ).trim();
 
 if (!JWT_SECRET) {
-  console.error("JWT_SECRET: NOT CONFIGURED");
+  console.error(
+    "JWT_SECRET: NOT CONFIGURED"
+  );
 }
 
-const RESEND_API_KEY = String(
-  process.env.RESEND_API_KEY || ""
+const EMAIL_USER = String(
+  process.env.EMAIL_USER || ""
 ).trim();
 
-const RESEND_FROM_EMAIL = String(
-  process.env.RESEND_FROM_EMAIL || ""
-).trim();
+const EMAIL_PASS = String(
+  process.env.EMAIL_PASS || ""
+).replace(/\s/g, "");
 
-if (RESEND_API_KEY) {
-  console.log("RESEND EMAIL API: CONFIGURED");
-} else {
-  console.warn("RESEND EMAIL API: NOT CONFIGURED");
-}
+let transporter = null;
 
-if (RESEND_FROM_EMAIL) {
-  console.log("RESEND FROM EMAIL: CONFIGURED");
+if (EMAIL_USER && EMAIL_PASS) {
+  transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    family: 4,
+    auth: {
+      user: EMAIL_USER,
+      pass: EMAIL_PASS,
+    },
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
+  });
+
+  console.log(
+    "EMAIL TRANSPORTER: GMAIL SMTP 587 CONFIGURED"
+  );
 } else {
-  console.warn("RESEND FROM EMAIL: NOT CONFIGURED");
+  console.warn(
+    "EMAIL TRANSPORTER: NOT CONFIGURED"
+  );
 }
 
 const normalizeEmail = (value) => {
@@ -52,7 +71,10 @@ const hashValue = (value) => {
     .digest("hex");
 };
 
-const safeHashCompare = (valueA, valueB) => {
+const safeHashCompare = (
+  valueA,
+  valueB
+) => {
   const a = Buffer.from(
     String(valueA || ""),
     "utf8"
@@ -67,7 +89,10 @@ const safeHashCompare = (valueA, valueB) => {
     return false;
   }
 
-  return crypto.timingSafeEqual(a, b);
+  return crypto.timingSafeEqual(
+    a,
+    b
+  );
 };
 
 const escapeHtml = (value) => {
@@ -118,15 +143,9 @@ const sendPasswordResetEmail = async (
   name,
   otp
 ) => {
-  if (!RESEND_API_KEY) {
+  if (!transporter) {
     throw new Error(
-      "Resend API key is not configured."
-    );
-  }
-
-  if (!RESEND_FROM_EMAIL) {
-    throw new Error(
-      "Resend sender email is not configured."
+      "Gmail SMTP transporter is not configured."
     );
   }
 
@@ -134,9 +153,19 @@ const sendPasswordResetEmail = async (
     name || "User"
   );
 
-  const safeOtp = escapeHtml(otp);
+  const safeOtp = escapeHtml(
+    otp
+  );
 
-  const text = `Hello ${name || "User"},
+  const mailOptions = {
+    from: `"Vraj Creation India" <${EMAIL_USER}>`,
+
+    to: email,
+
+    subject:
+      "Password Reset OTP - Vraj Creation India",
+
+    text: `Hello ${name || "User"},
 
 Your Vraj Creation India password reset OTP is:
 
@@ -147,123 +176,90 @@ This OTP is valid for 15 minutes.
 If you did not request a password reset, please ignore this email.
 
 Vraj Creation India
-Bringing Art to Life`;
+Bringing Art to Life`,
 
-  const html = `
-    <div style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
-      <div style="max-width:600px;margin:30px auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    html: `
+      <div style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
+        <div style="max-width:600px;margin:30px auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
 
-        <div style="padding:24px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;">
-          <h1 style="margin:0;font-size:24px;">
-            Vraj Creation India
-          </h1>
+          <div style="padding:24px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;">
+            <h1 style="margin:0;font-size:24px;">
+              Vraj Creation India
+            </h1>
 
-          <p style="margin:8px 0 0;font-size:14px;">
-            Bringing Art to Life
-          </p>
-        </div>
-
-        <div style="padding:30px;">
-
-          <h2 style="margin-top:0;color:#111827;">
-            Password Reset
-          </h2>
-
-          <p style="color:#374151;">
-            Hello ${safeName},
-          </p>
-
-          <p style="color:#374151;line-height:1.6;">
-            We received a request to reset your Vraj Creation India account password.
-            Use the OTP below to continue.
-          </p>
-
-          <div style="margin:25px 0;text-align:center;">
-            <div style="display:inline-block;padding:16px 28px;background:#f3f4f6;border-radius:10px;border:1px solid #d1d5db;">
-              <span style="font-size:32px;font-weight:700;letter-spacing:8px;color:#111827;">
-                ${safeOtp}
-              </span>
-            </div>
+            <p style="margin:8px 0 0;font-size:14px;">
+              Bringing Art to Life
+            </p>
           </div>
 
-          <p style="color:#6b7280;font-size:14px;text-align:center;">
-            This OTP is valid for 15 minutes.
-          </p>
+          <div style="padding:30px;">
 
-          <p style="color:#374151;line-height:1.6;">
-            If you did not request this password reset, you can safely ignore this email.
-          </p>
+            <h2 style="margin-top:0;color:#111827;">
+              Password Reset
+            </h2>
 
-          <hr style="border:0;border-top:1px solid #e5e7eb;margin:25px 0;">
+            <p style="color:#374151;">
+              Hello ${safeName},
+            </p>
 
-          <p style="margin:0;color:#6b7280;font-size:13px;">
-            Vraj Creation India<br>
-            Bringing Art to Life
-          </p>
+            <p style="color:#374151;line-height:1.6;">
+              We received a request to reset your Vraj Creation India account password.
+              Use the OTP below to continue.
+            </p>
 
+            <div style="margin:25px 0;text-align:center;">
+              <div style="display:inline-block;padding:16px 28px;background:#f3f4f6;border-radius:10px;border:1px solid #d1d5db;">
+                <span style="font-size:32px;font-weight:700;letter-spacing:8px;color:#111827;">
+                  ${safeOtp}
+                </span>
+              </div>
+            </div>
+
+            <p style="color:#6b7280;font-size:14px;text-align:center;">
+              This OTP is valid for 15 minutes.
+            </p>
+
+            <p style="color:#374151;line-height:1.6;">
+              If you did not request this password reset, you can safely ignore this email.
+            </p>
+
+            <hr style="border:0;border-top:1px solid #e5e7eb;margin:25px 0;">
+
+            <p style="margin:0;color:#6b7280;font-size:13px;">
+              Vraj Creation India<br>
+              Bringing Art to Life
+            </p>
+
+          </div>
         </div>
       </div>
-    </div>
-  `;
+    `,
+  };
 
-  const response = await fetch(
-    "https://api.resend.com/emails",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: `Vraj Creation India <${RESEND_FROM_EMAIL}>`,
-        to: [email],
-        subject:
-          "Password Reset OTP - Vraj Creation India",
-        text,
-        html,
-      }),
-    }
-  );
-
-  let result = {};
-
-  try {
-    result = await response.json();
-  } catch (parseError) {
-    result = {};
-  }
-
-  if (!response.ok) {
-    console.error(
-      "RESEND API ERROR:",
-      result?.message ||
-        result?.error ||
-        `HTTP ${response.status}`
+  const info =
+    await transporter.sendMail(
+      mailOptions
     );
-
-    throw new Error(
-      result?.message ||
-        result?.error ||
-        `Email service returned HTTP ${response.status}`
-    );
-  }
 
   console.log(
     "PASSWORD RESET EMAIL SENT:",
     email
   );
 
-  if (result?.id) {
+  if (info?.messageId) {
     console.log(
       "EMAIL MESSAGE ID:",
-      result.id
+      info.messageId
     );
   }
 
-  return result;
+  return info;
 };
 
-const register = async (req, res) => {
+const register = async (
+  req,
+  res
+) => {
   try {
     const name = normalizeName(
       req.body?.name
@@ -339,16 +335,17 @@ const register = async (req, res) => {
         12
       );
 
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      role: "user",
-      status: "pending",
-      tokenVersion: 0,
-      failedLoginAttempts: 0,
-      lockUntil: null,
-    });
+    const user =
+      await User.create({
+        name,
+        email,
+        password: hashedPassword,
+        role: "user",
+        status: "pending",
+        tokenVersion: 0,
+        failedLoginAttempts: 0,
+        lockUntil: null,
+      });
 
     return res.status(201).json({
       success: true,
@@ -384,7 +381,10 @@ const register = async (req, res) => {
   }
 };
 
-const login = async (req, res) => {
+const login = async (
+  req,
+  res
+) => {
   try {
     const email = normalizeEmail(
       req.body?.email
@@ -524,7 +524,9 @@ const login = async (req, res) => {
 
     await user.save();
 
-    const token = createToken(user);
+    const token = createToken(
+      user
+    );
 
     return res.status(200).json({
       success: true,
@@ -658,21 +660,9 @@ const forgotPassword = async (
       });
     }
 
-    if (!RESEND_API_KEY) {
+    if (!transporter) {
       console.error(
-        "PASSWORD RESET EMAIL ERROR: RESEND API KEY NOT CONFIGURED"
-      );
-
-      return res.status(500).json({
-        success: false,
-        message:
-          "Password reset email service is currently unavailable.",
-      });
-    }
-
-    if (!RESEND_FROM_EMAIL) {
-      console.error(
-        "PASSWORD RESET EMAIL ERROR: RESEND FROM EMAIL NOT CONFIGURED"
+        "PASSWORD RESET EMAIL ERROR: GMAIL SMTP TRANSPORTER NOT CONFIGURED"
       );
 
       return res.status(500).json({

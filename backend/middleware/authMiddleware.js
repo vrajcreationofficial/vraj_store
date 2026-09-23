@@ -1,63 +1,263 @@
 const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 
-const protect = (req, res, next) => {
+require("dotenv").config();
+
+const JWT_SECRET =
+  process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error(
+    "JWT_SECRET is missing in environment variables."
+  );
+}
+
+// =====================================================
+// AUTH MIDDLEWARE
+// =====================================================
+
+const protect = async (
+  req,
+  res,
+  next
+) => {
   try {
-    // =====================================================
-    // GET AUTHORIZATION HEADER
-    // =====================================================
+    // -------------------------------------------------
+    // AUTHORIZATION HEADER
+    // -------------------------------------------------
 
-    const authHeader = req.headers.authorization;
+    const authHeader =
+      req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    console.log(
+      "AUTH HEADER:",
+      authHeader
+        ? "RECEIVED"
+        : "MISSING"
+    );
+
+    if (
+      !authHeader ||
+      !authHeader.startsWith(
+        "Bearer "
+      )
+    ) {
       return res.status(401).json({
         success: false,
-        message: "Not authorized. Token missing.",
+        message:
+          "Authentication required.",
       });
     }
 
-    // =====================================================
-    // GET TOKEN
-    // =====================================================
+    // -------------------------------------------------
+    // TOKEN
+    // -------------------------------------------------
 
-    const token = authHeader.split(" ")[1];
+    const token =
+      authHeader
+        .slice(7)
+        .trim();
 
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: "Not authorized. Token missing.",
+        message:
+          "Authentication required.",
       });
     }
 
-    // =====================================================
-    // JWT SECRET
-    // =====================================================
+    console.log(
+      "JWT TOKEN RECEIVED:",
+      "YES"
+    );
 
-    const secret =
-      process.env.JWT_SECRET || "vraj_default_secure_secret_2026";
-
-    // =====================================================
+    // -------------------------------------------------
     // VERIFY TOKEN
-    // =====================================================
+    // -------------------------------------------------
 
-    const decoded = jwt.verify(token, secret);
+    let decoded;
 
-    // =====================================================
-    // SAVE USER DATA (यहाँ _id और id दोनों असाइन किए गए हैं)
-    // =====================================================
+    try {
+      decoded =
+        jwt.verify(
+          token,
+          JWT_SECRET
+        );
+
+      console.log(
+        "JWT VERIFY:",
+        "SUCCESS"
+      );
+
+      console.log(
+        "JWT USER ID:",
+        decoded?.id
+      );
+
+      console.log(
+        "JWT TOKEN VERSION:",
+        decoded?.tokenVersion
+      );
+    } catch (jwtError) {
+      console.error(
+        "JWT VERIFY ERROR:",
+        jwtError.name
+      );
+
+      console.error(
+        "JWT VERIFY MESSAGE:",
+        jwtError.message
+      );
+
+      return res.status(401).json({
+        success: false,
+        message:
+          "Invalid or expired token.",
+      });
+    }
+
+    // -------------------------------------------------
+    // DECODED DATA CHECK
+    // -------------------------------------------------
+
+    if (
+      !decoded ||
+      !decoded.id
+    ) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Invalid or expired token.",
+      });
+    }
+
+    // -------------------------------------------------
+    // FIND USER
+    // -------------------------------------------------
+
+    const user =
+      await User.findById(
+        decoded.id
+      )
+        .select(
+          "_id name email role status tokenVersion"
+        )
+        .lean();
+
+    if (!user) {
+      console.error(
+        "AUTH USER NOT FOUND:",
+        decoded.id
+      );
+
+      return res.status(401).json({
+        success: false,
+        message:
+          "Invalid or expired token.",
+      });
+    }
+
+    console.log(
+      "AUTH USER FOUND:",
+      user.email
+    );
+
+    // -------------------------------------------------
+    // TOKEN VERSION
+    // -------------------------------------------------
+
+    const tokenVersion =
+      Number(
+        decoded.tokenVersion ?? 0
+      );
+
+    const currentTokenVersion =
+      Number(
+        user.tokenVersion ?? 0
+      );
+
+    console.log(
+      "TOKEN VERSION:",
+      tokenVersion
+    );
+
+    console.log(
+      "DB TOKEN VERSION:",
+      currentTokenVersion
+    );
+
+    if (
+      tokenVersion !==
+      currentTokenVersion
+    ) {
+      console.error(
+        "TOKEN VERSION MISMATCH"
+      );
+
+      return res.status(401).json({
+        success: false,
+        message:
+          "Invalid or expired token.",
+      });
+    }
+
+    // -------------------------------------------------
+    // USER STATUS
+    // -------------------------------------------------
+
+    if (
+      user.status !==
+      "active"
+    ) {
+      console.error(
+        "USER STATUS:",
+        user.status
+      );
+
+      return res.status(403).json({
+        success: false,
+        message:
+          "Account is not active.",
+      });
+    }
+
+    // -------------------------------------------------
+    // ATTACH USER
+    // -------------------------------------------------
 
     req.user = {
-      _id: decoded.id,
-      id: decoded.id,
-      role: decoded.role,
+      _id: user._id,
+
+      id: user._id,
+
+      name: user.name,
+
+      email: user.email,
+
+      role: user.role,
+
+      status: user.status,
+
+      tokenVersion:
+        currentTokenVersion,
     };
+
+    console.log(
+      "AUTH SUCCESS:",
+      user.email
+    );
 
     next();
   } catch (error) {
-    console.error("AUTH MIDDLEWARE ERROR:", error.message);
+    console.error(
+      "AUTH MIDDLEWARE ERROR:",
+      error
+    );
 
     return res.status(401).json({
       success: false,
-      message: "Invalid or expired token",
+      message:
+        "Invalid or expired token.",
     });
   }
 };

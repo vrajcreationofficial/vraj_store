@@ -1,7 +1,19 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../services/api";
+
+// =====================================================
+// FIXED PRODUCT CATEGORIES
+// =====================================================
+
+const CATEGORY_OPTIONS = [
+  "Home Décor",
+  "Wall Décor",
+  "Table Décor",
+  "Resin Art",
+  "Ethnic Home Furnishing",
+  "Desk Accessories",
+];
 
 const EditProduct = () => {
   const { id } = useParams();
@@ -10,6 +22,8 @@ const EditProduct = () => {
   const [formData, setFormData] = useState({
     name: "",
     sku: "",
+    hsnCode: "",
+
     category: "",
     subcategory: "",
 
@@ -128,6 +142,16 @@ const EditProduct = () => {
       setFormData({
         name: product.name || "",
         sku: product.sku || "",
+
+        // =================================================
+        // HSN CODE
+        // =================================================
+
+        hsnCode:
+          product.hsnCode ??
+          product.hsn ??
+          "",
+
         category: product.category || "",
         subcategory: product.subcategory || "",
 
@@ -204,6 +228,29 @@ const EditProduct = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    // ---------------------------------------------------
+    // HSN CODE - ONLY NUMBERS
+    // ---------------------------------------------------
+
+    if (name === "hsnCode") {
+      const numericValue = value.replace(/\D/g, "").slice(0, 8);
+
+      setFormData((prev) => ({
+        ...prev,
+        hsnCode: numericValue,
+      }));
+
+      if (error) {
+        setError("");
+      }
+
+      if (success) {
+        setSuccess("");
+      }
+
+      return;
+    }
 
     setFormData((prev) => ({
       ...prev,
@@ -297,6 +344,37 @@ const EditProduct = () => {
       );
       return;
     }
+
+    // ===================================================
+    // CATEGORY VALIDATION
+    // ===================================================
+
+    if (!CATEGORY_OPTIONS.includes(formData.category)) {
+      setError("Please select a valid product category.");
+      return;
+    }
+
+    // ===================================================
+    // HSN CODE VALIDATION
+    // ===================================================
+
+    const hsnCode = String(
+      formData.hsnCode || ""
+    ).trim();
+
+    if (
+      hsnCode &&
+      !/^\d{4}$|^\d{6}$|^\d{8}$/.test(hsnCode)
+    ) {
+      setError(
+        "HSN Code must contain exactly 4, 6 or 8 digits."
+      );
+      return;
+    }
+
+    // ===================================================
+    // PRICE REQUIRED
+    // ===================================================
 
     if (
       formData.purchasePrice === "" ||
@@ -449,6 +527,15 @@ const EditProduct = () => {
         formData.sku.trim().toUpperCase()
       );
 
+      // =================================================
+      // HSN CODE
+      // =================================================
+
+      data.append(
+        "hsnCode",
+        hsnCode
+      );
+
       data.append(
         "category",
         formData.category.trim()
@@ -489,7 +576,6 @@ const EditProduct = () => {
           formData.sizeUnit || "cm"
         );
 
-        // Final size string
         const size =
           `${length} × ${breadth} × ${height} ${
             formData.sizeUnit || "cm"
@@ -497,14 +583,15 @@ const EditProduct = () => {
 
         data.append("size", size);
       } else {
-        // Clear old size
         data.append("length", "");
         data.append("breadth", "");
         data.append("height", "");
+
         data.append(
           "sizeUnit",
           formData.sizeUnit || "cm"
         );
+
         data.append("size", "");
       }
 
@@ -619,6 +706,7 @@ const EditProduct = () => {
   if (loading) {
     return (
       <div className="mx-auto w-full max-w-6xl">
+
         <div className="animate-pulse space-y-6">
 
           <div>
@@ -644,11 +732,13 @@ const EditProduct = () => {
               <div className="h-12 rounded-xl bg-slate-200 dark:bg-slate-800" />
 
             </div>
+
           </div>
 
           <div className="h-64 rounded-2xl bg-slate-200 dark:bg-slate-800" />
 
         </div>
+
       </div>
     );
   }
@@ -741,9 +831,7 @@ const EditProduct = () => {
         className="space-y-6"
       >
 
-        {/* ================================================= */}
         {/* BASIC INFORMATION */}
-        {/* ================================================= */}
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
@@ -774,28 +862,94 @@ const EditProduct = () => {
                 required
               />
 
-              <Input
-                label="Category"
-                name="category"
-                value={formData.category}
-                onChange={handleChange}
-                placeholder="e.g. Electrical"
-                required
-              />
+              {/* HSN CODE */}
+
+              <div>
+                <Input
+                  label="HSN Code"
+                  name="hsnCode"
+                  value={formData.hsnCode}
+                  onChange={handleChange}
+                  placeholder="e.g. 94036000"
+                  inputMode="numeric"
+                  maxLength={8}
+                />
+
+                <p className="mt-2 text-xs text-slate-400">
+                  Optional • Enter 4, 6 or 8 digit HSN code
+                </p>
+              </div>
+
+              {/* CATEGORY DROPDOWN */}
+
+              <div>
+
+                <label
+                  htmlFor="category"
+                  className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-300"
+                >
+
+                  Category
+
+                  <span className="ml-1 text-red-500">
+                    *
+                  </span>
+
+                </label>
+
+                <select
+                  id="category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  required
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-slate-600 dark:focus:ring-slate-800"
+                >
+
+                  <option value="">
+                    Select Category
+                  </option>
+
+                  {CATEGORY_OPTIONS.map((category) => (
+                    <option
+                      key={category}
+                      value={category}
+                    >
+                      {category}
+                    </option>
+                  ))}
+
+                </select>
+
+              </div>
 
               <Input
                 label="Subcategory"
                 name="subcategory"
                 value={formData.subcategory}
                 onChange={handleChange}
-                placeholder="e.g. Switches"
+                placeholder="e.g. Jharokha, Pen Stand"
               />
 
             </div>
 
-            {/* ================================================= */}
+            {/* CATEGORY INFORMATION */}
+
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
+
+              <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                Website Collection Mapping
+              </p>
+
+              <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                Changing the category will automatically
+                change the collection where this product
+                appears on the Vraj Creation website.
+              </p>
+
+            </div>
+
             {/* PRODUCT SIZE */}
-            {/* ================================================= */}
 
             <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
 
@@ -861,11 +1015,27 @@ const EditProduct = () => {
                     onChange={handleChange}
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:border-slate-600 dark:focus:ring-slate-800"
                   >
-                    <option value="mm">mm</option>
-                    <option value="cm">cm</option>
-                    <option value="m">m</option>
-                    <option value="inch">inch</option>
-                    <option value="ft">ft</option>
+
+                    <option value="mm">
+                      mm
+                    </option>
+
+                    <option value="cm">
+                      cm
+                    </option>
+
+                    <option value="m">
+                      m
+                    </option>
+
+                    <option value="inch">
+                      inch
+                    </option>
+
+                    <option value="ft">
+                      ft
+                    </option>
+
                   </select>
 
                 </div>
@@ -925,9 +1095,7 @@ const EditProduct = () => {
 
         </section>
 
-        {/* ================================================= */}
         {/* PRODUCT IMAGE */}
-        {/* ================================================= */}
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
@@ -1011,9 +1179,7 @@ const EditProduct = () => {
 
         </section>
 
-        {/* ================================================= */}
         {/* PRICING & STOCK */}
-        {/* ================================================= */}
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
@@ -1076,9 +1242,7 @@ const EditProduct = () => {
 
         </section>
 
-        {/* ================================================= */}
         {/* ADDITIONAL INFORMATION */}
-        {/* ================================================= */}
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
@@ -1115,6 +1279,7 @@ const EditProduct = () => {
                   onChange={handleChange}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-slate-600 dark:focus:ring-slate-800"
                 >
+
                   <option value="active">
                     Active
                   </option>
@@ -1122,6 +1287,7 @@ const EditProduct = () => {
                   <option value="inactive">
                     Inactive
                   </option>
+
                 </select>
 
               </div>
@@ -1132,9 +1298,7 @@ const EditProduct = () => {
 
         </section>
 
-        {/* ================================================= */}
-        {/* ACTIONS */}
-        {/* ================================================= */}
+        {/* ACTION BUTTONS */}
 
         <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 pb-8 dark:border-slate-800 sm:flex-row sm:justify-end">
 
@@ -1211,6 +1375,8 @@ const Input = ({
   min,
   step,
   required = false,
+  inputMode,
+  maxLength,
 }) => {
   return (
     <div>
@@ -1240,6 +1406,8 @@ const Input = ({
         min={min}
         step={step}
         required={required}
+        inputMode={inputMode}
+        maxLength={maxLength}
         autoComplete="off"
         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-slate-600 dark:focus:ring-slate-800"
       />

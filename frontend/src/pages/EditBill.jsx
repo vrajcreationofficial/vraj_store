@@ -4,8 +4,18 @@ import api from "../services/api";
 import logoImg from "../assets/logo.jpeg";
 
 // =====================================================
-// STATE CODE MAP
+// FIXED VRAJ CREATION SETTINGS
 // =====================================================
+
+const VRAJ_UPI_ID = "8824968974-3@ybl";
+const VRAJ_STATE_CODE = "08";
+const VRAJ_STATE_NAME = "Rajasthan";
+const VRAJ_GST_RATE = 5;
+
+// =====================================================
+// INDIAN STATE CODES
+// =====================================================
+
 const STATE_CODES = {
   "01": "Jammu and Kashmir",
   "02": "Himachal Pradesh",
@@ -48,12 +58,17 @@ const STATE_CODES = {
 };
 
 // =====================================================
-// GET STATE CODE BY NAME
+// STATE NAME -> STATE CODE
 // =====================================================
-const getStateCodeByName = (stateName) => {
-  if (!stateName) return "";
 
-  const normalized = String(stateName).trim().toLowerCase();
+const getStateCodeByName = (stateName) => {
+  if (!stateName) {
+    return "";
+  }
+
+  const normalized = String(stateName)
+    .trim()
+    .toLowerCase();
 
   const found = Object.entries(STATE_CODES).find(
     ([, name]) => name.toLowerCase() === normalized
@@ -63,16 +78,84 @@ const getStateCodeByName = (stateName) => {
 };
 
 // =====================================================
-// NUMBER TO WORDS — INDIAN CURRENCY
+// PRODUCT HELPERS
 // =====================================================
+
+const getProductId = (product) => {
+  return (
+    product?.sku ||
+    product?.product_id ||
+    product?.productId ||
+    product?.productCode ||
+    product?.code ||
+    product?._id ||
+    product?.id ||
+    ""
+  );
+};
+
+const getProductName = (product) => {
+  return (
+    product?.name ||
+    product?.productName ||
+    product?.title ||
+    product?.product_name ||
+    ""
+  );
+};
+
+const getProductPrice = (product) => {
+  return (
+    product?.price ??
+    product?.sellingPrice ??
+    product?.selling_price ??
+    product?.rate ??
+    product?.mrp ??
+    0
+  );
+};
+
+const getProductHSN = (product) => {
+  return (
+    product?.hsnCode ||
+    product?.hsn ||
+    product?.HSN ||
+    "7326"
+  );
+};
+
+// =====================================================
+// FIND PRODUCT BY MANUAL PRODUCT ID
+// =====================================================
+
+const findProductById = (products, productId) => {
+  const enteredId = String(productId || "")
+    .trim()
+    .toLowerCase();
+
+  if (!enteredId) {
+    return null;
+  }
+
+  return (
+    products.find((product) => {
+      const dbId = String(getProductId(product))
+        .trim()
+        .toLowerCase();
+
+      return dbId === enteredId;
+    }) || null
+  );
+};
+
+// =====================================================
+// NUMBER TO WORDS
+// =====================================================
+
 const convertNumberToWords = (amount) => {
   const numAmount = Number(amount);
 
-  if (isNaN(numAmount)) {
-    return "Rupees Zero Only";
-  }
-
-  if (numAmount === 0) {
+  if (!Number.isFinite(numAmount) || numAmount === 0) {
     return "Rupees Zero Only";
   }
 
@@ -112,7 +195,8 @@ const convertNumberToWords = (amount) => {
     "Ninety",
   ];
 
-  const convertBelowThousand = (num) => {
+  const belowThousand = (value) => {
+    let num = Math.floor(value);
     let result = "";
 
     if (num >= 100) {
@@ -140,31 +224,31 @@ const convertNumberToWords = (amount) => {
   const crore = Math.floor(rupees / 10000000);
 
   if (crore > 0) {
-    result += convertBelowThousand(crore) + " Crore ";
+    result += belowThousand(crore) + " Crore ";
   }
 
   const lakh = Math.floor((rupees % 10000000) / 100000);
 
   if (lakh > 0) {
-    result += convertBelowThousand(lakh) + " Lakh ";
+    result += belowThousand(lakh) + " Lakh ";
   }
 
   const thousand = Math.floor((rupees % 100000) / 1000);
 
   if (thousand > 0) {
-    result += convertBelowThousand(thousand) + " Thousand ";
+    result += belowThousand(thousand) + " Thousand ";
   }
 
   const remainder = rupees % 1000;
 
   if (remainder > 0) {
-    result += convertBelowThousand(remainder);
+    result += belowThousand(remainder);
   }
 
   result = result.trim();
 
   if (paise > 0) {
-    result += ` and ${convertBelowThousand(paise)} Paise`;
+    result += ` and ${belowThousand(paise)} Paise`;
   }
 
   return `Rupees ${result} Only`;
@@ -173,45 +257,22 @@ const convertNumberToWords = (amount) => {
 // =====================================================
 // CURRENCY
 // =====================================================
-const formatCurrency = (value) =>
-  Number(value || 0).toLocaleString("en-IN", {
+
+const formatCurrency = (value) => {
+  return Number(value || 0).toLocaleString("en-IN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-
-// =====================================================
-// DEFAULT CUSTOMER
-// =====================================================
-const DEFAULT_CUSTOMER = {
-  name: "",
-  phone: "",
-  billingAddress: "",
-  shippingAddress: "",
-  city: "",
-  state: "",
-  stateCode: "",
-  pincode: "",
-  gstin: "",
 };
 
 // =====================================================
-// EMPTY ITEM
+// DATE FORMAT
 // =====================================================
-const createEmptyItem = () => ({
-  id: `${Date.now()}-${Math.random()}`,
-  productId: "",
-  productName: "",
-  hsnCode: "",
-  quantity: 1,
-  price: 0,
-  gstRate: 5,
-});
 
-// =====================================================
-// SAFE DATE
-// =====================================================
 const formatDateForInput = (dateValue) => {
-  if (!dateValue) return "";
+  if (!dateValue) {
+    return "";
+  }
 
   try {
     const date = new Date(dateValue);
@@ -227,40 +288,75 @@ const formatDateForInput = (dateValue) => {
 };
 
 // =====================================================
-// EDIT BILL
+// EMPTY CUSTOMER
 // =====================================================
+
+const DEFAULT_CUSTOMER = {
+  name: "",
+  phone: "",
+  billingAddress: "",
+  shippingAddress: "",
+  city: "",
+  state: "",
+  stateCode: "",
+  pincode: "",
+  gstin: "",
+};
+
+// =====================================================
+// NEW ITEM
+// =====================================================
+
+const createEmptyItem = () => {
+  return {
+    id: `${Date.now()}-${Math.random()}`,
+    productId: "",
+    productName: "",
+    hsnCode: "",
+    quantity: 1,
+    price: 0,
+    gstRate: VRAJ_GST_RATE,
+  };
+};
+
+// =====================================================
+// MAIN COMPONENT
+// =====================================================
+
 const EditBill = () => {
   const navigate = useNavigate();
   const { id } = useParams();
 
   // ===================================================
-  // BUSINESS INFO
+  // BUSINESS
   // ===================================================
+
   const [businessInfo, setBusinessInfo] = useState({
     name: "VRAJ CREATION",
     logo: logoImg,
-    address: "Jodhpur, Rajasthan",
+    address: "Madhuban Colony, Basni, Jodhpur (Raj.)",
     cityState: "Jodhpur, Rajasthan",
-    state: "Rajasthan",
-    stateCode: "08",
-    phone: "+91 9876543210",
-    email: "contact@vrajcreation.com",
-    gstin: "08AAAAA0000A1Z5",
-    pan: "ABCDE1234F",
-    bankName: "HDFC Bank",
+    state: VRAJ_STATE_NAME,
+    stateCode: VRAJ_STATE_CODE,
+    phone: "",
+    email: "",
+    gstin: "08AADPO3512A1ZB",
+    pan: "AADPO3512A",
+    bankName: "Union Bank of India",
     accountHolder: "VRAJ CREATION",
-    accountNo: "50200012345678",
-    ifsc: "HDFC0001234",
-    branch: "Jodhpur Branch",
-    upiId: "vrajcreation@upi",
+    accountNo: "401701010035985",
+    ifsc: "UBIN0540170",
+    branch: "Basni Jodhpur",
+    upiId: VRAJ_UPI_ID,
     terms:
-      "1. Goods once sold will not be taken back.\n2. All disputes subject to Jodhpur jurisdiction.\n3. Payment should be made within the agreed terms.\n4. Interest @24% p.a. will be charged on delayed payment.",
+      "1. All disputes subject to Jodhpur jurisdiction.\n2. Responsibility ceases after goods leave factory.\n3. Once sold, goods will not be taken back/exchanged.\n4. Interest @ 24% will be charged if payment is not made within 15 days.",
     signature: "",
   });
 
   // ===================================================
-  // STATES
+  // INVOICE STATES
   // ===================================================
+
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -286,41 +382,54 @@ const EditBill = () => {
   // ===================================================
   // LOAD BUSINESS SETTINGS
   // ===================================================
+
   useEffect(() => {
     try {
-      const savedBusiness = localStorage.getItem("vraj_business_settings");
+      const saved = localStorage.getItem(
+        "vraj_business_settings"
+      );
 
-      if (savedBusiness) {
-        const parsed = JSON.parse(savedBusiness);
+      if (saved) {
+        const parsed = JSON.parse(saved);
 
         setBusinessInfo((prev) => ({
           ...prev,
           ...parsed,
-          logo: parsed.logo || prev.logo,
+
+          // Always fixed
+          upiId: VRAJ_UPI_ID,
+          state: VRAJ_STATE_NAME,
+          stateCode: VRAJ_STATE_CODE,
         }));
       }
     } catch (err) {
-      console.error("Business settings load error:", err);
+      console.error(
+        "Business settings load error:",
+        err
+      );
     }
   }, []);
 
   // ===================================================
   // LOAD BILL + PRODUCTS
   // ===================================================
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         setError("");
 
-        const [billResponse, productsResponse] = await Promise.all([
-          api.get(`/bills/${id}`),
-          api.get("/products"),
-        ]);
+        const [billResponse, productsResponse] =
+          await Promise.all([
+            api.get(`/bills/${id}`),
+            api.get("/products"),
+          ]);
 
-        // ===============================================
-        // BILL DATA
-        // ===============================================
+        // ---------------------------------------------
+        // BILL
+        // ---------------------------------------------
+
         const bill =
           billResponse?.data?.bill ||
           billResponse?.data?.data ||
@@ -330,19 +439,22 @@ const EditBill = () => {
           throw new Error("Bill data not found.");
         }
 
-        // ===============================================
-        // INVOICE DETAILS
-        // ===============================================
+        // ---------------------------------------------
+        // INVOICE
+        // ---------------------------------------------
+
         setInvoiceNo(
           bill.invoiceNo ||
-            bill.billNumber ||
             bill.invoiceNumber ||
+            bill.billNumber ||
             `VC-${Date.now().toString().slice(-6)}`
         );
 
         setInvoiceDate(
           formatDateForInput(
-            bill.invoiceDate || bill.date || bill.createdAt
+            bill.invoiceDate ||
+              bill.date ||
+              bill.createdAt
           )
         );
 
@@ -354,98 +466,124 @@ const EditBill = () => {
             "GST Invoice"
         );
 
-        // ===============================================
+        // ---------------------------------------------
         // CUSTOMER
-        // ===============================================
-        const nestedCustomer = bill.customer || {};
+        // ---------------------------------------------
+
+        const billCustomer = bill.customer || {};
 
         const loadedCustomer = {
           name:
-            nestedCustomer.name ||
+            billCustomer.name ||
             bill.customerName ||
             "",
 
           phone:
-            nestedCustomer.phone ||
+            billCustomer.phone ||
             bill.customerPhone ||
+            bill.mobile ||
             "",
 
           billingAddress:
-            nestedCustomer.billingAddress ||
-            nestedCustomer.address ||
+            billCustomer.billingAddress ||
+            billCustomer.address ||
             bill.customerBillingAddress ||
             bill.customerAddress ||
             bill.billingAddress ||
             "",
 
           shippingAddress:
-            nestedCustomer.shippingAddress ||
+            billCustomer.shippingAddress ||
             bill.customerShippingAddress ||
             bill.shippingAddress ||
             "",
 
           city:
-            nestedCustomer.city ||
+            billCustomer.city ||
             bill.customerCity ||
             bill.city ||
             "",
 
           state:
-            nestedCustomer.state ||
+            billCustomer.state ||
             bill.customerState ||
             bill.state ||
             "",
 
           stateCode:
-            nestedCustomer.stateCode ||
+            billCustomer.stateCode ||
             bill.customerStateCode ||
             bill.stateCode ||
             "",
 
           pincode:
-            nestedCustomer.pincode ||
+            billCustomer.pincode ||
             bill.customerPincode ||
             bill.pincode ||
             "",
 
           gstin:
-            nestedCustomer.gstin ||
-            nestedCustomer.GSTIN ||
+            billCustomer.gstin ||
+            billCustomer.GSTIN ||
             bill.customerGst ||
             bill.customerGSTIN ||
             bill.gstin ||
             "",
         };
 
-        // If state name exists but state code is blank
-        if (!loadedCustomer.stateCode && loadedCustomer.state) {
-          loadedCustomer.stateCode = getStateCodeByName(
-            loadedCustomer.state
-          );
+        if (
+          !loadedCustomer.stateCode &&
+          loadedCustomer.state
+        ) {
+          loadedCustomer.stateCode =
+            getStateCodeByName(
+              loadedCustomer.state
+            );
         }
 
-        // If state code exists but state name is blank
-        if (!loadedCustomer.state && loadedCustomer.stateCode) {
-          const cleanCode = String(loadedCustomer.stateCode)
+        if (
+          !loadedCustomer.state &&
+          loadedCustomer.stateCode
+        ) {
+          const code = String(
+            loadedCustomer.stateCode
+          )
             .replace(/\D/g, "")
+            .slice(0, 2)
             .padStart(2, "0");
 
           loadedCustomer.state =
-            STATE_CODES[cleanCode] || "";
+            STATE_CODES[code] || "";
         }
 
         setCustomer(loadedCustomer);
 
-        // ===============================================
-        // ITEMS
-        // ===============================================
-        const loadedItems = Array.isArray(bill.items)
+        // ---------------------------------------------
+        // PRODUCTS
+        // ---------------------------------------------
+
+        const products =
+          Array.isArray(productsResponse?.data)
+            ? productsResponse.data
+            : Array.isArray(
+                productsResponse?.data?.products
+              )
+            ? productsResponse.data.products
+            : [];
+
+        setDbProducts(products);
+
+        // ---------------------------------------------
+        // BILL ITEMS
+        // ---------------------------------------------
+
+        const billItems = Array.isArray(bill.items)
           ? bill.items
           : [];
 
-        if (loadedItems.length > 0) {
-          setItems(
-            loadedItems.map((item, index) => ({
+        if (billItems.length > 0) {
+          const mappedItems = billItems.map(
+            (item, index) => ({
               id:
                 item.id ||
                 item._id ||
@@ -478,22 +616,51 @@ const EditBill = () => {
                     0
                 ) || 0,
 
-              gstRate:
-                Number(
-                  item.gstRate ??
-                    item.gst ??
-                    item.taxRate ??
-                    5
-                ) || 0,
-            }))
+              gstRate: VRAJ_GST_RATE,
+            })
           );
+
+          const finalItems = mappedItems.map((item) => {
+            const product = findProductById(
+              products,
+              item.productId
+            );
+
+            if (!product) {
+              return item;
+            }
+
+            return {
+              ...item,
+
+              productName:
+                getProductName(product) ||
+                item.productName,
+
+              hsnCode:
+                getProductHSN(product) ||
+                item.hsnCode,
+
+              price:
+                item.price > 0
+                  ? item.price
+                  : Number(
+                      getProductPrice(product)
+                    ) || 0,
+
+              gstRate: VRAJ_GST_RATE,
+            };
+          });
+
+          setItems(finalItems);
         } else {
           setItems([createEmptyItem()]);
         }
 
-        // ===============================================
-        // SHIPPING CHARGES
-        // ===============================================
+        // ---------------------------------------------
+        // SHIPPING
+        // ---------------------------------------------
+
         setShippingCharges(
           Number(
             bill.shippingCharges ??
@@ -501,25 +668,16 @@ const EditBill = () => {
               0
           ) || 0
         );
-
-        // ===============================================
-        // PRODUCTS
-        // ===============================================
-        const products =
-          Array.isArray(productsResponse?.data)
-            ? productsResponse.data
-            : Array.isArray(productsResponse?.data?.products)
-            ? productsResponse.data.products
-            : [];
-
-        setDbProducts(products);
       } catch (err) {
-        console.error("Edit bill load error:", err);
+        console.error(
+          "Edit bill load error:",
+          err
+        );
 
         setError(
           err?.response?.data?.message ||
             err?.message ||
-            "Failed to load bill."
+            "Failed to load invoice."
         );
       } finally {
         setLoading(false);
@@ -532,8 +690,9 @@ const EditBill = () => {
   }, [id]);
 
   // ===================================================
-  // CUSTOMER CHANGE
+  // CUSTOMER FIELD
   // ===================================================
+
   const handleCustomerChange = (field, value) => {
     setCustomer((prev) => ({
       ...prev,
@@ -546,42 +705,53 @@ const EditBill = () => {
   };
 
   // ===================================================
-  // STATE CHANGE
+  // STATE NAME
   // ===================================================
+
   const handleStateChange = (value) => {
     const stateCode = getStateCodeByName(value);
 
     setCustomer((prev) => ({
       ...prev,
       state: value,
-      stateCode: stateCode || prev.stateCode,
+      stateCode: stateCode || prev.stateCode || "",
     }));
   };
 
   // ===================================================
-  // STATE CODE CHANGE
+  // STATE CODE
   // ===================================================
+
   const handleStateCodeChange = (value) => {
-    const cleanCode = String(value)
+    const cleanCode = String(value || "")
       .replace(/\D/g, "")
       .slice(0, 2);
 
     setCustomer((prev) => ({
       ...prev,
       stateCode: cleanCode,
-      state: STATE_CODES[cleanCode] || prev.state,
+      state:
+        STATE_CODES[cleanCode] ||
+        prev.state ||
+        "",
     }));
   };
 
   // ===================================================
-  // PINCODE LOOKUP
+  // PINCODE API
   // ===================================================
+
   const handlePincodeLookup = async (value) => {
     const cleanPincode = String(value || "")
       .replace(/\D/g, "")
       .slice(0, 6);
 
-    handleCustomerChange("pincode", cleanPincode);
+    setCustomer((prev) => ({
+      ...prev,
+      pincode: cleanPincode,
+    }));
+
+    setPincodeMessage("");
 
     if (cleanPincode.length !== 6) {
       return;
@@ -589,18 +759,24 @@ const EditBill = () => {
 
     try {
       setPincodeLoading(true);
-      setPincodeMessage("");
 
       const response = await fetch(
         `https://api.postalpincode.in/pincode/${cleanPincode}`
       );
+
+      if (!response.ok) {
+        throw new Error(
+          "Pincode API request failed."
+        );
+      }
 
       const data = await response.json();
 
       if (
         !Array.isArray(data) ||
         data[0]?.Status !== "Success" ||
-        !data[0]?.PostOffice?.length
+        !Array.isArray(data[0]?.PostOffice) ||
+        data[0].PostOffice.length === 0
       ) {
         setPincodeMessage("Pincode not found.");
         return;
@@ -608,13 +784,13 @@ const EditBill = () => {
 
       const office = data[0].PostOffice[0];
 
-      const state = office.State || "";
+      const state = office?.State || "";
 
       const city =
-        office.District ||
-        office.Division ||
-        office.Block ||
-        office.Name ||
+        office?.District ||
+        office?.Division ||
+        office?.Block ||
+        office?.Name ||
         "";
 
       const stateCode = getStateCodeByName(state);
@@ -624,79 +800,37 @@ const EditBill = () => {
         pincode: cleanPincode,
         city,
         state,
-        stateCode: stateCode || prev.stateCode,
+        stateCode:
+          stateCode || prev.stateCode || "",
       }));
 
       setPincodeMessage(
         `${city}${state ? `, ${state}` : ""}`
       );
     } catch (err) {
-      console.error("Pincode lookup error:", err);
-      setPincodeMessage("Unable to fetch pincode details.");
+      console.error(
+        "Pincode lookup error:",
+        err
+      );
+
+      setPincodeMessage(
+        "Unable to fetch pincode details."
+      );
     } finally {
       setPincodeLoading(false);
     }
   };
 
   // ===================================================
-  // PRODUCT SELECT
+  // PRODUCT ID MANUAL INPUT
   // ===================================================
-  const handleSelectProductFromDb = (
-    rowId,
-    selectedProductId
-  ) => {
-    const selectedProduct = dbProducts.find((product) => {
-      const id =
-        product.sku ||
-        product.product_id ||
-        product.productId ||
-        product.productCode ||
-        product.code ||
-        product._id ||
-        product.id;
 
-      return String(id) === String(selectedProductId);
-    });
+  const handleProductIdChange = (rowId, value) => {
+    const productId = String(value || "");
 
-    if (!selectedProduct) {
-      return;
-    }
-
-    const productId =
-      selectedProduct.sku ||
-      selectedProduct.product_id ||
-      selectedProduct.productId ||
-      selectedProduct.productCode ||
-      selectedProduct.code ||
-      selectedProduct._id ||
-      selectedProduct.id ||
-      "";
-
-    const productName =
-      selectedProduct.name ||
-      selectedProduct.productName ||
-      selectedProduct.title ||
-      "";
-
-    const hsnCode =
-      selectedProduct.hsnCode ||
-      selectedProduct.hsn ||
-      selectedProduct.HSN ||
-      "7326";
-
-    const price =
-      selectedProduct.price ??
-      selectedProduct.sellingPrice ??
-      selectedProduct.selling_price ??
-      selectedProduct.rate ??
-      selectedProduct.mrp ??
-      0;
-
-    const gstRate =
-      selectedProduct.gstRate ??
-      selectedProduct.gst ??
-      selectedProduct.taxRate ??
-      5;
+    // -----------------------------------------------
+    // FIRST UPDATE MANUAL ID
+    // -----------------------------------------------
 
     setItems((prev) =>
       prev.map((item) =>
@@ -704,10 +838,102 @@ const EditBill = () => {
           ? {
               ...item,
               productId,
-              productName,
-              hsnCode,
-              price: Number(price) || 0,
-              gstRate: Number(gstRate) || 0,
+            }
+          : item
+      )
+    );
+
+    // -----------------------------------------------
+    // EMPTY ID
+    // -----------------------------------------------
+
+    if (!productId.trim()) {
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === rowId
+            ? {
+                ...item,
+                productId: "",
+                productName: "",
+                hsnCode: "",
+                price: 0,
+                gstRate: VRAJ_GST_RATE,
+              }
+            : item
+        )
+      );
+
+      return;
+    }
+
+    // -----------------------------------------------
+    // FIND PRODUCT
+    // -----------------------------------------------
+
+    const selectedProduct = findProductById(
+      dbProducts,
+      productId
+    );
+
+    // -----------------------------------------------
+    // NOT FOUND
+    // -----------------------------------------------
+
+    if (!selectedProduct) {
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === rowId
+            ? {
+                ...item,
+                productId,
+                productName: "",
+                hsnCode: "",
+                price: 0,
+                gstRate: VRAJ_GST_RATE,
+              }
+            : item
+        )
+      );
+
+      return;
+    }
+
+    // -----------------------------------------------
+    // FOUND
+    // -----------------------------------------------
+
+    const actualProductId =
+      getProductId(selectedProduct);
+
+    const productName =
+      getProductName(selectedProduct);
+
+    const hsnCode =
+      getProductHSN(selectedProduct);
+
+    const price =
+      Number(
+        getProductPrice(selectedProduct)
+      ) || 0;
+
+    // -----------------------------------------------
+    // AUTO-FILL PRODUCT
+    // -----------------------------------------------
+
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === rowId
+          ? {
+              ...item,
+              productId:
+                actualProductId || productId,
+              productName:
+                productName || "",
+              hsnCode:
+                hsnCode || "7326",
+              price,
+              gstRate:
+                VRAJ_GST_RATE,
             }
           : item
       )
@@ -717,31 +943,37 @@ const EditBill = () => {
   // ===================================================
   // ITEM CHANGE
   // ===================================================
+
   const handleItemChange = (
-    id,
+    rowId,
     field,
     value
   ) => {
     setItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              [field]:
-                field === "quantity" ||
-                field === "price" ||
-                field === "gstRate"
-                  ? value
-                  : value,
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (item.id !== rowId) {
+          return item;
+        }
+
+        if (field === "gstRate") {
+          return {
+            ...item,
+            gstRate: VRAJ_GST_RATE,
+          };
+        }
+
+        return {
+          ...item,
+          [field]: value,
+        };
+      })
     );
   };
 
   // ===================================================
   // ADD ITEM
   // ===================================================
+
   const addItem = () => {
     setItems((prev) => [
       ...prev,
@@ -752,43 +984,37 @@ const EditBill = () => {
   // ===================================================
   // REMOVE ITEM
   // ===================================================
-  const removeItem = (id) => {
+
+  const removeItem = (rowId) => {
     setItems((prev) => {
       if (prev.length === 1) {
         return prev;
       }
 
       return prev.filter(
-        (item) => item.id !== id
+        (item) => item.id !== rowId
       );
     });
   };
 
   // ===================================================
-  // TOTAL CALCULATION
+  // CALCULATE TOTALS
   // ===================================================
+
   const calculateTotals = useMemo(() => {
     let subtotal = 0;
     let totalTaxable = 0;
     let totalGst = 0;
 
-    const businessStateCode = String(
-      businessInfo.stateCode || ""
-    )
-      .trim()
-      .padStart(2, "0");
-
-    const customerStateCode = String(
+    const rawStateCode = String(
       customer.stateCode || ""
     )
-      .trim()
-      .padStart(2, "0");
+      .replace(/\D/g, "")
+      .slice(0, 2);
 
-    const businessState = String(
-      businessInfo.state || ""
-    )
-      .trim()
-      .toLowerCase();
+    const customerStateCode = rawStateCode
+      ? rawStateCode.padStart(2, "0")
+      : "";
 
     const customerState = String(
       customer.state || ""
@@ -796,23 +1022,19 @@ const EditBill = () => {
       .trim()
       .toLowerCase();
 
+    const sellerState = VRAJ_STATE_NAME
+      .trim()
+      .toLowerCase();
+
     let isInterstate = false;
 
-    if (
-      businessStateCode &&
-      customerStateCode
-    ) {
+    if (customerStateCode) {
       isInterstate =
-        businessStateCode !== customerStateCode;
-    } else if (
-      businessState &&
-      customerState
-    ) {
+        customerStateCode !== VRAJ_STATE_CODE;
+    } else if (customerState) {
       isInterstate =
-        businessState !== customerState;
+        customerState !== sellerState;
     }
-
-    const gstGroups = {};
 
     items.forEach((item) => {
       const quantity =
@@ -821,37 +1043,26 @@ const EditBill = () => {
       const price =
         Number(item.price) || 0;
 
-      const gstRate =
-        invoiceType === "GST Invoice"
-          ? Number(item.gstRate) || 0
-          : 0;
-
-      const lineTaxable =
+      const taxable =
         quantity * price;
 
-      const lineGst =
-        (lineTaxable * gstRate) / 100;
+      const gstRate =
+        invoiceType === "GST Invoice"
+          ? VRAJ_GST_RATE
+          : 0;
 
-      subtotal += lineTaxable;
-      totalTaxable += lineTaxable;
-      totalGst += lineGst;
+      const gst =
+        (taxable * gstRate) / 100;
 
-      if (gstRate > 0) {
-        if (!gstGroups[gstRate]) {
-          gstGroups[gstRate] = {
-            rate: gstRate,
-            taxable: 0,
-            gst: 0,
-          };
-        }
-
-        gstGroups[gstRate].taxable +=
-          lineTaxable;
-
-        gstGroups[gstRate].gst +=
-          lineGst;
-      }
+      subtotal += taxable;
+      totalTaxable += taxable;
+      totalGst += gst;
     });
+
+    // -----------------------------------------------
+    // INTRASTATE
+    // CGST 2.5 + SGST 2.5
+    // -----------------------------------------------
 
     const cgst =
       invoiceType === "GST Invoice" &&
@@ -864,6 +1075,11 @@ const EditBill = () => {
       !isInterstate
         ? totalGst / 2
         : 0;
+
+    // -----------------------------------------------
+    // INTERSTATE
+    // IGST 5 ONLY
+    // -----------------------------------------------
 
     const igst =
       invoiceType === "GST Invoice" &&
@@ -897,44 +1113,40 @@ const EditBill = () => {
       grandTotal,
       roundOff,
       isInterstate,
-      gstGroups:
-        Object.values(gstGroups).sort(
-          (a, b) => a.rate - b.rate
-        ),
     };
   }, [
     items,
-    invoiceType,
-    shippingCharges,
-    businessInfo.state,
-    businessInfo.stateCode,
     customer.state,
     customer.stateCode,
+    invoiceType,
+    shippingCharges,
   ]);
 
   // ===================================================
   // PLACE OF SUPPLY
   // ===================================================
+
   const placeOfSupply = useMemo(() => {
-    if (
-      customer.state &&
-      customer.stateCode
-    ) {
-      return `${customer.state} (${customer.stateCode})`;
+    const rawCode = String(
+      customer.stateCode || ""
+    )
+      .replace(/\D/g, "")
+      .slice(0, 2);
+
+    const code = rawCode
+      ? rawCode.padStart(2, "0")
+      : "";
+
+    if (customer.state && code) {
+      return `${customer.state} (${code})`;
     }
 
     if (customer.state) {
       return customer.state;
     }
 
-    if (customer.stateCode) {
-      return (
-        STATE_CODES[
-          String(customer.stateCode)
-            .padStart(2, "0")
-        ] ||
-        customer.stateCode
-      );
+    if (code) {
+      return STATE_CODES[code] || code;
     }
 
     return "-";
@@ -944,24 +1156,65 @@ const EditBill = () => {
   ]);
 
   // ===================================================
-  // UPDATE BILL
+  // UPI QR
   // ===================================================
+
+  const upiQrData = useMemo(() => {
+    const amount =
+      Number(
+        calculateTotals.grandTotal
+      ) || 0;
+
+    return (
+      `upi://pay?pa=${encodeURIComponent(
+        VRAJ_UPI_ID
+      )}` +
+      `&pn=${encodeURIComponent(
+        "Vraj Creation"
+      )}` +
+      `&am=${amount.toFixed(2)}` +
+      `&cu=INR`
+    );
+  }, [
+    calculateTotals.grandTotal,
+  ]);
+
+  const upiQrUrl = useMemo(() => {
+    return (
+      "https://api.qrserver.com/v1/create-qr-code/" +
+      "?size=300x300" +
+      "&margin=8" +
+      `&data=${encodeURIComponent(
+        upiQrData
+      )}`
+    );
+  }, [upiQrData]);
+
+  // ===================================================
+  // UPDATE INVOICE
+  // ===================================================
+
   const handleUpdateInvoice = async () => {
     try {
       setSaving(true);
       setError("");
       setSuccess("");
 
-      // ===============================================
+      // ---------------------------------------------
       // VALIDATION
-      // ===============================================
+      // ---------------------------------------------
+
       if (!invoiceNo.trim()) {
-        setError("Invoice number is required.");
+        setError(
+          "Invoice number is required."
+        );
         return;
       }
 
       if (!customer.name.trim()) {
-        setError("Customer name is required.");
+        setError(
+          "Customer name is required."
+        );
         return;
       }
 
@@ -974,7 +1227,9 @@ const EditBill = () => {
 
       const validItems = items.filter(
         (item) =>
-          String(item.productName || "").trim() &&
+          String(
+            item.productName || ""
+          ).trim() &&
           Number(item.quantity) > 0
       );
 
@@ -985,9 +1240,10 @@ const EditBill = () => {
         return;
       }
 
-      // ===============================================
+      // ---------------------------------------------
       // CLEAN CUSTOMER
-      // ===============================================
+      // ---------------------------------------------
+
       const cleanCustomer = {
         name: customer.name.trim(),
         phone: customer.phone.trim(),
@@ -1005,48 +1261,62 @@ const EditBill = () => {
           customer.gstin.trim(),
       };
 
-      // ===============================================
+      // ---------------------------------------------
       // CLEAN ITEMS
-      // ===============================================
-      const cleanItems = validItems.map(
-        (item) => ({
+      // ---------------------------------------------
+
+      const cleanItems =
+        validItems.map((item) => ({
           productId:
-            item.productId || "",
+            String(
+              item.productId || ""
+            ).trim(),
+
           productName:
-            item.productName.trim(),
+            String(
+              item.productName || ""
+            ).trim(),
+
           hsnCode:
-            item.hsnCode || "7326",
+            String(
+              item.hsnCode || "7326"
+            ).trim(),
+
           quantity:
             Number(item.quantity) || 1,
+
           price:
             Number(item.price) || 0,
+
           gstRate:
-            invoiceType === "GST Invoice"
-              ? Number(item.gstRate) || 0
+            invoiceType ===
+            "GST Invoice"
+              ? VRAJ_GST_RATE
               : 0,
-        })
-      );
+        }));
 
-      // ===============================================
-      // PAYLOAD
-      // ===============================================
+      // ---------------------------------------------
+      // API PAYLOAD
+      // ---------------------------------------------
+
       const payload = {
-        // ---------------------------------------------
-        // Invoice
-        // ---------------------------------------------
-        invoiceNo: invoiceNo.trim(),
+        invoiceNo:
+          invoiceNo.trim(),
 
-        // Backend compatibility
-        billNumber: invoiceNo.trim(),
+        invoiceNumber:
+          invoiceNo.trim(),
+
+        billNumber:
+          invoiceNo.trim(),
 
         invoiceDate,
+
         dueDate,
+
         invoiceType,
 
-        // ---------------------------------------------
-        // Customer
-        // ---------------------------------------------
-        customer: cleanCustomer,
+        customer:
+          cleanCustomer,
 
         customerName:
           cleanCustomer.name,
@@ -1099,25 +1369,11 @@ const EditBill = () => {
         pincode:
           cleanCustomer.pincode,
 
-        // ---------------------------------------------
-        // Place Of Supply
-        // ---------------------------------------------
         placeOfSupply,
 
-        placeOfSupplyState:
-          cleanCustomer.state,
+        items:
+          cleanItems,
 
-        placeOfSupplyStateCode:
-          cleanCustomer.stateCode,
-
-        // ---------------------------------------------
-        // Items
-        // ---------------------------------------------
-        items: cleanItems,
-
-        // ---------------------------------------------
-        // Summary
-        // ---------------------------------------------
         summary: {
           subtotal:
             calculateTotals.subtotal,
@@ -1126,9 +1382,6 @@ const EditBill = () => {
             calculateTotals.subtotal,
 
           totalTaxable:
-            calculateTotals.totalTaxable,
-
-          totalAmountBeforeTax:
             calculateTotals.totalTaxable,
 
           totalGst:
@@ -1162,15 +1415,21 @@ const EditBill = () => {
             convertNumberToWords(
               calculateTotals.grandTotal
             ),
+
+          gstRate:
+            invoiceType ===
+            "GST Invoice"
+              ? VRAJ_GST_RATE
+              : 0,
+
+          isInterstate:
+            calculateTotals.isInterstate,
         },
 
-        // ---------------------------------------------
-        // Top Level Totals
-        // ---------------------------------------------
-        subTotal:
+        subtotal:
           calculateTotals.subtotal,
 
-        subtotal:
+        subTotal:
           calculateTotals.subtotal,
 
         totalTax:
@@ -1210,11 +1469,19 @@ const EditBill = () => {
 
         isInterstate:
           calculateTotals.isInterstate,
+
+        // FIXED UPI
+        upiId: VRAJ_UPI_ID,
+
+        payment: {
+          upiId: VRAJ_UPI_ID,
+        },
       };
 
-      // ===============================================
+      // ---------------------------------------------
       // UPDATE API
-      // ===============================================
+      // ---------------------------------------------
+
       await api.put(
         `/bills/${id}`,
         payload
@@ -1224,9 +1491,6 @@ const EditBill = () => {
         "Invoice updated successfully!"
       );
 
-      // ===============================================
-      // GO BACK TO BILLS
-      // ===============================================
       setTimeout(() => {
         navigate("/bills");
       }, 1000);
@@ -1249,6 +1513,7 @@ const EditBill = () => {
   // ===================================================
   // LOADING
   // ===================================================
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex items-center justify-center p-6">
@@ -1260,7 +1525,7 @@ const EditBill = () => {
           </h2>
 
           <p className="text-sm text-slate-500 mt-2">
-            Please wait while invoice details are loaded.
+            Please wait...
           </p>
         </div>
       </div>
@@ -1268,13 +1533,12 @@ const EditBill = () => {
   }
 
   // ===================================================
-  // UI
+  // MAIN UI
   // ===================================================
+
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 md:p-6 print:p-0 print:bg-white">
-      {/* =================================================
-          PRINT CSS
-      ================================================= */}
+
       <style>{`
         @page {
           size: A4;
@@ -1300,6 +1564,8 @@ const EditBill = () => {
           .print-card {
             box-shadow: none !important;
             border: 1px solid #d1d5db !important;
+            background: white !important;
+            color: #111827 !important;
           }
 
           input,
@@ -1307,20 +1573,24 @@ const EditBill = () => {
           select {
             border: none !important;
             background: transparent !important;
+            color: #111827 !important;
             box-shadow: none !important;
           }
 
-          .print-hide-border {
-            border: none !important;
+          .print-qr {
+            display: block !important;
           }
         }
       `}</style>
 
       <div className="max-w-7xl mx-auto print-container">
+
         {/* =================================================
-            TOP HEADER
+            PAGE HEADER
         ================================================= */}
+
         <div className="no-print flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+
           <div>
             <p className="text-sm font-medium text-blue-600">
               Invoice Management
@@ -1338,15 +1608,17 @@ const EditBill = () => {
           <button
             type="button"
             onClick={() => navigate("/bills")}
-            className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold transition"
+            className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold"
           >
             ← Back to Bills
           </button>
+
         </div>
 
         {/* =================================================
             ALERTS
         ================================================= */}
+
         {error && (
           <div className="no-print mb-5 rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900 px-4 py-3 text-sm text-red-700 dark:text-red-300">
             {error}
@@ -1360,25 +1632,32 @@ const EditBill = () => {
         )}
 
         {/* =================================================
-            INVOICE
+            INVOICE CARD
         ================================================= */}
+
         <div className="print-card bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+
           {/* =================================================
               BUSINESS HEADER
           ================================================= */}
+
           <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+
               <div className="flex items-start gap-4">
+
                 {businessInfo.logo && (
                   <img
                     src={businessInfo.logo}
-                    alt="Business Logo"
+                    alt="Vraj Creation Logo"
                     className="w-20 h-20 object-contain rounded-xl border border-slate-200 dark:border-slate-700"
                   />
                 )}
 
                 <div>
-                  <h2 className="text-2xl font-extrabold tracking-wide text-slate-900 dark:text-white">
+
+                  <h2 className="text-2xl font-extrabold tracking-wide">
                     {businessInfo.name}
                   </h2>
 
@@ -1391,15 +1670,20 @@ const EditBill = () => {
                   </p>
 
                   <div className="mt-2 space-y-1 text-sm text-slate-600 dark:text-slate-300">
-                    <p>
-                      <strong>Phone:</strong>{" "}
-                      {businessInfo.phone}
-                    </p>
 
-                    <p>
-                      <strong>Email:</strong>{" "}
-                      {businessInfo.email}
-                    </p>
+                    {businessInfo.phone && (
+                      <p>
+                        <strong>Phone:</strong>{" "}
+                        {businessInfo.phone}
+                      </p>
+                    )}
+
+                    {businessInfo.email && (
+                      <p>
+                        <strong>Email:</strong>{" "}
+                        {businessInfo.email}
+                      </p>
+                    )}
 
                     <p>
                       <strong>GSTIN:</strong>{" "}
@@ -1410,11 +1694,15 @@ const EditBill = () => {
                       <strong>PAN:</strong>{" "}
                       {businessInfo.pan}
                     </p>
+
                   </div>
+
                 </div>
+
               </div>
 
               <div className="md:text-right">
+
                 <h3 className="text-3xl font-black text-blue-600">
                   INVOICE
                 </h3>
@@ -1422,17 +1710,23 @@ const EditBill = () => {
                 <p className="text-sm text-slate-500 mt-1">
                   Original for Recipient
                 </p>
+
               </div>
+
             </div>
+
           </div>
 
           {/* =================================================
               INVOICE DETAILS
           ================================================= */}
+
           <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+
             <SectionTitle title="Invoice Details" />
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
               <InputField
                 label="Invoice Number"
                 value={invoiceNo}
@@ -1460,6 +1754,7 @@ const EditBill = () => {
               />
 
               <div>
+
                 <label className="block text-sm font-semibold mb-1.5">
                   Invoice Type
                 </label>
@@ -1479,17 +1774,23 @@ const EditBill = () => {
                     Non-GST Invoice
                   </option>
                 </select>
+
               </div>
+
             </div>
+
           </div>
 
           {/* =================================================
-              CUSTOMER
+              CUSTOMER DETAILS
           ================================================= */}
+
           <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+
             <SectionTitle title="Customer Details" />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
               <InputField
                 label="Customer Name *"
                 value={customer.name}
@@ -1525,23 +1826,27 @@ const EditBill = () => {
                 />
               )}
 
+              {/* PINCODE */}
+
               <div>
+
                 <label className="block text-sm font-semibold mb-1.5">
                   Pincode
                 </label>
 
                 <div className="relative">
+
                   <input
                     type="text"
-                    maxLength={6}
                     value={customer.pincode}
+                    maxLength={6}
                     onChange={(e) =>
                       handlePincodeLookup(
                         e.target.value
                       )
                     }
-                    className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter 6 digit pincode"
+                    className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
                   />
 
                   {pincodeLoading && (
@@ -1549,13 +1854,16 @@ const EditBill = () => {
                       Loading...
                     </span>
                   )}
+
                 </div>
 
+                {/* AUTO CITY + STATE */}
                 {pincodeMessage && (
-                  <p className="mt-1 text-xs text-blue-600">
+                  <p className="mt-1.5 text-xs font-semibold text-blue-600">
                     {pincodeMessage}
                   </p>
                 )}
+
               </div>
 
               <InputField
@@ -1577,7 +1885,7 @@ const EditBill = () => {
                     e.target.value
                   )
                 }
-                placeholder="e.g. Rajasthan"
+                placeholder="Rajasthan"
               />
 
               <InputField
@@ -1592,14 +1900,19 @@ const EditBill = () => {
                 placeholder="08"
               />
 
+              {/* BILLING ADDRESS */}
+
               <div className="md:col-span-2">
+
                 <label className="block text-sm font-semibold mb-1.5">
                   Billing Address *
                 </label>
 
                 <textarea
                   rows={3}
-                  value={customer.billingAddress}
+                  value={
+                    customer.billingAddress
+                  }
                   onChange={(e) =>
                     handleCustomerChange(
                       "billingAddress",
@@ -1609,16 +1922,22 @@ const EditBill = () => {
                   className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   placeholder="Customer billing address"
                 />
+
               </div>
 
+              {/* SHIPPING ADDRESS */}
+
               <div className="md:col-span-2">
+
                 <label className="block text-sm font-semibold mb-1.5">
                   Shipping Address
                 </label>
 
                 <textarea
                   rows={3}
-                  value={customer.shippingAddress}
+                  value={
+                    customer.shippingAddress
+                  }
                   onChange={(e) =>
                     handleCustomerChange(
                       "shippingAddress",
@@ -1628,7 +1947,10 @@ const EditBill = () => {
                   className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   placeholder="Shipping address"
                 />
+
               </div>
+
+              {/* PLACE OF SUPPLY */}
 
               <InputField
                 label="Place of Supply"
@@ -1636,48 +1958,85 @@ const EditBill = () => {
                 readOnly
               />
 
+              {/* GST TYPE */}
+
               <div>
+
                 <label className="block text-sm font-semibold mb-1.5">
                   GST Type
                 </label>
 
                 <div className="rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-2.5">
-                  <span
-                    className={`font-bold ${
-                      calculateTotals.isInterstate
-                        ? "text-orange-600"
-                        : "text-green-600"
-                    }`}
-                  >
-                    {calculateTotals.isInterstate
-                      ? "IGST — Interstate"
-                      : "CGST + SGST — Intrastate"}
-                  </span>
+
+                  {invoiceType !==
+                  "GST Invoice" ? (
+                    <span className="font-bold text-slate-600">
+                      Non-GST Invoice
+                    </span>
+                  ) : calculateTotals.isInterstate ? (
+                    <span className="font-bold text-orange-600">
+                      IGST 5% — Interstate
+                    </span>
+                  ) : (
+                    <span className="font-bold text-green-600">
+                      CGST 2.5% + SGST 2.5%
+                    </span>
+                  )}
+
                 </div>
+
               </div>
+
+              {/* FIXED GST */}
+
+              {invoiceType === "GST Invoice" && (
+                <div>
+
+                  <label className="block text-sm font-semibold mb-1.5">
+                    GST Rate
+                  </label>
+
+                  <div className="rounded-xl border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30 px-4 py-2.5">
+                    <span className="font-bold text-green-700 dark:text-green-400">
+                      5% Fixed GST
+                    </span>
+                  </div>
+
+                </div>
+              )}
+
             </div>
+
           </div>
 
           {/* =================================================
               PRODUCTS
           ================================================= */}
+
           <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+
               <SectionTitle title="Products / Items" />
 
               <button
                 type="button"
                 onClick={addItem}
-                className="no-print px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition"
+                className="no-print px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold"
               >
                 + Add Product
               </button>
+
             </div>
 
             <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
-              <table className="w-full min-w-[1100px] text-sm">
+
+              <table className="w-full min-w-[1050px] text-sm">
+
                 <thead className="bg-slate-100 dark:bg-slate-800">
+
                   <tr>
+
                     <th className="px-3 py-3 text-left">
                       #
                     </th>
@@ -1702,9 +2061,10 @@ const EditBill = () => {
                       Rate
                     </th>
 
-                    {invoiceType === "GST Invoice" && (
+                    {invoiceType ===
+                      "GST Invoice" && (
                       <th className="px-3 py-3 text-left">
-                        GST %
+                        GST
                       </th>
                     )}
 
@@ -1715,226 +2075,266 @@ const EditBill = () => {
                     <th className="px-3 py-3 text-center no-print">
                       Action
                     </th>
+
                   </tr>
+
                 </thead>
 
                 <tbody>
-                  {items.map((item, index) => {
-                    const quantity =
-                      Number(item.quantity) || 0;
 
-                    const price =
-                      Number(item.price) || 0;
+                  {items.map(
+                    (item, index) => {
+                      const quantity =
+                        Number(item.quantity) || 0;
 
-                    const amount =
-                      quantity * price;
+                      const price =
+                        Number(item.price) || 0;
 
-                    return (
-                      <tr
-                        key={item.id}
-                        className="border-t border-slate-200 dark:border-slate-700"
-                      >
-                        <td className="px-3 py-3 font-semibold">
-                          {index + 1}
-                        </td>
+                      const amount =
+                        quantity * price;
 
-                        {/* PRODUCT ID */}
-                        <td className="px-3 py-3">
-                          <select
-                            value={item.productId}
-                            onChange={(e) =>
-                              handleSelectProductFromDb(
-                                item.id,
-                                e.target.value
-                              )
-                            }
-                            className="w-full min-w-[150px] rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="">
-                              Select Product ID
-                            </option>
+                      const matchedProduct =
+                        findProductById(
+                          dbProducts,
+                          item.productId
+                        );
 
-                            {dbProducts.map(
-                              (product) => {
-                                const productId =
-                                  product.sku ||
-                                  product.product_id ||
-                                  product.productId ||
-                                  product.productCode ||
-                                  product.code ||
-                                  product._id ||
-                                  product.id;
+                      return (
+                        <tr
+                          key={item.id}
+                          className="border-t border-slate-200 dark:border-slate-700"
+                        >
 
-                                const productName =
-                                  product.name ||
-                                  product.productName ||
-                                  product.title ||
-                                  "";
+                          {/* NUMBER */}
 
-                                return (
-                                  <option
-                                    key={String(
-                                      productId
-                                    )}
-                                    value={String(
-                                      productId
-                                    )}
-                                  >
-                                    {productId}
-                                    {productName
-                                      ? ` — ${productName}`
-                                      : ""}
-                                  </option>
-                                );
-                              }
-                            )}
-                          </select>
-                        </td>
+                          <td className="px-3 py-3 font-semibold">
+                            {index + 1}
+                          </td>
 
-                        {/* PRODUCT NAME */}
-                        <td className="px-3 py-3">
-                          <input
-                            type="text"
-                            value={
-                              item.productName
-                            }
-                            onChange={(e) =>
-                              handleItemChange(
-                                item.id,
-                                "productName",
-                                e.target.value
-                              )
-                            }
-                            className="w-full min-w-[180px] rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Product name"
-                          />
-                        </td>
+                          {/* ==================================
+                              PRODUCT ID
+                              MANUAL TEXT INPUT
+                          ================================== */}
 
-                        {/* HSN */}
-                        <td className="px-3 py-3">
-                          <input
-                            type="text"
-                            value={item.hsnCode}
-                            onChange={(e) =>
-                              handleItemChange(
-                                item.id,
-                                "hsnCode",
-                                e.target.value
-                              )
-                            }
-                            className="w-24 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="9988"
-                          />
-                        </td>
-
-                        {/* QTY */}
-                        <td className="px-3 py-3">
-                          <input
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) =>
-                              handleItemChange(
-                                item.id,
-                                "quantity",
-                                e.target.value
-                              )
-                            }
-                            className="w-20 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </td>
-
-                        {/* RATE */}
-                        <td className="px-3 py-3">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={item.price}
-                            onChange={(e) =>
-                              handleItemChange(
-                                item.id,
-                                "price",
-                                e.target.value
-                              )
-                            }
-                            className="w-28 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </td>
-
-                        {/* GST */}
-                        {invoiceType ===
-                          "GST Invoice" && (
                           <td className="px-3 py-3">
+
                             <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={item.gstRate}
+                              type="text"
+                              value={
+                                item.productId
+                              }
+                              onChange={(e) =>
+                                handleProductIdChange(
+                                  item.id,
+                                  e.target.value
+                                )
+                              }
+                              className="w-full min-w-[150px] rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="Enter Product ID"
+                              autoComplete="off"
+                            />
+
+                            {item.productId &&
+                              matchedProduct && (
+                                <p className="mt-1 text-[11px] font-semibold text-green-600">
+                                  ✓ Product found
+                                </p>
+                              )}
+
+                            {item.productId &&
+                              !matchedProduct && (
+                                <p className="mt-1 text-[11px] font-semibold text-orange-600">
+                                  Product ID not found
+                                </p>
+                              )}
+
+                          </td>
+
+                          {/* ==================================
+                              PRODUCT NAME
+                              AUTO FILLED + READ ONLY
+                          ================================== */}
+
+                          <td className="px-3 py-3">
+
+                            <input
+                              type="text"
+                              value={
+                                item.productName
+                              }
+                              readOnly
+                              className="w-full min-w-[180px] rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 px-2 py-2 outline-none cursor-not-allowed"
+                              placeholder="Auto-filled from Product ID"
+                            />
+
+                          </td>
+
+                          {/* HSN */}
+
+                          <td className="px-3 py-3">
+
+                            <input
+                              type="text"
+                              value={
+                                item.hsnCode
+                              }
                               onChange={(e) =>
                                 handleItemChange(
                                   item.id,
-                                  "gstRate",
+                                  "hsnCode",
+                                  e.target.value
+                                )
+                              }
+                              className="w-24 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="7326"
+                            />
+
+                          </td>
+
+                          {/* QUANTITY */}
+
+                          <td className="px-3 py-3">
+
+                            <input
+                              type="number"
+                              min="1"
+                              value={
+                                item.quantity
+                              }
+                              onChange={(e) =>
+                                handleItemChange(
+                                  item.id,
+                                  "quantity",
                                   e.target.value
                                 )
                               }
                               className="w-20 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                             />
+
                           </td>
-                        )}
 
-                        {/* AMOUNT */}
-                        <td className="px-3 py-3 text-right font-bold whitespace-nowrap">
-                          ₹{formatCurrency(amount)}
-                        </td>
+                          {/* RATE */}
 
-                        {/* ACTION */}
-                        <td className="px-3 py-3 text-center no-print">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              removeItem(item.id)
-                            }
-                            disabled={
-                              items.length === 1
-                            }
-                            className="px-3 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          <td className="px-3 py-3">
+
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={
+                                item.price
+                              }
+                              onChange={(e) =>
+                                handleItemChange(
+                                  item.id,
+                                  "price",
+                                  e.target.value
+                                )
+                              }
+                              className="w-28 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+
+                          </td>
+
+                          {/* GST */}
+
+                          {invoiceType ===
+                            "GST Invoice" && (
+                            <td className="px-3 py-3">
+
+                              <div className="w-20 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30 px-2 py-2 text-center font-bold text-green-700 dark:text-green-400">
+                                5%
+                              </div>
+
+                            </td>
+                          )}
+
+                          {/* AMOUNT */}
+
+                          <td className="px-3 py-3 text-right font-bold whitespace-nowrap">
+                            ₹
+                            {formatCurrency(
+                              amount
+                            )}
+                          </td>
+
+                          {/* DELETE */}
+
+                          <td className="px-3 py-3 text-center no-print">
+
+                            <button
+                              type="button"
+                              disabled={
+                                items.length === 1
+                              }
+                              onClick={() =>
+                                removeItem(
+                                  item.id
+                                )
+                              }
+                              className="px-3 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              Delete
+                            </button>
+
+                          </td>
+
+                        </tr>
+                      );
+                    }
+                  )}
+
                 </tbody>
+
               </table>
+
             </div>
+
+            <p className="no-print mt-3 text-xs text-slate-500 dark:text-slate-400">
+              Product ID manually type karein.
+              Exact Product ID database me milte
+              hi Product Name automatically fill
+              hoga.
+            </p>
+
           </div>
 
           {/* =================================================
-              BOTTOM SECTION
+              BANK + SUMMARY
           ================================================= */}
+
           <div className="p-6">
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* ===========================================
+
+              {/* =============================================
                   BANK DETAILS
-              =========================================== */}
+              ============================================= */}
+
               <div>
+
                 <SectionTitle title="Bank Details" />
 
                 <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-2 text-sm">
+
                   <p>
                     <strong>Bank:</strong>{" "}
                     {businessInfo.bankName}
                   </p>
 
                   <p>
-                    <strong>Account Holder:</strong>{" "}
-                    {businessInfo.accountHolder}
+                    <strong>
+                      Account Holder:
+                    </strong>{" "}
+                    {
+                      businessInfo.accountHolder
+                    }
                   </p>
 
                   <p>
-                    <strong>Account No:</strong>{" "}
+                    <strong>
+                      Account No:
+                    </strong>{" "}
                     {businessInfo.accountNo}
                   </p>
 
@@ -1950,16 +2350,24 @@ const EditBill = () => {
 
                   <p>
                     <strong>UPI:</strong>{" "}
-                    {businessInfo.upiId}
+                    <span className="font-bold text-blue-600">
+                      {VRAJ_UPI_ID}
+                    </span>
                   </p>
+
                 </div>
 
                 {/* TERMS */}
+
                 <div className="mt-6">
+
                   <SectionTitle title="Terms & Conditions" />
 
                   <textarea
-                    value={businessInfo.terms}
+                    rows={7}
+                    value={
+                      businessInfo.terms
+                    }
                     onChange={(e) =>
                       setBusinessInfo(
                         (prev) => ({
@@ -1969,20 +2377,23 @@ const EditBill = () => {
                         })
                       )
                     }
-                    rows={7}
                     className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   />
+
                 </div>
+
               </div>
 
-              {/* ===========================================
+              {/* =============================================
                   SUMMARY
-              =========================================== */}
+              ============================================= */}
+
               <div>
+
                 <SectionTitle title="Invoice Summary" />
 
                 <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                  {/* BEFORE TAX */}
+
                   <SummaryRow
                     label="Total Amount Before Tax"
                     value={`₹${formatCurrency(
@@ -1990,21 +2401,20 @@ const EditBill = () => {
                     )}`}
                   />
 
-                  {/* GST */}
                   {invoiceType ===
                     "GST Invoice" && (
                     <>
                       {!calculateTotals.isInterstate ? (
                         <>
                           <SummaryRow
-                            label="CGST"
+                            label="CGST @ 2.5%"
                             value={`₹${formatCurrency(
                               calculateTotals.cgst
                             )}`}
                           />
 
                           <SummaryRow
-                            label="SGST"
+                            label="SGST @ 2.5%"
                             value={`₹${formatCurrency(
                               calculateTotals.sgst
                             )}`}
@@ -2012,7 +2422,7 @@ const EditBill = () => {
                         </>
                       ) : (
                         <SummaryRow
-                          label="IGST"
+                          label="IGST @ 5%"
                           value={`₹${formatCurrency(
                             calculateTotals.igst
                           )}`}
@@ -2020,7 +2430,7 @@ const EditBill = () => {
                       )}
 
                       <SummaryRow
-                        label="Total GST"
+                        label="Total GST @ 5%"
                         value={`₹${formatCurrency(
                           calculateTotals.totalGst
                         )}`}
@@ -2029,7 +2439,9 @@ const EditBill = () => {
                   )}
 
                   {/* SHIPPING */}
+
                   <div className="flex items-center justify-between gap-4 px-4 py-3 border-t border-slate-200 dark:border-slate-700">
+
                     <span className="font-semibold">
                       Shipping Charges
                     </span>
@@ -2038,7 +2450,9 @@ const EditBill = () => {
                       type="number"
                       min="0"
                       step="0.01"
-                      value={shippingCharges}
+                      value={
+                        shippingCharges
+                      }
                       onChange={(e) =>
                         setShippingCharges(
                           e.target.value
@@ -2046,9 +2460,11 @@ const EditBill = () => {
                       }
                       className="w-36 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-right outline-none focus:ring-2 focus:ring-blue-500"
                     />
+
                   </div>
 
                   {/* ROUND OFF */}
+
                   <SummaryRow
                     label="Round Off"
                     value={`₹${formatCurrency(
@@ -2056,8 +2472,10 @@ const EditBill = () => {
                     )}`}
                   />
 
-                  {/* AFTER TAX */}
+                  {/* GRAND TOTAL */}
+
                   <div className="flex items-center justify-between px-4 py-4 bg-blue-600 text-white">
+
                     <span className="text-lg font-black">
                       Total Amount After Tax
                     </span>
@@ -2068,10 +2486,13 @@ const EditBill = () => {
                         calculateTotals.grandTotal
                       )}
                     </span>
+
                   </div>
 
-                  {/* WORDS */}
+                  {/* AMOUNT WORDS */}
+
                   <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-700">
+
                     <p className="text-xs font-bold uppercase text-slate-500 mb-1">
                       Amount in Words
                     </p>
@@ -2081,10 +2502,13 @@ const EditBill = () => {
                         calculateTotals.grandTotal
                       )}
                     </p>
+
                   </div>
 
                   {/* PLACE OF SUPPLY */}
+
                   <div className="p-4 border-t border-slate-200 dark:border-slate-700">
+
                     <p className="text-xs font-bold uppercase text-slate-500 mb-1">
                       Place of Supply
                     </p>
@@ -2092,119 +2516,179 @@ const EditBill = () => {
                     <p className="font-semibold">
                       {placeOfSupply}
                     </p>
+
                   </div>
+
                 </div>
 
-                {/* TAX SUMMARY */}
-                {invoiceType ===
-                  "GST Invoice" &&
-                  calculateTotals.gstGroups
-                    .length > 0 && (
-                    <div className="mt-5">
-                      <h4 className="font-bold mb-3">
-                        Tax Summary
-                      </h4>
-
-                      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
-                        <table className="w-full text-sm">
-                          <thead className="bg-slate-100 dark:bg-slate-800">
-                            <tr>
-                              <th className="px-3 py-2 text-left">
-                                GST %
-                              </th>
-
-                              <th className="px-3 py-2 text-right">
-                                Taxable
-                              </th>
-
-                              <th className="px-3 py-2 text-right">
-                                GST
-                              </th>
-                            </tr>
-                          </thead>
-
-                          <tbody>
-                            {calculateTotals.gstGroups.map(
-                              (group) => (
-                                <tr
-                                  key={
-                                    group.rate
-                                  }
-                                  className="border-t border-slate-200 dark:border-slate-700"
-                                >
-                                  <td className="px-3 py-2">
-                                    {group.rate}%
-                                  </td>
-
-                                  <td className="px-3 py-2 text-right">
-                                    ₹
-                                    {formatCurrency(
-                                      group.taxable
-                                    )}
-                                  </td>
-
-                                  <td className="px-3 py-2 text-right">
-                                    ₹
-                                    {formatCurrency(
-                                      group.gst
-                                    )}
-                                  </td>
-                                </tr>
-                              )
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
               </div>
+
+            </div>
+
+            {/* =================================================
+                UPI PAYMENT QR
+            ================================================= */}
+
+            <div className="mt-8 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/20 p-5">
+
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+
+                <div>
+
+                  <p className="text-xs font-black uppercase tracking-wide text-blue-600">
+                    Fixed UPI Payment
+                  </p>
+
+                  <h3 className="mt-1 text-lg font-black">
+                    UPI QR Payment
+                  </h3>
+
+                  <p className="mt-1 text-sm">
+                    UPI ID:{" "}
+                    <strong>
+                      {VRAJ_UPI_ID}
+                    </strong>
+                  </p>
+
+                  <p className="mt-2 text-xs text-slate-500">
+                    QR final invoice amount ke
+                    saath generate hoga.
+                  </p>
+
+                </div>
+
+                <div className="flex items-center gap-5">
+
+                  <div className="bg-white p-3 rounded-xl border border-blue-200">
+
+                    <img
+                      src={upiQrUrl}
+                      alt="UPI Payment QR"
+                      className="w-32 h-32 object-contain"
+                    />
+
+                  </div>
+
+                  <div className="rounded-xl border border-blue-200 bg-white dark:bg-slate-900 px-5 py-4 text-center">
+
+                    <p className="text-xs font-bold text-slate-500">
+                      INVOICE AMOUNT
+                    </p>
+
+                    <p className="text-2xl font-black text-blue-600">
+                      ₹
+                      {formatCurrency(
+                        calculateTotals.grandTotal
+                      )}
+                    </p>
+
+                    <p className="mt-1 text-xs font-semibold">
+                      {VRAJ_UPI_ID}
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </div>
+
             </div>
 
             {/* =================================================
                 SIGNATURE
             ================================================= */}
+
             <div className="mt-10 pt-6 border-t border-slate-200 dark:border-slate-700">
+
               <div className="flex flex-col md:flex-row md:justify-between gap-8">
+
+                {/* CUSTOMER */}
+
                 <div>
+
                   <p className="text-sm text-slate-500">
                     Customer Signature
                   </p>
 
                   <div className="h-20" />
+
                 </div>
 
-                <div className="md:text-right">
-                  <p className="text-sm font-semibold">
-                    For {businessInfo.name}
-                  </p>
+                {/* QR + AUTH SIGNATORY */}
 
-                  {businessInfo.signature ? (
+                <div className="flex items-end gap-6">
+
+                  <div className="text-center">
+
                     <img
-                      src={businessInfo.signature}
-                      alt="Authorized Signature"
-                      className="w-36 h-20 object-contain ml-auto mt-2"
+                      src={upiQrUrl}
+                      alt="Scan and Pay"
+                      className="print-qr w-24 h-24 object-contain bg-white border border-slate-200 rounded-lg p-1"
                     />
-                  ) : (
-                    <div className="h-20" />
-                  )}
 
-                  <p className="text-sm text-slate-500">
-                    Authorized Signatory
-                  </p>
+                    <p className="mt-1 text-[10px] font-black">
+                      SCAN & PAY
+                    </p>
+
+                    <p className="text-[10px] font-bold text-blue-600">
+                      ₹
+                      {formatCurrency(
+                        calculateTotals.grandTotal
+                      )}
+                    </p>
+
+                    <p className="text-[9px] text-slate-500">
+                      {VRAJ_UPI_ID}
+                    </p>
+
+                  </div>
+
+                  <div className="md:text-right">
+
+                    <p className="text-sm font-semibold">
+                      For {businessInfo.name}
+                    </p>
+
+                    {businessInfo.signature ? (
+                      <img
+                        src={
+                          businessInfo.signature
+                        }
+                        alt="Authorized Signature"
+                        className="w-36 h-20 object-contain ml-auto mt-2"
+                      />
+                    ) : (
+                      <div className="h-20" />
+                    )}
+
+                    <p className="text-sm text-slate-500">
+                      Authorized Signatory
+                    </p>
+
+                  </div>
+
                 </div>
+
               </div>
+
             </div>
+
           </div>
+
         </div>
 
         {/* =================================================
-            ACTION BUTTONS
+            ACTIONS
         ================================================= */}
+
         <div className="no-print flex flex-col sm:flex-row justify-end gap-3 mt-6">
+
           <button
             type="button"
-            onClick={() => window.print()}
-            className="px-6 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold transition"
+            onClick={() =>
+              window.print()
+            }
+            className="px-6 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold"
           >
             🖨 Print Preview
           </button>
@@ -2212,22 +2696,28 @@ const EditBill = () => {
           <button
             type="button"
             disabled={saving}
-            onClick={handleUpdateInvoice}
-            className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold transition"
+            onClick={
+              handleUpdateInvoice
+            }
+            className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold"
           >
             {saving
               ? "Updating Invoice..."
               : "✓ Update Invoice"}
           </button>
+
         </div>
+
       </div>
+
     </div>
   );
 };
 
 // =====================================================
-// REUSABLE INPUT
+// INPUT COMPONENT
 // =====================================================
+
 const InputField = ({
   label,
   type = "text",
@@ -2239,6 +2729,7 @@ const InputField = ({
 }) => {
   return (
     <div>
+
       <label className="block text-sm font-semibold mb-1.5">
         {label}
       </label>
@@ -2256,6 +2747,7 @@ const InputField = ({
             : "bg-white dark:bg-slate-800"
         }`}
       />
+
     </div>
   );
 };
@@ -2263,6 +2755,7 @@ const InputField = ({
 // =====================================================
 // SECTION TITLE
 // =====================================================
+
 const SectionTitle = ({ title }) => {
   return (
     <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
@@ -2274,9 +2767,14 @@ const SectionTitle = ({ title }) => {
 // =====================================================
 // SUMMARY ROW
 // =====================================================
-const SummaryRow = ({ label, value }) => {
+
+const SummaryRow = ({
+  label,
+  value,
+}) => {
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+
       <span className="font-semibold">
         {label}
       </span>
@@ -2284,6 +2782,7 @@ const SummaryRow = ({ label, value }) => {
       <span className="font-bold">
         {value}
       </span>
+
     </div>
   );
 };

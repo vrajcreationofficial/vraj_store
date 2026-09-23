@@ -1,16 +1,66 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 
 const {
   register,
   login,
   getProfile,
-  forgotPassword, // 1. यहाँ जोड़े
-  resetPassword,  // 2. यहाँ जोड़े
+  forgotPassword,
+  verifyResetOtp,
+  resetPassword,
 } = require("../controllers/authController");
 
 const protect = require("../middleware/authMiddleware");
 
 const router = express.Router();
+
+// =====================================================
+// FORGOT PASSWORD RATE LIMIT
+// =====================================================
+
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message:
+      "Too many password reset requests. Please try again later.",
+  },
+});
+
+// =====================================================
+// OTP VERIFICATION RATE LIMIT
+// =====================================================
+
+const verifyResetOtpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message:
+      "Too many OTP verification attempts. Please try again later.",
+  },
+});
+
+// =====================================================
+// RESET PASSWORD RATE LIMIT
+// =====================================================
+
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message:
+      "Too many password reset attempts. Please try again later.",
+  },
+});
 
 // =====================================================
 // AUTH ROUTES
@@ -25,10 +75,32 @@ router.post("/login", login);
 // Profile
 router.get("/profile", protect, getProfile);
 
-// Forgot Password (यह नया राउट जोड़ा गया है)
-router.post("/forgot-password", forgotPassword);
+// =====================================================
+// PASSWORD RESET - OTP FLOW
+// =====================================================
 
-// Reset Password (यह नया राउट जोड़ा गया है)
-router.post("/reset-password/:token", resetPassword);
+// Step 1:
+// Email submit → OTP send
+router.post(
+  "/forgot-password",
+  forgotPasswordLimiter,
+  forgotPassword
+);
+
+// Step 2:
+// Email + OTP → verify OTP
+router.post(
+  "/verify-reset-otp",
+  verifyResetOtpLimiter,
+  verifyResetOtp
+);
+
+// Step 3:
+// Reset token + new password → password reset
+router.post(
+  "/reset-password",
+  resetPasswordLimiter,
+  resetPassword
+);
 
 module.exports = router;

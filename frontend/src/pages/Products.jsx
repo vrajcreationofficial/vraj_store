@@ -23,7 +23,6 @@ const Products = () => {
       setError("");
 
       const response = await api.get("/products");
-
       const result = response.data;
 
       if (Array.isArray(result)) {
@@ -144,6 +143,10 @@ const Products = () => {
         product.sku
           ?.toLowerCase()
           .includes(searchText) ||
+        product.hsnCode
+          ?.toString()
+          .toLowerCase()
+          .includes(searchText) ||
         product.category
           ?.toLowerCase()
           .includes(searchText) ||
@@ -166,12 +169,14 @@ const Products = () => {
       let matchesStock = true;
 
       if (stockFilter === "in-stock") {
-        matchesStock = stock > minimumStock;
+        matchesStock =
+          stock > minimumStock;
       }
 
       if (stockFilter === "low-stock") {
         matchesStock =
-          stock > 0 && stock <= minimumStock;
+          stock > 0 &&
+          stock <= minimumStock;
       }
 
       if (stockFilter === "out-of-stock") {
@@ -187,38 +192,84 @@ const Products = () => {
   );
 
   // =====================================================
-  // LOADING
+  // LOADER
   // =====================================================
 
   if (loading) {
     return (
-      <div className="space-y-6">
-
+      <div className="space-y-5 animate-in fade-in duration-300">
         <div className="animate-pulse">
 
-          <div className="h-8 w-48 rounded-lg bg-slate-200 dark:bg-slate-800" />
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="h-7 w-36 rounded-lg bg-slate-200 dark:bg-slate-800" />
 
-          <div className="mt-3 h-4 w-72 rounded bg-slate-200 dark:bg-slate-800" />
+              <div className="mt-2 h-3 w-64 rounded bg-slate-200 dark:bg-slate-800" />
+            </div>
 
-          <div className="mt-6 h-24 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+            <div className="flex gap-2">
+              <div className="h-9 w-20 rounded-xl bg-slate-200 dark:bg-slate-800" />
 
-          <div className="mt-6 rounded-2xl bg-slate-200 dark:bg-slate-800">
+              <div className="h-9 w-28 rounded-xl bg-slate-200 dark:bg-slate-800" />
+            </div>
+          </div>
 
-            <div className="h-14 border-b border-slate-300 dark:border-slate-700" />
-
-            {[1, 2, 3, 4, 5].map(
+          {/* Summary */}
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {[1, 2, 3, 4].map(
               (item) => (
                 <div
                   key={item}
-                  className="h-20 border-b border-slate-300 dark:border-slate-700"
+                  className="h-20 rounded-2xl bg-slate-200 dark:bg-slate-800"
+                />
+              )
+            )}
+          </div>
+
+          {/* Filters */}
+          <div className="mt-5 h-16 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+
+          {/* Table */}
+          <div className="mt-5 overflow-hidden rounded-2xl bg-slate-200 dark:bg-slate-800">
+
+            <div className="h-12 border-b border-slate-300 dark:border-slate-700" />
+
+            {[1, 2, 3, 4, 5, 6].map(
+              (item) => (
+                <div
+                  key={item}
+                  className="h-16 border-b border-slate-300 dark:border-slate-700"
                 />
               )
             )}
 
           </div>
 
-        </div>
+          {/* Loading text */}
+          <div className="mt-5 flex items-center justify-center gap-2 text-xs font-bold text-slate-400">
 
+            <span className="h-2 w-2 animate-bounce rounded-full bg-slate-400" />
+
+            <span
+              className="h-2 w-2 animate-bounce rounded-full bg-slate-400"
+              style={{
+                animationDelay: "120ms",
+              }}
+            />
+
+            <span
+              className="h-2 w-2 animate-bounce rounded-full bg-slate-400"
+              style={{
+                animationDelay: "240ms",
+              }}
+            />
+
+            Loading products...
+
+          </div>
+
+        </div>
       </div>
     );
   }
@@ -229,13 +280,13 @@ const Products = () => {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 dark:border-red-900/50 dark:bg-red-950/30">
+      <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 rounded-2xl border border-red-200 bg-red-50 p-5 dark:border-red-900/50 dark:bg-red-950/30">
 
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 text-xl dark:bg-red-950/50">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-lg dark:bg-red-950/50">
           ⚠️
         </div>
 
-        <h2 className="mt-4 text-lg font-black text-red-800 dark:text-red-300">
+        <h2 className="mt-3 text-base font-black text-red-800 dark:text-red-300">
           Products could not load
         </h2>
 
@@ -246,7 +297,7 @@ const Products = () => {
         <button
           type="button"
           onClick={fetchProducts}
-          className="mt-5 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-red-700"
+          className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-lg active:translate-y-0"
         >
           ↻ Try Again
         </button>
@@ -260,32 +311,30 @@ const Products = () => {
   // =====================================================
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-3 duration-700">
 
       {/* ================================================= */}
       {/* HEADER */}
       {/* ================================================= */}
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
         <div>
-
           <div className="flex items-center gap-2">
 
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950 text-lg text-white dark:bg-white dark:text-slate-950">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-950 text-sm text-white shadow-sm transition-transform duration-300 hover:rotate-6 hover:scale-110 dark:bg-white dark:text-slate-950">
               📦
             </span>
 
-            <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
+            <h1 className="text-xl font-black tracking-tight sm:text-2xl">
               Products
             </h1>
 
           </div>
 
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             Manage your inventory and products.
           </p>
-
         </div>
 
         <div className="flex gap-2">
@@ -293,7 +342,7 @@ const Products = () => {
           <button
             type="button"
             onClick={fetchProducts}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md active:translate-y-0 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             ↻ Refresh
           </button>
@@ -303,20 +352,19 @@ const Products = () => {
             onClick={() =>
               navigate("/products/add")
             }
-            className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+            className="rounded-lg bg-slate-950 px-3 py-2 text-xs font-bold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg active:translate-y-0 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
           >
             + Add Product
           </button>
 
         </div>
-
       </div>
 
       {/* ================================================= */}
       {/* SUMMARY */}
       {/* ================================================= */}
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 
         <SummaryCard
           title="Total"
@@ -374,26 +422,26 @@ const Products = () => {
       {/* FILTERS */}
       {/* ================================================= */}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
 
           {/* SEARCH */}
 
-          <div className="relative">
+          <div className="group relative">
 
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 transition-colors group-focus-within:text-slate-700 dark:group-focus-within:text-white">
               🔍
             </span>
 
             <input
               type="text"
-              placeholder="Search name, SKU, size..."
+              placeholder="Search name, SKU, HSN, size..."
               value={search}
               onChange={(e) =>
                 setSearch(e.target.value)
               }
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm font-medium outline-none transition focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-white dark:focus:bg-slate-800 dark:focus:ring-white/10"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs font-medium outline-none transition-all duration-200 focus:border-slate-950 focus:bg-white focus:ring-4 focus:ring-slate-950/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-white dark:focus:bg-slate-800 dark:focus:ring-white/10"
             />
 
           </div>
@@ -405,7 +453,7 @@ const Products = () => {
             onChange={(e) =>
               setCategory(e.target.value)
             }
-            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none transition-all duration-200 hover:border-slate-300 focus:border-slate-950 focus:ring-4 focus:ring-slate-950/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-white dark:focus:ring-white/10"
           >
             <option value="all">
               All Categories
@@ -419,6 +467,7 @@ const Products = () => {
                 {item}
               </option>
             ))}
+
           </select>
 
           {/* STOCK */}
@@ -428,7 +477,7 @@ const Products = () => {
             onChange={(e) =>
               setStockFilter(e.target.value)
             }
-            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none transition-all duration-200 hover:border-slate-300 focus:border-slate-950 focus:ring-4 focus:ring-slate-950/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-white dark:focus:ring-white/10"
           >
             <option value="all">
               All Stock
@@ -449,46 +498,43 @@ const Products = () => {
           </select>
 
         </div>
-
       </div>
 
       {/* ================================================= */}
       {/* PRODUCTS TABLE */}
       {/* ================================================= */}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
 
         {/* TABLE HEADER */}
 
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
 
           <div>
-
-            <h2 className="font-black">
+            <h2 className="text-sm font-black">
               Product List
             </h2>
 
-            <p className="mt-0.5 text-xs text-slate-400">
+            <p className="mt-0.5 text-[11px] text-slate-400">
               {filteredProducts.length} products found
             </p>
-
           </div>
 
         </div>
 
         {filteredProducts.length === 0 ? (
 
-          <div className="px-5 py-16 text-center">
+          <div className="px-5 py-14 text-center animate-in fade-in duration-500">
 
-            <div className="text-5xl">
+            <div className="text-4xl transition-transform duration-500 hover:scale-110">
               📦
             </div>
 
-            <h3 className="mt-4 text-lg font-black">
+            <h3 className="mt-3 text-base font-black">
               No products found
             </h3>
 
-            <p className="mt-1 text-sm text-slate-400">
+            <p className="mt-1 text-xs text-slate-400">
               Try changing your search or filters.
             </p>
 
@@ -497,7 +543,7 @@ const Products = () => {
               onClick={() =>
                 navigate("/products/add")
               }
-              className="mt-5 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-950"
+              className="mt-4 rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:bg-white dark:text-slate-950"
             >
               + Add Product
             </button>
@@ -514,37 +560,39 @@ const Products = () => {
 
                 <tr className="border-b border-slate-100 bg-slate-50 text-left dark:border-slate-800 dark:bg-slate-800/50">
 
-                  <th className="px-5 py-3 text-xs font-black uppercase tracking-wider text-slate-400">
+                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
                     Product
                   </th>
 
-                  <th className="px-5 py-3 text-xs font-black uppercase tracking-wider text-slate-400">
+                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
                     SKU
                   </th>
 
-                  <th className="px-5 py-3 text-xs font-black uppercase tracking-wider text-slate-400">
+                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    HSN Code
+                  </th>
+
+                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
                     Category
                   </th>
 
-                  {/* SIZE */}
-
-                  <th className="px-5 py-3 text-xs font-black uppercase tracking-wider text-slate-400">
+                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
                     Size
                   </th>
 
-                  <th className="px-5 py-3 text-xs font-black uppercase tracking-wider text-slate-400">
+                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
                     Purchase
                   </th>
 
-                  <th className="px-5 py-3 text-xs font-black uppercase tracking-wider text-slate-400">
+                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
                     Selling
                   </th>
 
-                  <th className="px-5 py-3 text-xs font-black uppercase tracking-wider text-slate-400">
+                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
                     Stock
                   </th>
 
-                  <th className="px-5 py-3 text-right text-xs font-black uppercase tracking-wider text-slate-400">
+                  <th className="px-4 py-2.5 text-right text-[10px] font-black uppercase tracking-wider text-slate-400">
                     Action
                   </th>
 
@@ -555,10 +603,11 @@ const Products = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
 
                 {filteredProducts.map(
-                  (product) => (
+                  (product, index) => (
                     <ProductTableRow
                       key={product._id}
                       product={product}
+                      index={index}
                       imageUrl={getImageUrl(
                         product.image
                       )}
@@ -605,25 +654,23 @@ const SummaryCard = ({
   icon,
 }) => {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="group rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900">
 
       <div className="flex items-center justify-between">
 
         <div>
-
-          <p className="text-xs font-bold text-slate-400">
+          <p className="text-[11px] font-bold text-slate-400">
             {title}
           </p>
 
-          <p className="mt-1 text-2xl font-black">
+          <p className="mt-0.5 text-xl font-black tracking-tight">
             {Number(value || 0).toLocaleString(
               "en-IN"
             )}
           </p>
-
         </div>
 
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-lg dark:bg-slate-800">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-base transition-all duration-300 group-hover:rotate-6 group-hover:scale-110 dark:bg-slate-800">
           {icon}
         </div>
 
@@ -643,6 +690,7 @@ const ProductTableRow = ({
   onView,
   onEdit,
   onDelete,
+  index,
 }) => {
   const [imageError, setImageError] =
     useState(false);
@@ -658,7 +706,7 @@ const ProductTableRow = ({
   const getStockStatus = () => {
     if (stock === 0) {
       return {
-        label: "Out of Stock",
+        label: "Out",
         className:
           "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400",
       };
@@ -666,7 +714,7 @@ const ProductTableRow = ({
 
     if (stock <= minimumStock) {
       return {
-        label: "Low Stock",
+        label: "Low",
         className:
           "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
       };
@@ -681,30 +729,41 @@ const ProductTableRow = ({
 
   const status = getStockStatus();
 
-  // ===================================================
-  // SIZE
-  // ===================================================
-
   const productSize =
     product.size &&
     String(product.size).trim()
       ? String(product.size).trim()
       : "--";
 
+  const productHSN =
+    product.hsnCode !== undefined &&
+    product.hsnCode !== null &&
+    String(product.hsnCode).trim()
+      ? String(product.hsnCode).trim()
+      : "--";
+
   return (
-    <tr className="transition hover:bg-slate-50 dark:hover:bg-slate-800/40">
+    <tr
+      className="group animate-in fade-in slide-in-from-bottom-1 transition-all duration-300 hover:bg-slate-50 dark:hover:bg-slate-800/40"
+      style={{
+        animationDelay: `${Math.min(
+          index * 40,
+          400
+        )}ms`,
+      }}
+    >
 
       {/* PRODUCT */}
 
-      <td className="px-5 py-4">
+      <td className="px-4 py-3">
 
         <button
           type="button"
           onClick={onView}
-          className="flex items-center gap-3 text-left"
+          className="flex items-center gap-2.5 text-left"
         >
 
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 shadow-sm transition-all duration-300 group-hover:scale-105 group-hover:shadow-md dark:bg-slate-800">
 
             {imageUrl && !imageError ? (
               <img
@@ -716,10 +775,10 @@ const ProductTableRow = ({
                 onError={() =>
                   setImageError(true)
                 }
-                className="h-full w-full object-contain p-1"
+                className="h-full w-full object-contain p-1 transition-transform duration-500 group-hover:scale-110"
               />
             ) : (
-              <span className="text-xl">
+              <span className="text-lg">
                 📦
               </span>
             )}
@@ -728,12 +787,12 @@ const ProductTableRow = ({
 
           <div className="min-w-0">
 
-            <p className="max-w-[220px] truncate text-sm font-black hover:underline">
+            <p className="max-w-[190px] truncate text-xs font-black transition-colors duration-200 group-hover:text-slate-700 dark:group-hover:text-white">
               {product.name ||
                 "Unnamed Product"}
             </p>
 
-            <p className="mt-0.5 text-xs text-slate-400">
+            <p className="mt-0.5 text-[10px] text-slate-400">
               Product
             </p>
 
@@ -745,29 +804,45 @@ const ProductTableRow = ({
 
       {/* SKU */}
 
-      <td className="px-5 py-4">
+      <td className="px-4 py-3">
 
-        <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+        <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
           {product.sku || "-"}
+        </span>
+
+      </td>
+
+      {/* HSN */}
+
+      <td className="px-4 py-3">
+
+        <span
+          className={
+            productHSN === "--"
+              ? "text-xs font-semibold text-slate-400"
+              : "rounded-md bg-blue-50 px-2 py-1 text-[10px] font-black tracking-wide text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
+          }
+        >
+          {productHSN}
         </span>
 
       </td>
 
       {/* CATEGORY */}
 
-      <td className="px-5 py-4 text-sm font-semibold text-slate-600 dark:text-slate-300">
+      <td className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">
         {product.category || "-"}
       </td>
 
       {/* SIZE */}
 
-      <td className="px-5 py-4">
+      <td className="px-4 py-3">
 
         <span
           className={
             productSize === "--"
-              ? "text-sm font-semibold text-slate-400"
-              : "whitespace-nowrap text-sm font-black text-slate-700 dark:text-slate-200"
+              ? "text-xs font-semibold text-slate-400"
+              : "whitespace-nowrap text-xs font-black text-slate-700 dark:text-slate-200"
           }
         >
           {productSize}
@@ -777,7 +852,7 @@ const ProductTableRow = ({
 
       {/* PURCHASE */}
 
-      <td className="px-5 py-4 text-sm font-bold">
+      <td className="px-4 py-3 text-xs font-bold">
         ₹
         {Number(
           product.purchasePrice || 0
@@ -786,7 +861,7 @@ const ProductTableRow = ({
 
       {/* SELLING */}
 
-      <td className="px-5 py-4 text-sm font-black">
+      <td className="px-4 py-3 text-xs font-black">
         ₹
         {Number(
           product.sellingPrice || 0
@@ -795,16 +870,16 @@ const ProductTableRow = ({
 
       {/* STOCK */}
 
-      <td className="px-5 py-4">
+      <td className="px-4 py-3">
 
         <div className="flex flex-col items-start gap-1">
 
-          <span className="text-sm font-black">
+          <span className="text-xs font-black">
             {stock}
           </span>
 
           <span
-            className={`rounded-full px-2 py-1 text-[10px] font-black ${status.className}`}
+            className={`rounded-full px-2 py-0.5 text-[9px] font-black transition-transform duration-200 group-hover:scale-105 ${status.className}`}
           >
             {status.label}
           </span>
@@ -815,15 +890,15 @@ const ProductTableRow = ({
 
       {/* ACTION */}
 
-      <td className="px-5 py-4">
+      <td className="px-4 py-3">
 
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-1.5">
 
           <button
             type="button"
             onClick={onView}
             title="View"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-sm transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-xs transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-100 hover:shadow-sm active:translate-y-0 dark:border-slate-700 dark:hover:bg-slate-800"
           >
             👁️
           </button>
@@ -832,7 +907,7 @@ const ProductTableRow = ({
             type="button"
             onClick={onEdit}
             title="Edit"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-sm transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-xs transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-100 hover:shadow-sm active:translate-y-0 dark:border-slate-700 dark:hover:bg-slate-800"
           >
             ✏️
           </button>
@@ -841,7 +916,7 @@ const ProductTableRow = ({
             type="button"
             onClick={onDelete}
             title="Delete"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 text-sm text-red-600 transition hover:bg-red-50 dark:border-red-900/50 dark:hover:bg-red-950/30"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 text-xs text-red-600 transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-50 hover:shadow-sm active:translate-y-0 dark:border-red-900/50 dark:hover:bg-red-950/30"
           >
             🗑️
           </button>

@@ -58,8 +58,7 @@ const getStateCodeByName = (stateName) => {
     .toLowerCase();
 
   const found = Object.entries(STATE_CODES).find(
-    ([, name]) =>
-      name.toLowerCase() === normalized
+    ([, name]) => name.toLowerCase() === normalized
   );
 
   return found ? found[0] : "";
@@ -219,6 +218,8 @@ const createEmptyItem = () => ({
   hsnCode: "",
   quantity: 1,
   price: 0,
+
+  // GST ALWAYS 5%
   gstRate: 5,
 });
 
@@ -240,31 +241,24 @@ const CreateBill = () => {
     state: "Rajasthan",
     stateCode: "08",
 
-    phone: "+91 9876543210",
-    email: "contact@vrajcreation.com",
+    phone: "+91 8824968974",
+    email: "vrajcreationofficial@gmail.com",
 
-    gstin: "08AAAAA0000A1Z5",
-    pan: "ABCDE1234F",
+    gstin: "08AADPO3512A1ZB",
+    pan: "AADPO3512A",
 
-    bankName: "HDFC Bank",
+    bankName: "Union Bank of India",
     accountHolder: "VRAJ CREATION",
-    accountNo: "50200012345678",
-    ifsc: "HDFC0001234",
-    branch: "Jodhpur Branch",
-    upiId: "vrajcreation@upi",
+    accountNo: "401701010035985",
+    ifsc: "UBIN0540170",
+    branch: "Basni Jodhpur",
+    upiId: "8824968974-3@ybl",
 
     terms:
       "1. Goods once sold will not be taken back.\n2. All disputes subject to Jodhpur jurisdiction.\n3. Payment should be made within the agreed terms.\n4. Interest @24% p.a. will be charged on delayed payment.",
 
     signature: "",
   });
-
-  // ===================================================
-  // PRODUCTS
-  // ===================================================
-  const [dbProducts, setDbProducts] = useState([]);
-  const [isProductsLoading, setIsProductsLoading] =
-    useState(true);
 
   // ===================================================
   // INVOICE
@@ -315,7 +309,10 @@ const CreateBill = () => {
     useState("");
 
   // ===================================================
-  // LOAD BUSINESS SETTINGS + DRAFT + PRODUCTS
+  // LOAD BUSINESS SETTINGS + DRAFT
+  // NOTE:
+  // PRODUCT DATABASE IS NOT LOADED HERE.
+  // PRODUCT ID IS MANUAL.
   // ===================================================
   useEffect(() => {
     const loadData = async () => {
@@ -372,7 +369,15 @@ const CreateBill = () => {
             Array.isArray(parsed.items) &&
             parsed.items.length
           ) {
-            setItems(parsed.items);
+            setItems(
+              parsed.items.map((item) => ({
+                ...createEmptyItem(),
+                ...item,
+
+                // GST ALWAYS 5%
+                gstRate: 5,
+              }))
+            );
           }
 
           if (
@@ -404,34 +409,6 @@ const CreateBill = () => {
             err
           );
         }
-      }
-
-      // ===============================================
-      // LOAD PRODUCTS
-      // ===============================================
-      try {
-        setIsProductsLoading(true);
-
-        const response = await api.get("/products");
-
-        const data = response.data;
-
-        const products = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.products)
-          ? data.products
-          : [];
-
-        setDbProducts(products);
-      } catch (err) {
-        console.error(
-          "Products loading error:",
-          err
-        );
-
-        setDbProducts([]);
-      } finally {
-        setIsProductsLoading(false);
       }
     };
 
@@ -498,6 +475,15 @@ const CreateBill = () => {
       stateCode:
         stateCode || prev.stateCode || "",
     }));
+
+    // Clear old pincode result if manually changing state
+    if (
+      stateName &&
+      stateName.toLowerCase() !==
+        String(customer.state || "").toLowerCase()
+    ) {
+      setPincodeMessage("");
+    }
   };
 
   // ===================================================
@@ -547,7 +533,7 @@ const CreateBill = () => {
       setPincodeLoading(true);
 
       setPincodeMessage(
-        "Fetching pincode details..."
+        "Fetching city and state..."
       );
 
       const response = await fetch(
@@ -619,14 +605,13 @@ const CreateBill = () => {
           "",
       }));
 
+      // =============================================
+      // SHOW ONLY CITY + STATE
+      // =============================================
       setPincodeMessage(
         `${cityName}${
           stateName
             ? `, ${stateName}`
-            : ""
-        }${
-          stateCode
-            ? ` (${stateCode})`
             : ""
         }`
       );
@@ -645,90 +630,6 @@ const CreateBill = () => {
   };
 
   // ===================================================
-  // SELECT PRODUCT
-  // ===================================================
-  const handleSelectProductFromDb = (
-    rowId,
-    selectedProductId
-  ) => {
-    if (!selectedProductId) {
-      return;
-    }
-
-    const foundProduct =
-      dbProducts.find((product) => {
-        const id =
-          product.sku ||
-          product.product_id ||
-          product.productId ||
-          product.productCode ||
-          product.code ||
-          product._id ||
-          product.id;
-
-        return (
-          String(id) ===
-          String(selectedProductId)
-        );
-      });
-
-    if (!foundProduct) {
-      return;
-    }
-
-    const productId =
-      foundProduct.sku ||
-      foundProduct.product_id ||
-      foundProduct.productId ||
-      foundProduct.productCode ||
-      foundProduct.code ||
-      foundProduct._id ||
-      foundProduct.id;
-
-    setItems((prevItems) =>
-      prevItems.map((item) => {
-        if (item.id !== rowId) {
-          return item;
-        }
-
-        return {
-          ...item,
-
-          productId: String(productId),
-
-          productName:
-            foundProduct.name ||
-            foundProduct.productName ||
-            foundProduct.title ||
-            "",
-
-          hsnCode:
-            foundProduct.hsnCode ||
-            foundProduct.hsn ||
-            foundProduct.HSN ||
-            "",
-
-          price: Number(
-            foundProduct.price ??
-              foundProduct.sellingPrice ??
-              foundProduct.selling_price ??
-              foundProduct.rate ??
-              foundProduct.mrp ??
-              0
-          ),
-
-          gstRate: Number(
-            foundProduct.gstRate ??
-              foundProduct.gst ??
-              foundProduct.taxRate ??
-              5
-          ),
-        };
-      })
-    );
-  };
-
-  // ===================================================
   // ITEM CHANGE
   // ===================================================
   const handleItemChange = (
@@ -741,7 +642,14 @@ const CreateBill = () => {
         item.id === id
           ? {
               ...item,
-              [field]: value,
+
+              [field]:
+                field === "gstRate"
+                  ? 5
+                  : value,
+
+              // GST ALWAYS 5%
+              gstRate: 5,
             }
           : item
       )
@@ -779,53 +687,45 @@ const CreateBill = () => {
     let totalTaxable = 0;
     let totalGst = 0;
 
-    const businessStateCode =
-      String(
-        businessInfo.stateCode || ""
-      )
-        .trim()
-        .padStart(2, "0");
+    // =================================================
+    // VRAJ CREATION IS IN RAJASTHAN
+    // STATE CODE = 08
+    // =================================================
+    const businessStateCode = "08";
 
-    const customerStateCode =
-      String(
-        customer.stateCode || ""
-      )
-        .trim()
-        .padStart(2, "0");
+    const customerStateCode = String(
+      customer.stateCode || ""
+    )
+      .trim()
+      .padStart(2, "0");
 
-    const businessState =
-      String(
-        businessInfo.state || ""
-      )
-        .trim()
-        .toLowerCase();
+    const customerState = String(
+      customer.state || ""
+    )
+      .trim()
+      .toLowerCase();
 
-    const customerState =
-      String(
-        customer.state || ""
-      )
-        .trim()
-        .toLowerCase();
-
+    // =================================================
+    // GST TYPE
+    //
+    // Rajasthan = CGST 2.5 + SGST 2.5
+    // Outside Rajasthan = IGST 5
+    // =================================================
     let isInterstate = false;
 
-    if (
-      businessStateCode &&
-      customerStateCode
-    ) {
+    if (customerStateCode) {
       isInterstate =
-        businessStateCode !==
-        customerStateCode;
-    } else if (
-      businessState &&
-      customerState
-    ) {
+        customerStateCode !==
+        businessStateCode;
+    } else if (customerState) {
       isInterstate =
-        businessState !== customerState;
+        customerState !==
+        "rajasthan";
     }
 
     // ===============================================
     // GST GROUPS
+    // GST RATE FIXED TO 5%
     // ===============================================
     const gstGroups = {};
 
@@ -836,9 +736,12 @@ const CreateBill = () => {
       const price =
         Number(item.price) || 0;
 
+      // =============================================
+      // FIXED GST
+      // =============================================
       const gstRate =
         invoiceType === "GST Invoice"
-          ? Number(item.gstRate) || 0
+          ? 5
           : 0;
 
       const lineTaxable =
@@ -930,17 +833,12 @@ const CreateBill = () => {
       isInterstate,
 
       gstGroups:
-        Object.values(gstGroups).sort(
-          (a, b) =>
-            a.rate - b.rate
-        ),
+        Object.values(gstGroups),
     };
   }, [
     items,
     shippingCharges,
     invoiceType,
-    businessInfo.state,
-    businessInfo.stateCode,
     customer.state,
     customer.stateCode,
   ]);
@@ -1057,11 +955,14 @@ const CreateBill = () => {
         price:
           Number(item.price) || 0,
 
+        // =========================================
+        // FIXED GST
+        // =========================================
         gstRate:
           invoiceType ===
           "Non-GST Invoice"
             ? 0
-            : Number(item.gstRate) || 0,
+            : 5,
       }));
 
     if (!validItems.length) {
@@ -1113,24 +1014,15 @@ const CreateBill = () => {
     // PAYLOAD
     // ===============================================
     const payload = {
-      // =============================================
-      // INVOICE
-      // =============================================
       invoiceNo,
       invoiceDate,
       dueDate,
       invoiceType,
 
-      // =============================================
       // CUSTOMER OBJECT
-      // IMPORTANT
-      // =============================================
       customer: cleanCustomer,
 
-      // =============================================
       // CUSTOMER FLAT FIELDS
-      // BACKWARD COMPATIBILITY
-      // =============================================
       customerName:
         cleanCustomer.name,
 
@@ -1182,9 +1074,7 @@ const CreateBill = () => {
       pincode:
         cleanCustomer.pincode,
 
-      // =============================================
       // PLACE OF SUPPLY
-      // =============================================
       placeOfSupply,
 
       placeOfSupplyState:
@@ -1193,14 +1083,10 @@ const CreateBill = () => {
       placeOfSupplyStateCode:
         cleanCustomer.stateCode,
 
-      // =============================================
       // PRODUCTS
-      // =============================================
       items: validItems,
 
-      // =============================================
       // SUMMARY
-      // =============================================
       summary: {
         subtotal:
           calc.subtotal,
@@ -1238,9 +1124,7 @@ const CreateBill = () => {
         amountInWords,
       },
 
-      // =============================================
-      // BACKWARD COMPATIBILITY SUMMARY
-      // =============================================
+      // BACKWARD COMPATIBILITY
       subTotal:
         calc.subtotal,
 
@@ -1274,9 +1158,6 @@ const CreateBill = () => {
       roundOff:
         calc.roundOff,
 
-      // =============================================
-      // GST TYPE
-      // =============================================
       isInterstate:
         calc.isInterstate,
     };
@@ -1305,6 +1186,13 @@ const CreateBill = () => {
     console.log(
       "PLACE OF SUPPLY:",
       placeOfSupply
+    );
+
+    console.log(
+      "GST TYPE:",
+      calc.isInterstate
+        ? "IGST 5%"
+        : "CGST 2.5% + SGST 2.5%"
     );
 
     console.log(
@@ -1387,67 +1275,50 @@ const CreateBill = () => {
 
     return (
       <div className="space-y-3">
-        {calc.gstGroups.map(
-          (group) => {
-            const halfRate =
-              group.rate / 2;
 
-            const halfAmount =
-              group.gst / 2;
+        {calc.isInterstate ? (
+          <>
+            <div className="flex justify-between">
+              <span>
+                IGST 5%
+              </span>
 
-            if (calc.isInterstate) {
-              return (
-                <div
-                  key={group.rate}
-                  className="flex justify-between"
-                >
-                  <span>
-                    IGST {group.rate}%
-                  </span>
+              <span className="font-semibold">
+                ₹
+                {formatCurrency(
+                  calc.igst
+                )}
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex justify-between">
+              <span>
+                CGST 2.5%
+              </span>
 
-                  <span className="font-semibold">
-                    ₹
-                    {formatCurrency(
-                      group.gst
-                    )}
-                  </span>
-                </div>
-              );
-            }
+              <span className="font-semibold">
+                ₹
+                {formatCurrency(
+                  calc.cgst
+                )}
+              </span>
+            </div>
 
-            return (
-              <div
-                key={group.rate}
-                className="space-y-1"
-              >
-                <div className="flex justify-between">
-                  <span>
-                    CGST {halfRate}%
-                  </span>
+            <div className="flex justify-between">
+              <span>
+                SGST 2.5%
+              </span>
 
-                  <span className="font-semibold">
-                    ₹
-                    {formatCurrency(
-                      halfAmount
-                    )}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span>
-                    SGST {halfRate}%
-                  </span>
-
-                  <span className="font-semibold">
-                    ₹
-                    {formatCurrency(
-                      halfAmount
-                    )}
-                  </span>
-                </div>
-              </div>
-            );
-          }
+              <span className="font-semibold">
+                ₹
+                {formatCurrency(
+                  calc.sgst
+                )}
+              </span>
+            </div>
+          </>
         )}
 
         <div className="flex justify-between border-t pt-2 font-bold">
@@ -1460,6 +1331,7 @@ const CreateBill = () => {
             )}
           </span>
         </div>
+
       </div>
     );
   };
@@ -1510,23 +1382,23 @@ const CreateBill = () => {
         `}
       </style>
 
-      <div className="print-container mx-auto min-h-screen max-w-7xl bg-slate-50 p-4 font-sans text-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:p-8">
+      <div className="print-container mx-auto min-h-screen max-w-7xl bg-slate-50 p-4 font-sans text-slate-800 sm:p-8">
 
         {/* =================================================
             PAGE HEADER
         ================================================= */}
-        <div className="no-print mb-6 flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:flex-row md:items-center md:justify-between">
+        <div className="no-print mb-6 flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-between">
 
           <div>
-            <p className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+            <p className="text-xs font-black uppercase tracking-widest text-amber-600">
               Invoice Management
             </p>
 
-            <h1 className="mt-1 text-3xl font-black text-slate-900 dark:text-white">
+            <h1 className="mt-1 text-3xl font-black text-slate-900">
               Create New Invoice
             </h1>
 
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-sm text-slate-500">
               Create GST invoice with
               automatic CGST, SGST and IGST
               calculation.
@@ -1538,7 +1410,7 @@ const CreateBill = () => {
             onClick={() =>
               navigate("/bills")
             }
-            className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900"
+            className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-slate-700"
           >
             ← Back to Bills
           </button>
@@ -1629,7 +1501,7 @@ const CreateBill = () => {
           {/* =================================================
               INVOICE DETAILS
           ================================================= */}
-          <div className="no-print rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="no-print rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
 
             <h3 className="mb-5 text-sm font-black uppercase tracking-wider text-amber-600">
               Invoice Details
@@ -1637,6 +1509,7 @@ const CreateBill = () => {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
 
+              {/* INVOICE NUMBER */}
               <div>
                 <label className="mb-1 block text-xs font-bold uppercase text-slate-500">
                   Invoice Number
@@ -1651,10 +1524,11 @@ const CreateBill = () => {
                     )
                   }
                   required
-                  className="w-full rounded-xl border border-slate-300 p-3 text-sm font-bold outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm font-bold text-slate-800 outline-none focus:border-amber-500"
                 />
               </div>
 
+              {/* INVOICE DATE */}
               <div>
                 <label className="mb-1 block text-xs font-bold uppercase text-slate-500">
                   Invoice Date
@@ -1669,10 +1543,11 @@ const CreateBill = () => {
                     )
                   }
                   required
-                  className="w-full rounded-xl border border-slate-300 p-3 text-sm outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-800 outline-none focus:border-amber-500"
                 />
               </div>
 
+              {/* DUE DATE */}
               <div>
                 <label className="mb-1 block text-xs font-bold uppercase text-slate-500">
                   Due Date
@@ -1686,10 +1561,11 @@ const CreateBill = () => {
                       e.target.value
                     )
                   }
-                  className="w-full rounded-xl border border-slate-300 p-3 text-sm outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-800 outline-none focus:border-amber-500"
                 />
               </div>
 
+              {/* INVOICE TYPE */}
               <div>
                 <label className="mb-1 block text-xs font-bold uppercase text-slate-500">
                   Invoice Type
@@ -1702,7 +1578,7 @@ const CreateBill = () => {
                       e.target.value
                     )
                   }
-                  className="w-full rounded-xl border border-slate-300 p-3 text-sm outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-800 outline-none focus:border-amber-500"
                 >
                   <option value="GST Invoice">
                     GST Invoice
@@ -1713,6 +1589,7 @@ const CreateBill = () => {
                   </option>
                 </select>
               </div>
+
             </div>
           </div>
 
@@ -1744,7 +1621,7 @@ const CreateBill = () => {
                   }
                   placeholder="Customer Name"
                   required
-                  className="w-full rounded-lg border border-slate-300 p-2.5 text-sm outline-none focus:border-amber-500"
+                  className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-800 outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -1764,7 +1641,7 @@ const CreateBill = () => {
                     )
                   }
                   placeholder="Mobile Number"
-                  className="w-full rounded-lg border border-slate-300 p-2.5 text-sm outline-none focus:border-amber-500"
+                  className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-800 outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -1788,7 +1665,7 @@ const CreateBill = () => {
                       )
                     }
                     placeholder="GSTIN"
-                    className="w-full rounded-lg border border-slate-300 p-2.5 text-sm uppercase outline-none focus:border-amber-500"
+                    className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm uppercase text-slate-800 outline-none focus:border-amber-500"
                   />
                 </div>
               )}
@@ -1812,20 +1689,23 @@ const CreateBill = () => {
                     )
                   }
                   placeholder="Enter 6 digit Pincode"
-                  className="w-full rounded-lg border border-slate-300 p-2.5 text-sm outline-none focus:border-amber-500"
+                  className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-800 outline-none focus:border-amber-500"
                 />
 
+                {/* AUTO CITY + STATE */}
                 {pincodeLoading && (
-                  <p className="mt-1 text-[11px] text-amber-600">
+                  <p className="mt-1 text-[11px] font-semibold text-amber-600">
                     Fetching city, state...
                   </p>
                 )}
 
                 {!pincodeLoading &&
                   pincodeMessage && (
-                    <p className="mt-1 text-[11px] font-semibold text-emerald-600">
-                      {pincodeMessage}
-                    </p>
+                    <div className="mt-1 rounded-md bg-emerald-50 px-2 py-1">
+                      <p className="text-[11px] font-bold text-emerald-700">
+                        📍 {pincodeMessage}
+                      </p>
+                    </div>
                   )}
               </div>
 
@@ -1848,7 +1728,7 @@ const CreateBill = () => {
                   }
                   placeholder="Enter complete customer address"
                   required
-                  className="w-full rounded-lg border border-slate-300 p-2.5 text-sm outline-none focus:border-amber-500"
+                  className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-800 outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -1868,7 +1748,7 @@ const CreateBill = () => {
                     )
                   }
                   placeholder="City"
-                  className="w-full rounded-lg border border-slate-300 p-2.5 text-sm outline-none focus:border-amber-500"
+                  className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-800 outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -1887,7 +1767,7 @@ const CreateBill = () => {
                     )
                   }
                   placeholder="Rajasthan"
-                  className="w-full rounded-lg border border-slate-300 p-2.5 text-sm outline-none focus:border-amber-500"
+                  className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-800 outline-none focus:border-amber-500"
                 />
 
                 {customer.state && (
@@ -1918,7 +1798,7 @@ const CreateBill = () => {
                     )
                   }
                   placeholder="08"
-                  className="w-full rounded-lg border border-slate-300 p-2.5 text-sm font-bold outline-none focus:border-amber-500"
+                  className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm font-bold text-slate-800 outline-none focus:border-amber-500"
                 />
 
                 {customer.stateCode &&
@@ -1953,7 +1833,7 @@ const CreateBill = () => {
                     )
                   }
                   placeholder="Shipping Address"
-                  className="w-full rounded-lg border border-slate-300 p-2.5 text-sm outline-none focus:border-amber-500"
+                  className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-800 outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -1983,8 +1863,8 @@ const CreateBill = () => {
                         "Non-GST Invoice"
                           ? "Non-GST"
                           : calc.isInterstate
-                          ? "Inter-State — IGST"
-                          : "Intra-State — CGST + SGST"}
+                          ? "Inter-State — IGST 5%"
+                          : "Intra-State — CGST 2.5% + SGST 2.5%"}
                       </p>
                     </div>
 
@@ -2008,7 +1888,8 @@ const CreateBill = () => {
                 </h3>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  Product ID will appear before Product Name in invoice.
+                  Product ID manually enter karein.
+                  Product database se koi selection nahi hoga.
                 </p>
               </div>
 
@@ -2055,7 +1936,7 @@ const CreateBill = () => {
                     {invoiceType ===
                       "GST Invoice" && (
                       <th className="border p-3 text-center">
-                        GST %
+                        GST
                       </th>
                     )}
 
@@ -2083,12 +1964,11 @@ const CreateBill = () => {
                           item.price
                         ) || 0;
 
+                      // GST ALWAYS 5%
                       const gstRate =
                         invoiceType ===
                         "GST Invoice"
-                          ? Number(
-                              item.gstRate
-                            ) || 0
+                          ? 5
                           : 0;
 
                       const taxable =
@@ -2113,55 +1993,25 @@ const CreateBill = () => {
                             {index + 1}
                           </td>
 
-                          {/* PRODUCT ID */}
+                          {/* PRODUCT ID - MANUAL */}
                           <td className="border p-2">
 
-                            <select
+                            <input
+                              type="text"
                               value={
                                 item.productId ||
                                 ""
                               }
                               onChange={(e) =>
-                                handleSelectProductFromDb(
+                                handleItemChange(
                                   item.id,
+                                  "productId",
                                   e.target.value
                                 )
                               }
-                              className="w-full min-w-[150px] rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs font-bold outline-none"
-                            >
-
-                              <option value="">
-                                {isProductsLoading
-                                  ? "Loading..."
-                                  : "Select Product ID"}
-                              </option>
-
-                              {dbProducts.map(
-                                (
-                                  product
-                                ) => {
-
-                                  const id =
-                                    product.sku ||
-                                    product.product_id ||
-                                    product.productId ||
-                                    product.productCode ||
-                                    product.code ||
-                                    product._id ||
-                                    product.id;
-
-                                  return (
-                                    <option
-                                      key={String(id)}
-                                      value={String(id)}
-                                    >
-                                      {String(id)}
-                                    </option>
-                                  );
-                                }
-                              )}
-
-                            </select>
+                              placeholder="Product ID"
+                              className="w-full min-w-[150px] rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs font-bold text-slate-800 outline-none focus:border-amber-500"
+                            />
 
                           </td>
 
@@ -2182,7 +2032,7 @@ const CreateBill = () => {
                                 )
                               }
                               placeholder="Product Name"
-                              className="w-full min-w-[220px] rounded-lg border p-2 text-xs outline-none focus:border-amber-500"
+                              className="w-full min-w-[220px] rounded-lg border border-slate-300 bg-white p-2 text-xs text-slate-800 outline-none focus:border-amber-500"
                             />
 
                           </td>
@@ -2204,7 +2054,7 @@ const CreateBill = () => {
                                 )
                               }
                               placeholder="HSN"
-                              className="w-full rounded-lg border p-2 text-xs outline-none focus:border-amber-500"
+                              className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs text-slate-800 outline-none focus:border-amber-500"
                             />
 
                           </td>
@@ -2225,7 +2075,7 @@ const CreateBill = () => {
                                   e.target.value
                                 )
                               }
-                              className="w-20 rounded-lg border p-2 text-center text-xs outline-none"
+                              className="w-20 rounded-lg border border-slate-300 bg-white p-2 text-center text-xs text-slate-800 outline-none"
                             />
 
                           </td>
@@ -2247,53 +2097,19 @@ const CreateBill = () => {
                                   e.target.value
                                 )
                               }
-                              className="w-24 rounded-lg border p-2 text-right text-xs outline-none"
+                              className="w-24 rounded-lg border border-slate-300 bg-white p-2 text-right text-xs text-slate-800 outline-none"
                             />
 
                           </td>
 
-                          {/* GST */}
+                          {/* GST FIXED 5% */}
                           {invoiceType ===
                             "GST Invoice" && (
                             <td className="border p-2">
 
-                              <select
-                                value={
-                                  item.gstRate
-                                }
-                                onChange={(e) =>
-                                  handleItemChange(
-                                    item.id,
-                                    "gstRate",
-                                    Number(
-                                      e.target.value
-                                    )
-                                  )
-                                }
-                                className="w-20 rounded-lg border p-2 text-xs outline-none"
-                              >
-
-                                <option value={0}>
-                                  0%
-                                </option>
-
-                                <option value={5}>
-                                  5%
-                                </option>
-
-                                <option value={12}>
-                                  12%
-                                </option>
-
-                                <option value={18}>
-                                  18%
-                                </option>
-
-                                <option value={28}>
-                                  28%
-                                </option>
-
-                              </select>
+                              <div className="flex h-[34px] w-20 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 text-xs font-black text-amber-700">
+                                5%
+                              </div>
 
                             </td>
                           )}
@@ -2436,7 +2252,7 @@ const CreateBill = () => {
                       })
                     )
                   }
-                  className="no-print w-full rounded-xl border border-slate-300 p-3 text-xs outline-none focus:border-amber-500"
+                  className="no-print w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-800 outline-none focus:border-amber-500"
                 />
 
                 <div className="hidden whitespace-pre-line text-[10px] leading-5 print:block">
@@ -2505,7 +2321,7 @@ const CreateBill = () => {
                       e.target.value
                     )
                   }
-                  className="no-print w-28 rounded-lg border border-slate-300 p-2 text-right"
+                  className="no-print w-28 rounded-lg border border-slate-300 bg-white p-2 text-right text-slate-800"
                 />
 
                 <span className="hidden font-bold print:block">
@@ -2592,7 +2408,7 @@ const CreateBill = () => {
                     <div className="flex justify-between text-sm font-bold">
 
                       <span>
-                        IGST Total
+                        IGST 5% Total
                       </span>
 
                       <span>
@@ -2608,7 +2424,7 @@ const CreateBill = () => {
                       <div className="flex justify-between text-sm font-bold">
 
                         <span>
-                          CGST Total
+                          CGST 2.5% Total
                         </span>
 
                         <span>
@@ -2623,7 +2439,7 @@ const CreateBill = () => {
                       <div className="mt-1 flex justify-between text-sm font-bold">
 
                         <span>
-                          SGST Total
+                          SGST 2.5% Total
                         </span>
 
                         <span>

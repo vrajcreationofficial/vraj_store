@@ -1,6 +1,6 @@
 // =====================================================
 // VRAJ CREATION - DASHBOARD BACKEND SERVER
-// SECURE PRODUCTION VERSION
+// SECURE LOCAL VERSION
 // =====================================================
 
 const express = require("express");
@@ -27,8 +27,37 @@ const IS_PRODUCTION =
   NODE_ENV === "production";
 
 // =====================================================
+// REQUIRED SECURITY SECRETS
+// =====================================================
+
+if (!process.env.JWT_SECRET) {
+  console.error(
+    "====================================================="
+  );
+
+  console.error(
+    "ERROR: JWT_SECRET is missing in .env"
+  );
+
+  console.error(
+    "Please add a strong random JWT_SECRET."
+  );
+
+  console.error(
+    "====================================================="
+  );
+
+  process.exit(1);
+}
+
+// =====================================================
 // SECRET STATUS
 // =====================================================
+
+console.log(
+  "JWT_SECRET:",
+  "LOADED"
+);
 
 console.log(
   "DASHBOARD_BACKEND_URL:",
@@ -42,6 +71,13 @@ console.log(
   process.env.INTERNAL_STOCK_SECRET
     ? "LOADED"
     : "MISSING"
+);
+
+console.log(
+  "EMAIL_USER:",
+  process.env.EMAIL_USER
+    ? "CONFIGURED"
+    : "NOT CONFIGURED"
 );
 
 // =====================================================
@@ -118,6 +154,12 @@ connectDB();
 // =====================================================
 // TRUST PROXY
 // =====================================================
+//
+// Required when deployed behind a reverse proxy such as
+// Render / Nginx / similar infrastructure.
+//
+// Do not enable it locally unless required.
+//
 
 if (IS_PRODUCTION) {
   app.set(
@@ -146,15 +188,19 @@ app.use(
 // CORS CONFIGURATION
 // =====================================================
 //
-// Production frontend:
-// https://vraj-creations.netlify.app
+// Local frontend:
 //
-// Render Environment Variable:
+// http://localhost:5173
+// http://localhost:5174
+// http://127.0.0.1:5173
+// http://127.0.0.1:5174
 //
-// FRONTEND_URL=https://vraj-creations.netlify.app
+// FRONTEND_URL can contain multiple comma-separated
+// origins.
 //
-// Multiple frontend URLs can be supplied:
-// FRONTEND_URL=https://domain1.com,https://domain2.com
+// Example:
+//
+// FRONTEND_URL=http://localhost:5173,http://localhost:5174
 //
 // =====================================================
 
@@ -188,33 +234,17 @@ const developmentOrigins = [
 ];
 
 // -----------------------------------------------------
-// Production frontend
-// -----------------------------------------------------
-//
-// Explicitly include the real Netlify dashboard.
-//
-// This prevents login failure if FRONTEND_URL
-// is accidentally missing in Render.
-//
-
-const productionOrigins = [
-  "https://vraj-creations.netlify.app",
-];
-
-// -----------------------------------------------------
 // Final allowed origins
 // -----------------------------------------------------
+//
+// IMPORTANT:
+// No Netlify origin is hard-coded here.
+//
 
-const allowedOrigins = IS_PRODUCTION
-  ? [
-      ...configuredOrigins,
-      ...productionOrigins,
-    ]
-  : [
-      ...configuredOrigins,
-      ...developmentOrigins,
-      ...productionOrigins,
-    ];
+const allowedOrigins = [
+  ...configuredOrigins,
+  ...developmentOrigins,
+];
 
 // -----------------------------------------------------
 // Remove duplicates
@@ -362,12 +392,15 @@ app.use(
 app.use(
   express.json({
     limit: "2mb",
+
+    strict: true,
   })
 );
 
 app.use(
   express.urlencoded({
-    extended: true,
+    extended: false,
+
     limit: "2mb",
   })
 );
@@ -375,6 +408,12 @@ app.use(
 // =====================================================
 // LOGIN RATE LIMIT
 // =====================================================
+//
+// Protects login endpoint against repeated automated
+// login attempts.
+//
+// 5 requests / 15 minutes per IP.
+//
 
 const loginLimiter =
   rateLimit({
@@ -401,6 +440,10 @@ const loginLimiter =
 // =====================================================
 // INTERNAL STOCK RATE LIMIT
 // =====================================================
+//
+// Internal stock synchronization can legitimately make
+// multiple requests, so the limit is higher.
+//
 
 const internalStockLimiter =
   rateLimit({
@@ -433,6 +476,9 @@ app.use(
 // =====================================================
 // LOCAL UPLOADS
 // =====================================================
+//
+// Static uploads are served without directory listing.
+//
 
 app.use(
   "/uploads",
@@ -445,6 +491,8 @@ app.use(
       maxAge: "1d",
 
       index: false,
+
+      dotfiles: "deny",
     }
   )
 );
@@ -576,6 +624,9 @@ app.get(
 
       message:
         "Vraj Creation API is running",
+
+      environment:
+        NODE_ENV,
     });
   }
 );
@@ -674,7 +725,54 @@ app.use(
         success: false,
 
         message:
-          err.message,
+          "File upload failed.",
+      });
+    }
+
+    // -------------------------------------------------
+    // MONGOOSE VALIDATION ERROR
+    // -------------------------------------------------
+
+    if (
+      err.name ===
+      "ValidationError"
+    ) {
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "Invalid request data.",
+      });
+    }
+
+    // -------------------------------------------------
+    // MONGOOSE CAST ERROR
+    // -------------------------------------------------
+
+    if (
+      err.name ===
+      "CastError"
+    ) {
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "Invalid request data.",
+      });
+    }
+
+    // -------------------------------------------------
+    // DUPLICATE KEY ERROR
+    // -------------------------------------------------
+
+    if (
+      err.code === 11000
+    ) {
+      return res.status(409).json({
+        success: false,
+
+        message:
+          "A record with this information already exists.",
       });
     }
 
@@ -756,6 +854,10 @@ app.listen(
       uniqueAllowedOrigins.join(
         ", "
       )
+    );
+
+    console.log(
+      "JWT_SECRET: LOADED"
     );
 
     console.log(

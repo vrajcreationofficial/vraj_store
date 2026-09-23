@@ -10,16 +10,13 @@ const API_BASE_URL =
     ? "http://localhost:5000/api"
     : "https://vraj-creation.onrender.com/api";
 
-const API_URL = `${API_BASE_URL}/sales`;
-
-// =========================================================
-// FAST API TIMEOUT
-// =========================================================
+const SALES_API_URL = `${API_BASE_URL}/sales`;
+const PRODUCTS_API_URL = `${API_BASE_URL}/products`;
 
 const API_TIMEOUT = 10000;
 
 // =========================================================
-// FETCH WITH TIMEOUT
+// FETCH WITH TIMEOUT + AUTH
 // =========================================================
 
 const fetchWithTimeout = async (url, options = {}) => {
@@ -30,8 +27,19 @@ const fetchWithTimeout = async (url, options = {}) => {
   }, API_TIMEOUT);
 
   try {
+    const token = localStorage.getItem("token");
+
+    const headers = {
+      ...(options.headers || {}),
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
     return await fetch(url, {
       ...options,
+      headers,
       signal: controller.signal,
     });
   } catch (error) {
@@ -56,48 +64,193 @@ const createInitialFormState = () => ({
   productName: "",
   productImage: "",
   imageFile: null,
+
   platform: "meesho",
+
   date: new Date().toISOString().split("T")[0],
+
   quantity: 1,
+
   bankSettlementAmount: "",
+
   packagingCost: 0,
+
   colouringCost: 0,
 });
+
+// =========================================================
+// HELPER - PRODUCT ID
+// =========================================================
+
+const getProductId = (product) => {
+  return String(
+    product?.productId ||
+      product?.sku ||
+      product?.product_id ||
+      product?.code ||
+      ""
+  ).trim();
+};
+
+// =========================================================
+// HELPER - PRODUCT NAME
+// =========================================================
+
+const getProductName = (product) => {
+  return String(
+    product?.name ||
+      product?.productName ||
+      product?.title ||
+      ""
+  ).trim();
+};
+
+// =========================================================
+// HELPER - PRODUCT IMAGE
+// =========================================================
+
+const getProductImage = (product) => {
+  return (
+    product?.image ||
+    product?.productImage ||
+    product?.imageUrl ||
+    product?.imageURL ||
+    product?.images?.[0] ||
+    ""
+  );
+};
 
 // =========================================================
 // SALES PAGE
 // =========================================================
 
 const SalesPage = () => {
+  // =======================================================
+  // PLATFORM
+  // =======================================================
+
   const [selectedPlatform, setSelectedPlatform] =
     useState("meesho");
 
+  // =======================================================
+  // SEARCH
+  // =======================================================
+
   const [searchTerm, setSearchTerm] = useState("");
+
+  // =======================================================
+  // DATA
+  // =======================================================
 
   const [sales, setSales] = useState([]);
 
+  const [products, setProducts] = useState([]);
+
+  // =======================================================
+  // LOADING
+  // =======================================================
+
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+
   const [saving, setSaving] = useState(false);
 
+  const [productsLoading, setProductsLoading] =
+    useState(false);
+
+  // =======================================================
+  // MODALS
+  // =======================================================
+
   const [isModalOpen, setIsModalOpen] = useState(false);
+
   const [editingId, setEditingId] = useState(null);
 
   const [previewProduct, setPreviewProduct] =
     useState(null);
 
+  // =======================================================
+  // PRINT
+  // =======================================================
+
+  const [printMenuOpen, setPrintMenuOpen] =
+    useState(false);
+
+  const [printSaleId, setPrintSaleId] =
+    useState(null);
+
+  // =======================================================
+  // ERROR
+  // =======================================================
+
   const [errorMessage, setErrorMessage] =
     useState("");
 
-  // Prevent duplicate GET requests
+  // =======================================================
+  // REQUEST LOCK
+  // =======================================================
+
   const requestInProgressRef = useRef(false);
 
-  // Image preview URL
+  // =======================================================
+  // IMAGE PREVIEW
+  // =======================================================
+
   const previewUrlRef = useRef(null);
+
+  // =======================================================
+  // FORM
+  // =======================================================
 
   const [formData, setFormData] = useState(
     createInitialFormState()
   );
+
+  // =========================================================
+  // LOAD PRODUCTS
+  // =========================================================
+
+  const loadProducts = useCallback(async () => {
+    try {
+      setProductsLoading(true);
+
+      const response = await fetchWithTimeout(
+        PRODUCTS_API_URL
+      );
+
+      const result = await response
+        .json()
+        .catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            result?.error ||
+            `Products HTTP ${response.status}`
+        );
+      }
+
+      const productData = Array.isArray(result)
+        ? result
+        : Array.isArray(result?.products)
+        ? result.products
+        : Array.isArray(result?.data)
+        ? result.data
+        : Array.isArray(result?.data?.products)
+        ? result.data.products
+        : [];
+
+      setProducts(productData);
+    } catch (error) {
+      console.error(
+        "LOAD PRODUCTS ERROR:",
+        error
+      );
+
+      setProducts([]);
+    } finally {
+      setProductsLoading(false);
+    }
+  }, []);
 
   // =========================================================
   // LOAD SALES
@@ -114,14 +267,14 @@ const SalesPage = () => {
       try {
         if (showLoader) {
           setLoading(true);
-        } else {
-          setRefreshing(true);
         }
 
         setErrorMessage("");
 
         const response =
-          await fetchWithTimeout(API_URL);
+          await fetchWithTimeout(
+            SALES_API_URL
+          );
 
         const result =
           await response
@@ -140,6 +293,8 @@ const SalesPage = () => {
           ? result
           : Array.isArray(result?.sales)
           ? result.sales
+          : Array.isArray(result?.data)
+          ? result.data
           : [];
 
         setSales(salesData);
@@ -151,6 +306,7 @@ const SalesPage = () => {
 
         if (showLoader) {
           setSales([]);
+
           setErrorMessage(
             error.message ||
               "Sales load nahi ho saki."
@@ -160,19 +316,19 @@ const SalesPage = () => {
         requestInProgressRef.current = false;
 
         setLoading(false);
-        setRefreshing(false);
       }
     },
     []
   );
 
   // =========================================================
-  // INITIAL LOAD ONLY
+  // INITIAL LOAD
   // =========================================================
 
   useEffect(() => {
     loadSales(true);
-  }, [loadSales]);
+    loadProducts();
+  }, [loadSales, loadProducts]);
 
   // =========================================================
   // CLEAN IMAGE URL
@@ -189,12 +345,37 @@ const SalesPage = () => {
   }, []);
 
   // =========================================================
-  // FILTER
+  // CLOSE PRINT MENU ON OUTSIDE CLICK
+  // =========================================================
+
+  useEffect(() => {
+    const handleClick = () => {
+      setPrintMenuOpen(false);
+    };
+
+    if (printMenuOpen) {
+      document.addEventListener(
+        "click",
+        handleClick
+      );
+    }
+
+    return () => {
+      document.removeEventListener(
+        "click",
+        handleClick
+      );
+    };
+  }, [printMenuOpen]);
+
+  // =========================================================
+  // FILTER SALES
   // =========================================================
 
   const filteredSales = sales.filter((item) => {
     const platformMatch =
-      String(item.platform || "").toLowerCase() ===
+      String(item.platform || "")
+        .toLowerCase() ===
       selectedPlatform.toLowerCase();
 
     const search =
@@ -281,11 +462,39 @@ const SalesPage = () => {
     );
 
   // =========================================================
-  // PRINT
+  // PRINT ALL
   // =========================================================
 
-  const handlePrintPDF = () => {
-    window.print();
+  const handlePrintAll = () => {
+    setPrintSaleId(null);
+
+    setPrintMenuOpen(false);
+
+    setTimeout(() => {
+      window.print();
+
+      setTimeout(() => {
+        setPrintSaleId(null);
+      }, 500);
+    }, 100);
+  };
+
+  // =========================================================
+  // PRINT SINGLE SALE
+  // =========================================================
+
+  const handlePrintSingle = (id) => {
+    setPrintSaleId(String(id));
+
+    setPrintMenuOpen(false);
+
+    setTimeout(() => {
+      window.print();
+
+      setTimeout(() => {
+        setPrintSaleId(null);
+      }, 500);
+    }, 100);
   };
 
   // =========================================================
@@ -303,6 +512,8 @@ const SalesPage = () => {
     setErrorMessage("");
 
     setIsModalOpen(true);
+
+    loadProducts();
   };
 
   // =========================================================
@@ -317,19 +528,25 @@ const SalesPage = () => {
       productName: item.productName || "",
       productImage: item.productImage || "",
       imageFile: null,
+
       platform:
         item.platform || "meesho",
+
       date:
         item.date ||
         item.saleDate ||
         new Date()
           .toISOString()
           .split("T")[0],
+
       quantity: item.quantity || 1,
+
       bankSettlementAmount:
         item.bankSettlementAmount ?? "",
+
       packagingCost:
         item.packagingCost ?? 0,
+
       colouringCost:
         item.colouringCost ?? 0,
     });
@@ -337,6 +554,67 @@ const SalesPage = () => {
     setErrorMessage("");
 
     setIsModalOpen(true);
+
+    loadProducts();
+  };
+
+  // =========================================================
+  // PRODUCT SELECT
+  // =========================================================
+
+  const handleProductSelect = (e) => {
+    const selectedId = e.target.value;
+
+    if (!selectedId) {
+      setFormData((prev) => ({
+        ...prev,
+        productId: "",
+        productName: "",
+        productImage: "",
+      }));
+
+      return;
+    }
+
+    const selectedProduct =
+      products.find(
+        (product) =>
+          getProductId(product) ===
+          selectedId
+      );
+
+    if (!selectedProduct) {
+      return;
+    }
+
+    const productId =
+      getProductId(selectedProduct);
+
+    const productName =
+      getProductName(selectedProduct);
+
+    const productImage =
+      getProductImage(selectedProduct);
+
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(
+        previewUrlRef.current
+      );
+
+      previewUrlRef.current = null;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+
+      productId,
+
+      productName,
+
+      productImage,
+
+      imageFile: null,
+    }));
   };
 
   // =========================================================
@@ -359,14 +637,15 @@ const SalesPage = () => {
     }
 
     if (!file.type.startsWith("image/")) {
-      alert("Sirf image file select karo.");
+      alert(
+        "Sirf image file select karo."
+      );
 
       e.target.value = "";
 
       return;
     }
 
-    // Remove previous object URL
     if (previewUrlRef.current) {
       URL.revokeObjectURL(
         previewUrlRef.current
@@ -380,7 +659,9 @@ const SalesPage = () => {
 
     setFormData((prev) => ({
       ...prev,
+
       imageFile: file,
+
       productImage: previewUrl,
     }));
   };
@@ -400,7 +681,9 @@ const SalesPage = () => {
 
     setFormData((prev) => ({
       ...prev,
+
       imageFile: null,
+
       productImage: "",
     }));
   };
@@ -421,7 +704,9 @@ const SalesPage = () => {
     }
 
     setIsModalOpen(false);
+
     setEditingId(null);
+
     setErrorMessage("");
 
     setFormData(
@@ -443,6 +728,7 @@ const SalesPage = () => {
 
     try {
       setSaving(true);
+
       setErrorMessage("");
 
       const productId =
@@ -486,7 +772,7 @@ const SalesPage = () => {
 
       if (!productId) {
         alert(
-          "Product ID required hai."
+          "Product select karo."
         );
         return;
       }
@@ -614,8 +900,8 @@ const SalesPage = () => {
       // =====================================================
 
       const url = editingId
-        ? `${API_URL}/${editingId}`
-        : API_URL;
+        ? `${SALES_API_URL}/${editingId}`
+        : SALES_API_URL;
 
       const method = editingId
         ? "PUT"
@@ -628,7 +914,7 @@ const SalesPage = () => {
       );
 
       // =====================================================
-      // API REQUEST
+      // API
       // =====================================================
 
       const response =
@@ -659,14 +945,14 @@ const SalesPage = () => {
       }
 
       // =====================================================
-      // GET RETURNED SALE
+      // RETURNED SALE
       // =====================================================
 
       const returnedSale =
         result?.sale;
 
       // =====================================================
-      // UPDATE LOCAL STATE IMMEDIATELY
+      // LOCAL UPDATE
       // =====================================================
 
       if (returnedSale) {
@@ -689,7 +975,7 @@ const SalesPage = () => {
       }
 
       // =====================================================
-      // CLOSE MODAL IMMEDIATELY
+      // CLOSE
       // =====================================================
 
       if (previewUrlRef.current) {
@@ -701,27 +987,18 @@ const SalesPage = () => {
       }
 
       setIsModalOpen(false);
+
       setEditingId(null);
 
       setFormData(
         createInitialFormState()
       );
 
-      // =====================================================
-      // SUCCESS
-      // =====================================================
-
       alert(
         wasEditing
           ? "Sale updated successfully."
           : "Sale added successfully."
       );
-
-      // IMPORTANT:
-      // Yahan loadSales() intentionally nahi hai.
-      //
-      // Save ke baad GET /sales dobara call nahi hogi.
-      // Isse update/add ke baad waiting bahut kam hogi.
     } catch (error) {
       console.error(
         "SAVE SALE ERROR:",
@@ -759,7 +1036,7 @@ const SalesPage = () => {
 
       const response =
         await fetchWithTimeout(
-          `${API_URL}/${id}`,
+          `${SALES_API_URL}/${id}`,
           {
             method: "DELETE",
           }
@@ -778,7 +1055,6 @@ const SalesPage = () => {
         );
       }
 
-      // Remove immediately from UI
       setSales((prevSales) =>
         prevSales.filter(
           (item) =>
@@ -805,6 +1081,111 @@ const SalesPage = () => {
       alert(message);
     }
   };
+
+  // =========================================================
+  // PRINT ROW CHECK
+  // =========================================================
+
+  const shouldPrintRow = (item) => {
+    if (!printSaleId) {
+      return true;
+    }
+
+    return (
+      String(item._id) ===
+      String(printSaleId)
+    );
+  };
+
+  // =========================================================
+  // SKELETON LOADER
+  // =========================================================
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        {/* HEADER SKELETON */}
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-3">
+            <div className="h-8 w-56 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
+
+            <div className="h-4 w-80 animate-pulse rounded-md bg-slate-100 dark:bg-slate-800" />
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <div className="h-10 w-64 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+
+            <div className="h-10 w-40 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+
+            <div className="h-10 w-36 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+          </div>
+        </div>
+
+        {/* SEARCH SKELETON */}
+
+        <div className="h-11 w-full animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800" />
+
+        {/* TABLE SKELETON */}
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          {/* TABLE HEADER */}
+
+          <div className="h-12 animate-pulse border-b border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800" />
+
+          {/* TABLE ROWS */}
+
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {[1, 2, 3, 4, 5, 6].map(
+              (item) => (
+                <div
+                  key={item}
+                  className="flex items-center gap-4 px-4 py-4"
+                >
+                  <div className="h-9 w-9 shrink-0 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
+
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 w-40 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+
+                    <div className="h-2.5 w-24 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+                  </div>
+
+                  <div className="hidden h-3 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800 sm:block" />
+
+                  <div className="hidden h-3 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800 md:block" />
+
+                  <div className="h-3 w-14 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+
+                  <div className="h-3 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+
+                  <div className="h-3 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+
+                  <div className="h-7 w-24 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
+                </div>
+              )
+            )}
+          </div>
+        </div>
+
+        {/* SUMMARY SKELETON */}
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4 dark:border-slate-800 dark:bg-slate-900">
+          <div className="mb-3 h-3 w-40 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            {[1, 2, 3, 4, 5].map(
+              (item) => (
+                <div
+                  key={item}
+                  className="h-14 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800"
+                />
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // =========================================================
   // RETURN
@@ -862,6 +1243,10 @@ const SalesPage = () => {
           .print-img {
             display: none !important;
           }
+
+          .print-hidden-row {
+            display: none !important;
+          }
         }
       `}</style>
 
@@ -878,12 +1263,6 @@ const SalesPage = () => {
               Marketplace Sales
             </h1>
 
-            {refreshing && (
-              <span className="text-[10px] font-bold text-slate-400">
-                Syncing...
-              </span>
-            )}
-
           </div>
 
           <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -893,7 +1272,9 @@ const SalesPage = () => {
 
         <div className="flex flex-wrap items-center gap-3">
 
-          {/* PLATFORM */}
+          {/* =================================================
+              PLATFORM
+          ================================================= */}
 
           <div className="flex rounded-xl bg-slate-200/80 p-1 dark:bg-slate-800">
 
@@ -941,20 +1322,150 @@ const SalesPage = () => {
 
           </div>
 
-          {/* PRINT */}
+          {/* =================================================
+              PRINT MENU
+          ================================================= */}
 
-          <button
-            type="button"
-            onClick={handlePrintPDF}
-            className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-red-700"
+          <div
+            className="relative"
+            onClick={(e) =>
+              e.stopPropagation()
+            }
           >
-            <span>🖨️</span>
-            <span>
-              Print / Save PDF
-            </span>
-          </button>
 
-          {/* ADD */}
+            <button
+              type="button"
+              onClick={() =>
+                setPrintMenuOpen(
+                  (prev) => !prev
+                )
+              }
+              className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-red-700"
+            >
+              <span>🖨️</span>
+
+              <span>
+                Print / Save PDF
+              </span>
+
+              <span className="text-[10px]">
+                ▾
+              </span>
+            </button>
+
+            {printMenuOpen && (
+              <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+
+                {/* PRINT ALL */}
+
+                <button
+                  type="button"
+                  onClick={handlePrintAll}
+                  className="flex w-full items-center gap-3 border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
+                >
+
+                  <span className="text-lg">
+                    📄
+                  </span>
+
+                  <div>
+                    <p className="text-xs font-black text-slate-900 dark:text-white">
+                      Print All Sales
+                    </p>
+
+                    <p className="text-[10px] text-slate-400">
+                      Print all visible{" "}
+                      {selectedPlatform} sales
+                    </p>
+                  </div>
+
+                </button>
+
+                {/* INDIVIDUAL SALES */}
+
+                <div className="max-h-80 overflow-y-auto">
+
+                  <div className="px-4 pb-2 pt-3">
+
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      Print Individual Sale
+                    </p>
+
+                  </div>
+
+                  {filteredSales.length === 0 ? (
+                    <div className="px-4 pb-4 text-xs text-slate-400">
+                      No sale available.
+                    </div>
+                  ) : (
+                    filteredSales.map(
+                      (item) => (
+                        <button
+                          key={
+                            item._id
+                          }
+                          type="button"
+                          onClick={() =>
+                            handlePrintSingle(
+                              item._id
+                            )
+                          }
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800"
+                        >
+
+                          {item.productImage ? (
+                            <img
+                              src={
+                                item.productImage
+                              }
+                              alt=""
+                              className="h-9 w-9 rounded-lg border border-slate-200 object-cover dark:border-slate-700"
+                            />
+                          ) : (
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
+                              🖼️
+                            </div>
+                          )}
+
+                          <div className="min-w-0 flex-1">
+
+                            <p className="truncate text-xs font-bold text-slate-800 dark:text-white">
+                              {
+                                item.productName
+                              }
+                            </p>
+
+                            <p className="text-[10px] text-slate-400">
+                              {
+                                item.productId
+                              }{" "}
+                              • Qty{" "}
+                              {
+                                item.quantity
+                              }
+                            </p>
+
+                          </div>
+
+                          <span className="text-xs">
+                            🖨️
+                          </span>
+
+                        </button>
+                      )
+                    )
+                  )}
+
+                </div>
+
+              </div>
+            )}
+
+          </div>
+
+          {/* =================================================
+              ADD SALE
+          ================================================= */}
 
           <button
             type="button"
@@ -1044,6 +1555,12 @@ const SalesPage = () => {
             )}
           </p>
 
+          {printSaleId && (
+            <p className="mt-1 text-[10px] font-bold text-slate-700">
+              Individual Sale Print
+            </p>
+          )}
+
         </div>
 
         {/* =====================================================
@@ -1088,7 +1605,7 @@ const SalesPage = () => {
                     Colouring
                   </th>
 
-                  <th className="w-[10%] px-3 py-3 font-extrabold text-emerald-600 dark:text-emerald-400 print:text-emerald-800">
+                  <th className="w-[10%] px-3 py-3">
                     Margin
                   </th>
 
@@ -1102,28 +1619,8 @@ const SalesPage = () => {
 
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-200">
 
-                {loading ? (
-                  <tr>
-
-                    <td
-                      colSpan="9"
-                      className="py-12 text-center text-slate-400"
-                    >
-
-                      <div className="flex flex-col items-center gap-2">
-
-                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900 dark:border-slate-700 dark:border-t-white" />
-
-                        <span>
-                          Loading sales...
-                        </span>
-
-                      </div>
-
-                    </td>
-
-                  </tr>
-                ) : filteredSales.length === 0 ? (
+                {filteredSales.length ===
+                  0 ? (
                   <tr>
 
                     <td
@@ -1143,12 +1640,21 @@ const SalesPage = () => {
                           item
                         );
 
+                      const hiddenForPrint =
+                        !shouldPrintRow(
+                          item
+                        );
+
                       return (
                         <tr
                           key={
                             item._id
                           }
-                          className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40"
+                          className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/40 ${
+                            hiddenForPrint
+                              ? "print-hidden-row"
+                              : ""
+                          }`}
                         >
 
                           {/* PRODUCT */}
@@ -1280,6 +1786,21 @@ const SalesPage = () => {
                                 title="Preview"
                               >
                                 👁️
+                              </button>
+
+                              {/* PRINT */}
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handlePrintSingle(
+                                    item._id
+                                  )
+                                }
+                                className="rounded-lg p-1 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+                                title="Print this sale"
+                              >
+                                🖨️
                               </button>
 
                               {/* EDIT */}
@@ -1496,6 +2017,13 @@ const SalesPage = () => {
                 </h3>
 
                 <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Product ID:{" "}
+                  {
+                    previewProduct.productId
+                  }
+                </p>
+
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Order Date:{" "}
                   {previewProduct.date ||
                     previewProduct.saleDate ||
@@ -1507,6 +2035,7 @@ const SalesPage = () => {
               <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-xs dark:bg-slate-800/50">
 
                 <div>
+
                   <span className="text-slate-400">
                     Quantity:
                   </span>
@@ -1517,9 +2046,11 @@ const SalesPage = () => {
                     }{" "}
                     units
                   </p>
+
                 </div>
 
                 <div>
+
                   <span className="text-slate-400">
                     Bank Settlement:
                   </span>
@@ -1533,9 +2064,11 @@ const SalesPage = () => {
                       "en-IN"
                     )}
                   </p>
+
                 </div>
 
                 <div>
+
                   <span className="text-slate-400">
                     Packaging Cost:
                   </span>
@@ -1549,9 +2082,11 @@ const SalesPage = () => {
                       "en-IN"
                     )}
                   </p>
+
                 </div>
 
                 <div>
+
                   <span className="text-slate-400">
                     Colouring Cost:
                   </span>
@@ -1565,6 +2100,7 @@ const SalesPage = () => {
                       "en-IN"
                     )}
                   </p>
+
                 </div>
 
               </div>
@@ -1604,11 +2140,19 @@ const SalesPage = () => {
 
             <div className="mb-4 flex items-center justify-between border-b border-slate-200 pb-3 dark:border-slate-800">
 
-              <h2 className="text-lg font-black text-slate-900 dark:text-white">
-                {editingId
-                  ? "Edit Sale Entry"
-                  : "Add New Sale Entry"}
-              </h2>
+              <div>
+
+                <h2 className="text-lg font-black text-slate-900 dark:text-white">
+                  {editingId
+                    ? "Edit Sale Entry"
+                    : "Add New Sale Entry"}
+                </h2>
+
+                <p className="mt-0.5 text-[10px] text-slate-400">
+                  Product select karne par SKU automatically fill hoga.
+                </p>
+
+              </div>
 
               <button
                 type="button"
@@ -1697,86 +2241,143 @@ const SalesPage = () => {
 
               </div>
 
-              {/* PRODUCT ID + QUANTITY */}
+              {/* PRODUCT SELECT */}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div>
 
-                <div>
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300">
+                  Select Product
+                </label>
 
-                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-300">
-                    Product ID / SKU
-                  </label>
+                <select
+                  value={
+                    formData.productId
+                  }
+                  onChange={
+                    handleProductSelect
+                  }
+                  disabled={
+                    productsLoading
+                  }
+                  required
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                >
 
-                  <input
-                    type="text"
-                    required
-                    placeholder="PRD-101"
-                    value={
-                      formData.productId
+                  <option value="">
+                    {productsLoading
+                      ? "Loading products..."
+                      : "Select Product"}
+                  </option>
+
+                  {products.map(
+                    (product, index) => {
+                      const id =
+                        getProductId(
+                          product
+                        );
+
+                      const name =
+                        getProductName(
+                          product
+                        );
+
+                      if (!id) {
+                        return null;
+                      }
+
+                      return (
+                        <option
+                          key={
+                            product._id ||
+                            id ||
+                            index
+                          }
+                          value={id}
+                        >
+                          {id} —{" "}
+                          {name ||
+                            "Unnamed Product"}
+                        </option>
+                      );
                     }
-                    onChange={(e) =>
-                      setFormData(
-                        (prev) => ({
-                          ...prev,
-                          productId:
-                            e.target.value,
-                        })
-                      )
-                    }
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                  />
+                  )}
 
-                </div>
+                </select>
 
-                <div>
+                {products.length ===
+                  0 &&
+                  !productsLoading && (
+                    <p className="mt-1 text-[10px] text-rose-500">
+                      Product list nahi mili. Products page me product check karo.
+                    </p>
+                  )}
 
-                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-300">
-                    Quantity
-                  </label>
+              </div>
 
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={
-                      formData.quantity
-                    }
-                    onChange={(e) =>
-                      setFormData(
-                        (prev) => ({
-                          ...prev,
-                          quantity:
-                            e.target.value,
-                        })
-                      )
-                    }
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                  />
+              {/* AUTO PRODUCT INFO */}
+
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 dark:border-blue-900/40 dark:bg-blue-950/20">
+
+                <div className="flex items-center gap-3">
+
+                  {formData.productImage ? (
+                    <img
+                      src={
+                        formData.productImage
+                      }
+                      alt={
+                        formData.productName
+                      }
+                      className="h-14 w-14 rounded-xl border border-blue-100 object-cover dark:border-blue-900"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-blue-100 bg-white text-xl dark:border-blue-900 dark:bg-slate-900">
+                      🖼️
+                    </div>
+                  )}
+
+                  <div className="min-w-0">
+
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500">
+                      Product ID / SKU
+                    </p>
+
+                    <p className="font-mono text-xs font-black text-slate-900 dark:text-white">
+                      {formData.productId ||
+                        "Auto"}
+                    </p>
+
+                    <p className="mt-1 truncate text-xs font-bold text-slate-700 dark:text-slate-300">
+                      {formData.productName ||
+                        "Product select karo"}
+                    </p>
+
+                  </div>
 
                 </div>
 
               </div>
 
-              {/* PRODUCT NAME */}
+              {/* QUANTITY */}
 
               <div>
 
                 <label className="block text-xs font-bold text-slate-600 dark:text-slate-300">
-                  Product Name
+                  Quantity
                 </label>
 
                 <input
-                  type="text"
+                  type="number"
+                  min="1"
                   required
-                  placeholder="Ganesha Idol"
                   value={
-                    formData.productName
+                    formData.quantity
                   }
                   onChange={(e) =>
                     setFormData(
                       (prev) => ({
                         ...prev,
-                        productName:
+                        quantity:
                           e.target.value,
                       })
                     )
@@ -1786,7 +2387,7 @@ const SalesPage = () => {
 
               </div>
 
-              {/* IMAGE */}
+              {/* PRODUCT IMAGE */}
 
               <div>
 
@@ -1794,7 +2395,11 @@ const SalesPage = () => {
                   Product Image
                 </label>
 
-                <div className="mt-1 space-y-3">
+                <p className="mt-1 text-[10px] text-slate-400">
+                  Product ki existing image automatically aa jayegi. Zarurat ho to new image upload kar sakte ho.
+                </p>
+
+                <div className="mt-2 space-y-3">
 
                   <input
                     type="file"

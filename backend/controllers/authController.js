@@ -1,74 +1,100 @@
-const User = require("../models/User");
-const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
+const bcrypt = require("bcryptjs");
+
+const User = require("../models/User");
+
+require("dotenv").config();
 
 // =====================================================
-// CONFIG
+// ENVIRONMENT
 // =====================================================
 
-const JWT_SECRET =
-  process.env.JWT_SECRET ||
-  "vraj_default_secure_secret_2026";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error(
+    "JWT_SECRET is missing in environment variables."
+  );
+}
 
 // =====================================================
 // ADMIN EMAILS
 // =====================================================
-// In emails ko automatically admin access milega.
 
 const ADMIN_EMAILS = [
   "pawanpatelcollege@gmail.com",
   "ojhavikas30@gmail.com",
   "kavyaojha05@gmail.com",
-];
+].map((email) => email.toLowerCase());
 
 // =====================================================
-// EMAIL CONFIG (NODEMAILER)
+// HELPER - GENERATE JWT
 // =====================================================
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const generateToken = (
+  userId,
+  role,
+  tokenVersion = 0
+) => {
+  const normalizedTokenVersion =
+    Number(tokenVersion) || 0;
 
-// =====================================================
-// EMAIL VALIDATION (मजबूत चेक)
-// =====================================================
-
-const EMAIL_REGEX =
-  /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-
-// =====================================================
-// ADMIN CHECK HELPER
-// =====================================================
-
-const isAdminEmail = (email) => {
-  if (!email) return false;
-
-  return ADMIN_EMAILS.includes(
-    email.trim().toLowerCase()
-  );
-};
-
-// =====================================================
-// GENERATE TOKEN
-// =====================================================
-
-const generateToken = (userId, role) => {
   return jwt.sign(
     {
       id: userId.toString(),
       role,
+      tokenVersion: normalizedTokenVersion,
     },
     JWT_SECRET,
     {
       expiresIn: "7d",
     }
   );
+};
+
+// =====================================================
+// HELPER - SAFE USER OBJECT
+// =====================================================
+
+const getSafeUser = (user) => {
+  if (!user) {
+    return null;
+  }
+
+  return {
+    id: user._id || user.id,
+    name: user.name || "",
+    email: user.email || "",
+    role: user.role || "user",
+    status: user.status || "pending",
+  };
+};
+
+// =====================================================
+// HELPER - NORMALIZE EMAIL
+// =====================================================
+
+const normalizeEmail = (email) => {
+  return String(email || "")
+    .trim()
+    .toLowerCase();
+};
+
+// =====================================================
+// HELPER - PASSWORD VALIDATION
+// =====================================================
+
+const validatePassword = (password) => {
+  if (typeof password !== "string") {
+    return false;
+  }
+
+  if (password.length < 6) {
+    return false;
+  }
+
+  return true;
 };
 
 // =====================================================
@@ -83,166 +109,102 @@ const register = async (req, res) => {
       password,
     } = req.body;
 
-    // ===================================================
-    // REQUIRED FIELDS
-    // ===================================================
+    const cleanName = String(name || "").trim();
+    const cleanEmail = normalizeEmail(email);
 
-    if (
-      !name?.trim() ||
-      !email?.trim() ||
-      !password
-    ) {
+    // -------------------------------------------------
+    // VALIDATION
+    // -------------------------------------------------
+
+    if (!cleanName) {
       return res.status(400).json({
         success: false,
-        message: "All fields are required",
+        message: "Name is required.",
       });
     }
 
-    // ===================================================
-    // CLEAN DATA
-    // ===================================================
+    if (!cleanEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required.",
+      });
+    }
 
-    const cleanName = name.trim();
-
-    const cleanEmail =
-      email.trim().toLowerCase();
-
-    // ===================================================
-    // EMAIL VALIDATION
-    // ===================================================
-
-    if (!EMAIL_REGEX.test(cleanEmail)) {
+    if (!validatePassword(password)) {
       return res.status(400).json({
         success: false,
         message:
-          "Please provide a valid email address",
+          "Password must be at least 6 characters.",
       });
     }
 
-    // ===================================================
-    // PASSWORD VALIDATION
-    // ===================================================
-
-    if (String(password).length < 6) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Password must be at least 6 characters long",
-      });
-    }
-
-    // ===================================================
+    // -------------------------------------------------
     // CHECK EXISTING USER
-    // ===================================================
+    // -------------------------------------------------
 
-    const existingUser =
-      await User.findOne({
-        email: cleanEmail,
-      });
+    const existingUser = await User.findOne({
+      email: cleanEmail,
+    });
 
     if (existingUser) {
-      return res.status(400).json({
+      return res.status(409).json({
         success: false,
         message:
-          "User already exists with this email",
+          "An account with this email already exists.",
       });
     }
 
-    // ===================================================
-    // HASH PASSWORD
-    // ===================================================
+    // -------------------------------------------------
+    // DETERMINE ROLE / STATUS
+    // -------------------------------------------------
 
-    const hashedPassword =
-      await bcrypt.hash(
-        String(password),
-        10
-      );
+    const isAdmin =
+      ADMIN_EMAILS.includes(cleanEmail);
 
-    // ===================================================
-    // CHECK FIRST USER
-    // ===================================================
+    const role = isAdmin ? "admin" : "user";
 
-    const userCount =
-      await User.countDocuments();
+    const status = isAdmin ? "active" : "pending";
 
-    const isFirstUser =
-      userCount === 0;
-
-    // ===================================================
-    // CHECK ADMIN EMAIL
-    // ===================================================
-
-    const adminEmail =
-      isAdminEmail(cleanEmail);
-
-    // ===================================================
-    // ASSIGN ROLE
-    // ===================================================
-
-    const role =
-      isFirstUser || adminEmail
-        ? "admin"
-        : "user";
-
-    // ===================================================
-    // ASSIGN STATUS
-    // ===================================================
-
-    const status =
-      isFirstUser || adminEmail
-        ? "active"
-        : "pending";
-
-    // ===================================================
+    // -------------------------------------------------
     // CREATE USER
-    // ===================================================
+    // -------------------------------------------------
 
     const user = await User.create({
       name: cleanName,
       email: cleanEmail,
-      password: hashedPassword,
+      password,
       role,
       status,
+      tokenVersion: 0,
     });
 
-    // ===================================================
+    // -------------------------------------------------
     // RESPONSE
-    // ===================================================
+    // -------------------------------------------------
 
     return res.status(201).json({
       success: true,
 
-      message:
-        role === "admin"
-          ? "Admin account created successfully!"
-          : "Registration successful! Admin approval ke baad aap login kar sakenge.",
+      message: isAdmin
+        ? "Registration successful. You can login now."
+        : "Registration successful. Admin approval ke baad aap login kar sakenge.",
+
+      user: getSafeUser(user),
     });
   } catch (error) {
-    console.error(
-      "REGISTER ERROR:",
-      error
-    );
+    console.error("REGISTER ERROR:", error);
 
-    // ===================================================
-    // DUPLICATE EMAIL
-    // ===================================================
-
-    if (error.code === 11000) {
-      return res.status(400).json({
+    if (error?.code === 11000) {
+      return res.status(409).json({
         success: false,
         message:
-          "Email already registered in system",
+          "An account with this email already exists.",
       });
     }
 
-    // ===================================================
-    // SERVER ERROR
-    // ===================================================
-
     return res.status(500).json({
       success: false,
-      message: "Registration failed",
-      error: error.message,
+      message: "Registration failed.",
     });
   }
 };
@@ -258,128 +220,130 @@ const login = async (req, res) => {
       password,
     } = req.body;
 
-    // ===================================================
-    // REQUIRED FIELDS
-    // ===================================================
+    const cleanEmail = normalizeEmail(email);
 
-    if (
-      !email?.trim() ||
-      !password
-    ) {
+    // -------------------------------------------------
+    // VALIDATION
+    // -------------------------------------------------
+
+    if (!cleanEmail) {
       return res.status(400).json({
         success: false,
-        message:
-          "Email and password are required",
+        message: "Email is required.",
       });
     }
 
-    // ===================================================
-    // CLEAN EMAIL
-    // ===================================================
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "Password is required.",
+      });
+    }
 
-    const cleanEmail =
-      email.trim().toLowerCase();
-
-    // ===================================================
+    // -------------------------------------------------
     // FIND USER
-    // ===================================================
+    // -------------------------------------------------
 
-    const user =
-      await User.findOne({
-        email: cleanEmail,
-      }).select(
-        "+password name email role status"
-      );
+    const user = await User.findOne({
+      email: cleanEmail,
+    }).select("+password");
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message:
-          "Invalid email or password",
+        message: "Invalid email or password.",
       });
     }
 
-    // ===================================================
-    // PASSWORD CHECK
-    // ===================================================
-
-    const passwordCorrect =
-      await bcrypt.compare(
-        String(password),
-        user.password
-      );
-
-    if (!passwordCorrect) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "Invalid email or password",
-      });
-    }
-
-    // ===================================================
-    // ADMIN EMAIL AUTO-ACTIVATION
-    // ===================================================
-
-    const adminEmail =
-      isAdminEmail(cleanEmail);
-
-    if (adminEmail) {
-      if (
-        user.role !== "admin" ||
-        user.status !== "active"
-      ) {
-        user.role = "admin";
-        user.status = "active";
-
-        await user.save();
-      }
-    }
-
-    // ===================================================
+    // -------------------------------------------------
     // ACCOUNT STATUS
-    // ===================================================
+    // -------------------------------------------------
 
-    if (user.status !== "active") {
-      if (user.status === "pending") {
-        return res.status(403).json({
-          success: false,
-          message:
-            "Aapka account abhi Admin dwara approve nahi hua hai. Kripya permission ka intezaار karein.",
-        });
-      }
-
-      if (user.status === "rejected") {
-        return res.status(403).json({
-          success: false,
-          message:
-            "Aapka account reject kar diya gaya hai.",
-        });
-      }
-
+    if (user.status === "pending") {
       return res.status(403).json({
         success: false,
         message:
-          "Account is not active",
+          "Your account is waiting for admin approval.",
       });
     }
 
-    // ===================================================
-    // GENERATE JWT
-    // ===================================================
+    if (user.status === "rejected") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your account has been rejected.",
+      });
+    }
 
-    const token =
-      generateToken(
-        user._id,
-        user.role
+    if (user.status !== "active") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your account is not active.",
+      });
+    }
+
+    // -------------------------------------------------
+    // PASSWORD CHECK
+    // -------------------------------------------------
+
+    const isPasswordValid =
+      await bcrypt.compare(
+        password,
+        user.password
       );
 
-    // ===================================================
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password.",
+      });
+    }
+
+    // -------------------------------------------------
+    // TOKEN VERSION
+    // -------------------------------------------------
+
+    const tokenVersion =
+      Number(user.tokenVersion ?? 0);
+
+    // -------------------------------------------------
+    // GENERATE JWT
+    // -------------------------------------------------
+
+    const token = generateToken(
+      user._id,
+      user.role,
+      tokenVersion
+    );
+
+    console.log(
+      "LOGIN SUCCESS:",
+      user.email
+    );
+
+    console.log(
+      "JWT USER ID:",
+      user._id.toString()
+    );
+
+    console.log(
+      "JWT ROLE:",
+      user.role
+    );
+
+    console.log(
+      "JWT TOKEN VERSION:",
+      tokenVersion
+    );
+
+    // -------------------------------------------------
     // RESPONSE
-    // ===================================================
+    // -------------------------------------------------
 
     return res.status(200).json({
       success: true,
+
       message: "Login successful",
 
       token,
@@ -393,16 +357,11 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(
-      "LOGIN ERROR:",
-      error
-    );
+    console.error("LOGIN ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Login service temporarily unavailable",
-      error: error.message,
+      message: "Login failed.",
     });
   }
 };
@@ -413,47 +372,55 @@ const login = async (req, res) => {
 
 const getProfile = async (req, res) => {
   try {
-    const userId =
-      req.user?.id ||
-      req.user?._id;
-
-    if (!userId) {
+    if (!req.user) {
       return res.status(401).json({
         success: false,
-        message:
-          "User authentication information missing",
+        message: "Authentication required.",
       });
     }
 
-    const user =
-      await User.findById(userId)
-        .select(
-          "-password -__v"
-        )
-        .lean();
+    const user = await User.findById(
+      req.user._id
+    )
+      .select(
+        "_id name email role status tokenVersion"
+      )
+      .lean();
 
     if (!user) {
-      return res.status(404).json({
+      return res.status(401).json({
         success: false,
-        message:
-          "User profile not found",
+        message: "User not found.",
+      });
+    }
+
+    if (user.status !== "active") {
+      return res.status(403).json({
+        success: false,
+        message: "Account is not active.",
       });
     }
 
     return res.status(200).json({
       success: true,
-      user,
+
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+      },
     });
   } catch (error) {
     console.error(
-      "PROFILE ERROR:",
+      "GET PROFILE ERROR:",
       error
     );
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to fetch profile",
+      message: "Failed to fetch profile.",
     });
   }
 };
@@ -462,37 +429,24 @@ const getProfile = async (req, res) => {
 // GET PENDING USERS
 // =====================================================
 
-const getPendingUsers = async (
-  req,
-  res
-) => {
+const getPendingUsers = async (req, res) => {
   try {
-    if (
-      req.user?.role !== "admin"
-    ) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Admin access required",
-      });
-    }
-
-    const pendingUsers =
-      await User.find({
-        status: "pending",
+    const users = await User.find({
+      role: "user",
+      status: "pending",
+    })
+      .select(
+        "_id name email role status createdAt"
+      )
+      .sort({
+        createdAt: -1,
       })
-        .select(
-          "name email createdAt role status"
-        )
-        .sort({
-          createdAt: -1,
-        })
-        .lean();
+      .lean();
 
     return res.status(200).json({
       success: true,
-      count: pendingUsers.length,
-      users: pendingUsers,
+      count: users.length,
+      users,
     });
   } catch (error) {
     console.error(
@@ -503,8 +457,7 @@ const getPendingUsers = async (
     return res.status(500).json({
       success: false,
       message:
-        "Failed to fetch pending users",
-      error: error.message,
+        "Failed to fetch pending users.",
     });
   }
 };
@@ -513,58 +466,75 @@ const getPendingUsers = async (
 // APPROVE USER
 // =====================================================
 
-const approveUser = async (
-  req,
-  res
-) => {
+const approveUser = async (req, res) => {
   try {
-    if (
-      req.user?.role !== "admin"
-    ) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Admin access required",
-      });
-    }
+    const userId = req.params.id;
 
-    const { id } = req.params;
-
-    if (!id) {
+    if (!userId) {
       return res.status(400).json({
         success: false,
-        message:
-          "User ID is required",
+        message: "User ID is required.",
       });
     }
 
-    const user =
-      await User.findByIdAndUpdate(
-        id,
-        {
-          status: "active",
-        },
-        {
-          new: true,
-          runValidators: true,
-        }
-      ).select(
-        "name email status role"
-      );
+    // -------------------------------------------------
+    // FIND USER
+    // -------------------------------------------------
+
+    const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message:
-          "User not found",
+        message: "User not found.",
       });
     }
 
+    // -------------------------------------------------
+    // ONLY NORMAL USERS CAN BE APPROVED
+    // -------------------------------------------------
+
+    if (user.role === "admin") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Admin account does not require approval.",
+      });
+    }
+
+    // -------------------------------------------------
+    // ALREADY ACTIVE
+    // -------------------------------------------------
+
+    if (user.status === "active") {
+      return res.status(200).json({
+        success: true,
+        message: "User is already approved.",
+        user: getSafeUser(user),
+      });
+    }
+
+    // -------------------------------------------------
+    // APPROVE
+    // -------------------------------------------------
+
+    user.status = "active";
+
+    // Invalidate any old token if one exists.
+    user.tokenVersion =
+      Number(user.tokenVersion ?? 0) + 1;
+
+    await user.save();
+
+    console.log(
+      "USER APPROVED:",
+      user.email
+    );
+
     return res.status(200).json({
       success: true,
-      message:
-        `User ${user.name} approved successfully!`,
-      user,
+      message: "User approved successfully.",
+      user: getSafeUser(user),
     });
   } catch (error) {
     console.error(
@@ -572,11 +542,17 @@ const approveUser = async (
       error
     );
 
+    // Invalid MongoDB ObjectId
+    if (error?.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID.",
+      });
+    }
+
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to approve user",
-      error: error.message,
+      message: "Failed to approve user.",
     });
   }
 };
@@ -586,52 +562,153 @@ const approveUser = async (
 // =====================================================
 
 const forgotPassword = async (req, res) => {
-  const { email } = req.body;
-
   try {
-    const cleanEmail = (email || "").trim().toLowerCase();
-    const user = await User.findOne({ email: cleanEmail });
+    const { email } = req.body;
 
-    if (!user) {
-      return res.status(200).json({
-        success: true,
-        message: "If an account exists with this email, a password reset link has been sent.",
+    const cleanEmail = normalizeEmail(email);
+
+    if (!cleanEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required.",
       });
     }
 
-    const token = crypto.randomBytes(32).toString("hex");
-    user.resetPasswordToken = token;
-    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 Minutes
+    const user = await User.findOne({
+      email: cleanEmail,
+    });
+
+    // Security: don't reveal account existence
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message:
+          "If an account exists with this email, a password reset OTP has been sent.",
+      });
+    }
+
+    // -------------------------------------------------
+    // GENERATE OTP
+    // -------------------------------------------------
+
+    const otp = crypto
+      .randomInt(100000, 1000000)
+      .toString();
+
+    user.resetPasswordOTP = otp;
+
+    user.resetPasswordOTPExpires =
+      Date.now() + 10 * 60 * 1000;
+
     await user.save();
 
-    const resetLink = `${process.env.FRONTEND_URL || "http://localhost:5173"}/reset-password/${token}`;
+    console.log(
+      "PASSWORD RESET OTP:",
+      cleanEmail,
+      otp
+    );
 
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: user.email,
-      subject: "Password Reset Request - Vraj Creation",
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-          <h2 style="color: #8f3424;">Vraj Creation Security</h2>
-          <p>Hello <b>${user.name}</b>,</p>
-          <p>You requested a password reset. Click the button below to set a new password. This link is valid for 15 minutes:</p>
-          <a href="${resetLink}" target="_blank" style="display: inline-block; padding: 12px 24px; background-color: #8f3424; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 10px;">Reset Password</a>
-          <p style="margin-top: 20px; font-size: 12px; color: #777;">If you didn't request this, please ignore this email.</p>
-        </div>
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "If an account exists with this email, a password reset link has been sent.",
+
+      message:
+        "If an account exists with this email, a password reset OTP has been sent.",
+
+      ...(process.env.NODE_ENV !== "production"
+        ? {
+            developmentOTP: otp,
+          }
+        : {}),
     });
   } catch (error) {
-    console.error("FORGOT PASSWORD ERROR:", error);
-    res.status(500).json({
+    console.error(
+      "FORGOT PASSWORD ERROR:",
+      error
+    );
+
+    return res.status(500).json({
       success: false,
-      message: "Internal server error. Please try again later.",
+      message:
+        "Unable to process password reset request.",
+    });
+  }
+};
+
+// =====================================================
+// VERIFY RESET OTP
+// =====================================================
+
+const verifyResetOtp = async (req, res) => {
+  try {
+    const {
+      email,
+      otp,
+    } = req.body;
+
+    const cleanEmail = normalizeEmail(email);
+
+    const cleanOtp = String(
+      otp || ""
+    ).trim();
+
+    if (!cleanEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required.",
+      });
+    }
+
+    if (!cleanOtp) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP is required.",
+      });
+    }
+
+    const user = await User.findOne({
+      email: cleanEmail,
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired OTP.",
+      });
+    }
+
+    if (
+      !user.resetPasswordOTP ||
+      user.resetPasswordOTP !== cleanOtp
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP.",
+      });
+    }
+
+    if (
+      !user.resetPasswordOTPExpires ||
+      user.resetPasswordOTPExpires < Date.now()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP has expired.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP verified successfully.",
+    });
+  } catch (error) {
+    console.error(
+      "VERIFY OTP ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to verify OTP.",
     });
   }
 };
@@ -641,59 +718,150 @@ const forgotPassword = async (req, res) => {
 // =====================================================
 
 const resetPassword = async (req, res) => {
-  const { token } = req.params;
-  const { newPassword } = req.body;
-
   try {
-    if (!newPassword || newPassword.length < 8) {
+    const {
+      email,
+      otp,
+      password,
+      newPassword,
+    } = req.body;
+
+    const cleanEmail = normalizeEmail(email);
+
+    const cleanOtp = String(
+      otp || ""
+    ).trim();
+
+    const finalPassword =
+      newPassword || password;
+
+    // -------------------------------------------------
+    // VALIDATION
+    // -------------------------------------------------
+
+    if (!cleanEmail) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 8 characters long.",
+        message: "Email is required.",
       });
     }
 
+    if (!cleanOtp) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP is required.",
+      });
+    }
+
+    if (!validatePassword(finalPassword)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Password must be at least 6 characters.",
+      });
+    }
+
+    // -------------------------------------------------
+    // FIND USER
+    // -------------------------------------------------
+
     const user = await User.findOne({
-      resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() },
+      email: cleanEmail,
     });
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: "Password reset link is invalid or has expired.",
+        message: "Invalid reset request.",
       });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+    // -------------------------------------------------
+    // VERIFY OTP
+    // -------------------------------------------------
 
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
+    if (
+      !user.resetPasswordOTP ||
+      user.resetPasswordOTP !== cleanOtp
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP.",
+      });
+    }
+
+    // -------------------------------------------------
+    // CHECK EXPIRY
+    // -------------------------------------------------
+
+    if (
+      !user.resetPasswordOTPExpires ||
+      user.resetPasswordOTPExpires < Date.now()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP has expired.",
+      });
+    }
+
+    // -------------------------------------------------
+    // UPDATE PASSWORD
+    // -------------------------------------------------
+
+    user.password = finalPassword;
+
+    // -------------------------------------------------
+    // INVALIDATE OLD TOKENS
+    // -------------------------------------------------
+
+    user.tokenVersion =
+      Number(user.tokenVersion ?? 0) + 1;
+
+    // -------------------------------------------------
+    // CLEAR OTP
+    // -------------------------------------------------
+
+    user.resetPasswordOTP = undefined;
+    user.resetPasswordOTPExpires = undefined;
+
     await user.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "Password has been successfully reset. You can now log in.",
+      message:
+        "Password reset successful. Please login again.",
     });
   } catch (error) {
-    console.error("RESET PASSWORD ERROR:", error);
-    res.status(500).json({
+    console.error(
+      "RESET PASSWORD ERROR:",
+      error
+    );
+
+    return res.status(500).json({
       success: false,
-      message: "Internal server error. Please try again later.",
+      message:
+        "Unable to reset password.",
     });
   }
 };
 
 // =====================================================
-// EXPORT
+// EXPORTS
 // =====================================================
 
 module.exports = {
   register,
   login,
   getProfile,
+
+  forgotPassword,
+  verifyResetOtp,
+  resetPassword,
+
+  // Admin approval
   getPendingUsers,
   approveUser,
-  forgotPassword,
-  resetPassword,
+
+  // JWT helper
+  generateToken,
 };

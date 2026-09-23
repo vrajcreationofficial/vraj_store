@@ -2,12 +2,22 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
+const CATEGORY_OPTIONS = [
+  "Home Décor",
+  "Wall Décor",
+  "Table Décor",
+  "Resin Art",
+  "Ethnic Home Furnishing",
+  "Desk Accessories",
+];
+
 const AddProduct = () => {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     name: "",
     sku: "",
+    hsnCode: "",
     category: "",
     subcategory: "",
 
@@ -40,9 +50,22 @@ const AddProduct = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
+    let newValue = value;
+
+    // ===================================================
+    // HSN CODE
+    // Only digits + maximum 8 digits
+    // ===================================================
+
+    if (name === "hsnCode") {
+      newValue = value
+        .replace(/\D/g, "")
+        .slice(0, 8);
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: newValue,
     }));
 
     if (error) setError("");
@@ -61,18 +84,21 @@ const AddProduct = () => {
     setError("");
     setSuccess("");
 
+    // Validate image type
     if (!file.type.startsWith("image/")) {
       setError("Please select a valid image file.");
       e.target.value = "";
       return;
     }
 
+    // Validate image size
     if (file.size > 5 * 1024 * 1024) {
       setError("Image size must be less than 5MB.");
       e.target.value = "";
       return;
     }
 
+    // Remove old preview
     if (preview) {
       URL.revokeObjectURL(preview);
     }
@@ -121,7 +147,9 @@ const AddProduct = () => {
       !formData.sku.trim() ||
       !formData.category.trim()
     ) {
-      setError("Product name, SKU and category are required.");
+      setError(
+        "Product name, SKU and category are required."
+      );
       return;
     }
 
@@ -129,7 +157,38 @@ const AddProduct = () => {
       formData.purchasePrice === "" ||
       formData.sellingPrice === ""
     ) {
-      setError("Purchase price and selling price are required.");
+      setError(
+        "Purchase price and selling price are required."
+      );
+      return;
+    }
+
+    // ===================================================
+    // CATEGORY VALIDATION
+    // ===================================================
+
+    if (!CATEGORY_OPTIONS.includes(formData.category)) {
+      setError(
+        "Please select a valid product category."
+      );
+      return;
+    }
+
+    // ===================================================
+    // HSN CODE VALIDATION
+    // Optional
+    // Allowed: 4, 6 or 8 digits
+    // ===================================================
+
+    const hsnCode = formData.hsnCode.trim();
+
+    if (
+      hsnCode &&
+      !/^\d{4}$|^\d{6}$|^\d{8}$/.test(hsnCode)
+    ) {
+      setError(
+        "HSN Code must contain exactly 4, 6 or 8 digits."
+      );
       return;
     }
 
@@ -137,12 +196,26 @@ const AddProduct = () => {
     // NUMBER CONVERSION
     // ===================================================
 
-    const purchasePrice = Number(formData.purchasePrice);
-    const sellingPrice = Number(formData.sellingPrice);
-    const stock = Number(formData.stock || 0);
-    const minimumStock = Number(formData.minimumStock || 0);
+    const purchasePrice = Number(
+      formData.purchasePrice
+    );
 
-    // Size is OPTIONAL
+    const sellingPrice = Number(
+      formData.sellingPrice
+    );
+
+    const stock = Number(
+      formData.stock || 0
+    );
+
+    const minimumStock = Number(
+      formData.minimumStock || 0
+    );
+
+    // ===================================================
+    // SIZE IS OPTIONAL
+    // ===================================================
+
     const length =
       formData.length === ""
         ? null
@@ -168,7 +241,9 @@ const AddProduct = () => {
       !Number.isFinite(stock) ||
       !Number.isFinite(minimumStock)
     ) {
-      setError("Price and stock must be valid numbers.");
+      setError(
+        "Price and stock must be valid numbers."
+      );
       return;
     }
 
@@ -177,11 +252,16 @@ const AddProduct = () => {
     // ===================================================
 
     if (
-      (length !== null && !Number.isFinite(length)) ||
-      (breadth !== null && !Number.isFinite(breadth)) ||
-      (height !== null && !Number.isFinite(height))
+      (length !== null &&
+        !Number.isFinite(length)) ||
+      (breadth !== null &&
+        !Number.isFinite(breadth)) ||
+      (height !== null &&
+        !Number.isFinite(height))
     ) {
-      setError("Length, Breadth and Height must be valid numbers.");
+      setError(
+        "Length, Breadth and Height must be valid numbers."
+      );
       return;
     }
 
@@ -198,7 +278,9 @@ const AddProduct = () => {
       (breadth !== null && breadth < 0) ||
       (height !== null && height < 0)
     ) {
-      setError("Price, stock and size cannot be negative.");
+      setError(
+        "Price, stock and size cannot be negative."
+      );
       return;
     }
 
@@ -222,11 +304,27 @@ const AddProduct = () => {
 
       const data = new FormData();
 
-      data.append("name", formData.name.trim());
+      // =================================================
+      // BASIC INFORMATION
+      // =================================================
+
+      data.append(
+        "name",
+        formData.name.trim()
+      );
 
       data.append(
         "sku",
         formData.sku.trim().toUpperCase()
+      );
+
+      // =================================================
+      // HSN CODE
+      // =================================================
+
+      data.append(
+        "hsnCode",
+        hsnCode
       );
 
       data.append(
@@ -244,18 +342,30 @@ const AddProduct = () => {
       // =================================================
 
       if (length !== null) {
-        data.append("length", String(length));
+        data.append(
+          "length",
+          String(length)
+        );
       }
 
       if (breadth !== null) {
-        data.append("breadth", String(breadth));
+        data.append(
+          "breadth",
+          String(breadth)
+        );
       }
 
       if (height !== null) {
-        data.append("height", String(height));
+        data.append(
+          "height",
+          String(height)
+        );
       }
 
-      data.append("sizeUnit", formData.sizeUnit);
+      data.append(
+        "sizeUnit",
+        formData.sizeUnit
+      );
 
       // =================================================
       // FINAL SIZE VALUE
@@ -277,10 +387,15 @@ const AddProduct = () => {
 
       const size =
         sizeParts.length > 0
-          ? `${sizeParts.join(" × ")} ${formData.sizeUnit}`
+          ? `${sizeParts.join(
+              " × "
+            )} ${formData.sizeUnit}`
           : "";
 
-      data.append("size", size);
+      data.append(
+        "size",
+        size
+      );
 
       // =================================================
       // OTHER DETAILS
@@ -326,7 +441,10 @@ const AddProduct = () => {
       // =================================================
 
       if (image) {
-        data.append("image", image);
+        data.append(
+          "image",
+          image
+        );
       }
 
       // =================================================
@@ -350,6 +468,7 @@ const AddProduct = () => {
       setFormData({
         name: "",
         sku: "",
+        hsnCode: "",
         category: "",
         subcategory: "",
 
@@ -375,7 +494,9 @@ const AddProduct = () => {
       setPreview("");
 
       const fileInput =
-        document.getElementById("product-image");
+        document.getElementById(
+          "product-image"
+        );
 
       if (fileInput) {
         fileInput.value = "";
@@ -389,15 +510,23 @@ const AddProduct = () => {
         navigate("/products");
       }, 1000);
     } catch (err) {
-      console.error("CREATE PRODUCT ERROR:", err);
+      console.error(
+        "CREATE PRODUCT ERROR:",
+        err
+      );
 
       // =================================================
       // UNAUTHORIZED
       // =================================================
 
       if (err.response?.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        localStorage.removeItem(
+          "token"
+        );
+
+        localStorage.removeItem(
+          "user"
+        );
 
         navigate("/login", {
           replace: true,
@@ -416,7 +545,25 @@ const AddProduct = () => {
           ?.toLowerCase()
           .includes("sku")
       ) {
-        setError(err.response.data.message);
+        setError(
+          err.response.data.message
+        );
+        return;
+      }
+
+      // =================================================
+      // HSN ERROR
+      // =================================================
+
+      if (
+        err.response?.status === 400 &&
+        err.response?.data?.message
+          ?.toLowerCase()
+          .includes("hsn")
+      ) {
+        setError(
+          err.response.data.message
+        );
         return;
       }
 
@@ -447,7 +594,9 @@ const AddProduct = () => {
 
         <button
           type="button"
-          onClick={() => navigate("/products")}
+          onClick={() =>
+            navigate("/products")
+          }
           className="mb-3 inline-flex items-center gap-1 text-sm font-bold text-slate-500 transition hover:text-slate-950 dark:text-slate-400 dark:hover:text-white"
         >
           ← Back to Products
@@ -480,12 +629,16 @@ const AddProduct = () => {
       {error && (
         <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/30">
 
-          <span className="text-lg">⚠️</span>
+          <span className="text-lg">
+            ⚠️
+          </span>
 
           <div>
+
             <p className="text-sm font-bold text-red-700 dark:text-red-400">
               {error}
             </p>
+
           </div>
 
         </div>
@@ -496,7 +649,9 @@ const AddProduct = () => {
       {success && (
         <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/30">
 
-          <span className="text-lg">✅</span>
+          <span className="text-lg">
+            ✅
+          </span>
 
           <div>
 
@@ -558,22 +713,101 @@ const AddProduct = () => {
                 required
               />
 
+              {/* HSN CODE */}
+
               <Input
-                label="Category"
-                name="category"
-                value={formData.category}
+                label="HSN Code"
+                name="hsnCode"
+                value={formData.hsnCode}
                 onChange={handleChange}
-                placeholder="e.g. Electrical"
-                required
+                placeholder="e.g. 94036000"
+                inputMode="numeric"
+                maxLength={8}
               />
+
+              {/* CATEGORY */}
+
+              <div>
+
+                <label
+                  htmlFor="category"
+                  className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-300"
+                >
+                  Category
+
+                  <span className="ml-1 text-red-500">
+                    *
+                  </span>
+                </label>
+
+                <select
+                  id="category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  required
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-slate-600 dark:focus:ring-slate-800"
+                >
+
+                  <option value="">
+                    Select Category
+                  </option>
+
+                  {CATEGORY_OPTIONS.map(
+                    (category) => (
+                      <option
+                        key={category}
+                        value={category}
+                      >
+                        {category}
+                      </option>
+                    )
+                  )}
+
+                </select>
+
+              </div>
+
+              {/* SUBCATEGORY */}
 
               <Input
                 label="Subcategory"
                 name="subcategory"
                 value={formData.subcategory}
                 onChange={handleChange}
-                placeholder="e.g. Switches"
+                placeholder="e.g. Jharokha, Pen Stand"
               />
+
+            </div>
+
+            {/* HSN INFORMATION */}
+
+            <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/40 dark:bg-blue-950/20">
+
+              <p className="text-xs font-bold text-blue-800 dark:text-blue-300">
+                HSN Code
+              </p>
+
+              <p className="mt-1 text-xs text-blue-700 dark:text-blue-400">
+                Optional • Enter exactly 4, 6 or 8 digits.
+                Example: 94036000
+              </p>
+
+            </div>
+
+            {/* CATEGORY INFORMATION */}
+
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
+
+              <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                Website Collection Mapping
+              </p>
+
+              <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                Selected category will automatically determine
+                which collection the product appears in on the
+                Vraj Creation website.
+              </p>
 
             </div>
 
@@ -624,18 +858,32 @@ const AddProduct = () => {
                   name="sizeUnit"
                   value={formData.sizeUnit}
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-slate-600 dark:focus:ring-slate-600 dark:focus:ring-slate-800"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-slate-600 dark:focus:ring-slate-800"
                 >
-                  <option value="cm">cm</option>
-                  <option value="mm">mm</option>
-                  <option value="inch">inch</option>
-                  <option value="ft">ft</option>
+
+                  <option value="cm">
+                    cm
+                  </option>
+
+                  <option value="mm">
+                    mm
+                  </option>
+
+                  <option value="inch">
+                    inch
+                  </option>
+
+                  <option value="ft">
+                    ft
+                  </option>
+
                 </select>
 
               </div>
 
               <p className="mt-2 text-xs text-slate-400">
-                Optional • Enter dimensions as Length × Breadth × Height
+                Optional • Enter dimensions as Length ×
+                Breadth × Height
               </p>
 
             </div>
@@ -720,6 +968,7 @@ const AddProduct = () => {
                   onChange={handleImageChange}
                   className="hidden"
                 />
+
               </label>
 
               {preview && (
@@ -860,6 +1109,7 @@ const AddProduct = () => {
                   onChange={handleChange}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-slate-600 dark:focus:ring-slate-800"
                 >
+
                   <option value="active">
                     Active
                   </option>
@@ -867,6 +1117,7 @@ const AddProduct = () => {
                   <option value="inactive">
                     Inactive
                   </option>
+
                 </select>
 
               </div>
@@ -883,7 +1134,9 @@ const AddProduct = () => {
 
           <button
             type="button"
-            onClick={() => navigate("/products")}
+            onClick={() =>
+              navigate("/products")
+            }
             disabled={loading}
             className="w-full rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto"
           >
@@ -895,9 +1148,11 @@ const AddProduct = () => {
             disabled={loading}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 sm:w-auto"
           >
+
             {loading ? (
               <>
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent dark:border-slate-950 dark:border-t-transparent" />
+
                 Creating...
               </>
             ) : (
@@ -905,11 +1160,13 @@ const AddProduct = () => {
                 ✓ Create Product
               </>
             )}
+
           </button>
 
         </div>
 
       </form>
+
     </div>
   );
 };
@@ -928,6 +1185,8 @@ const Input = ({
   min,
   step,
   required = false,
+  inputMode,
+  maxLength,
 }) => {
   return (
     <div>
@@ -936,6 +1195,7 @@ const Input = ({
         htmlFor={name}
         className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-300"
       >
+
         {label}
 
         {required && (
@@ -943,6 +1203,7 @@ const Input = ({
             *
           </span>
         )}
+
       </label>
 
       <input
@@ -955,6 +1216,8 @@ const Input = ({
         min={min}
         step={step}
         required={required}
+        inputMode={inputMode}
+        maxLength={maxLength}
         autoComplete="off"
         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-slate-600 dark:focus:ring-slate-800"
       />

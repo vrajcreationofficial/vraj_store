@@ -29,9 +29,9 @@ const AdminLayout = ({ children }) => {
   }, [darkMode]);
 
   // =====================================================
-  // MENU ITEMS (यहाँ Generate Bill जोड़ दिया गया है)
+  // MENU ITEMS
   // =====================================================
- const menuItems = [
+  const menuItems = [
     {
       name: "Dashboard",
       path: "/dashboard",
@@ -67,6 +67,16 @@ const AdminLayout = ({ children }) => {
       path: "/purchases",
       icon: "🛒",
     },
+
+    // ===================================================
+    // OTHER EXPENSES
+    // ===================================================
+    {
+      name: "Other Expenses",
+      path: "/other-expenses",
+      icon: "💸",
+    },
+
     {
       name: "User Approvals",
       path: "/admin/approvals",
@@ -79,6 +89,7 @@ const AdminLayout = ({ children }) => {
   // =====================================================
   const handleLogout = () => {
     logout();
+
     navigate("/login", {
       replace: true,
     });
@@ -177,9 +188,7 @@ const AdminLayout = ({ children }) => {
             {/* Avatar */}
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 font-bold text-white dark:bg-white dark:text-slate-950">
               {user?.name
-                ? user.name
-                    .charAt(0)
-                    .toUpperCase()
+                ? user.name.charAt(0).toUpperCase()
                 : "A"}
             </div>
 
@@ -300,9 +309,7 @@ const AdminLayout = ({ children }) => {
             {/* USER AVATAR */}
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 font-bold text-white dark:bg-white dark:text-slate-950">
               {user?.name
-                ? user.name
-                    .charAt(0)
-                    .toUpperCase()
+                ? user.name.charAt(0).toUpperCase()
                 : "A"}
             </div>
           </div>

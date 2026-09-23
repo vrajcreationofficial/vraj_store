@@ -1,25 +1,13 @@
 import axios from "axios";
 
-// =====================================================
-// API BASE URL
-// =====================================================
-
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   "http://localhost:5000/api";
-
-// =====================================================
-// AXIOS INSTANCE
-// =====================================================
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
 });
-
-// =====================================================
-// REQUEST INTERCEPTOR
-// =====================================================
 
 api.interceptors.request.use(
   (config) => {
@@ -28,10 +16,6 @@ api.interceptors.request.use(
 
     config.headers =
       config.headers || {};
-
-    // -------------------------------------------------
-    // JWT
-    // -------------------------------------------------
 
     if (token) {
       if (
@@ -69,14 +53,9 @@ api.interceptors.request.use(
           "Authorization"
         );
       } else {
-        delete config.headers
-          .Authorization;
+        delete config.headers.Authorization;
       }
     }
-
-    // -------------------------------------------------
-    // CONTENT TYPE
-    // -------------------------------------------------
 
     if (
       config.data instanceof FormData
@@ -89,9 +68,7 @@ api.interceptors.request.use(
           "Content-Type"
         );
       } else {
-        delete config.headers[
-          "Content-Type"
-        ];
+        delete config.headers["Content-Type"];
       }
     } else {
       if (
@@ -103,9 +80,8 @@ api.interceptors.request.use(
           "application/json"
         );
       } else {
-        config.headers[
-          "Content-Type"
-        ] = "application/json";
+        config.headers["Content-Type"] =
+          "application/json";
       }
     }
 
@@ -116,10 +92,6 @@ api.interceptors.request.use(
     return Promise.reject(error);
   }
 );
-
-// =====================================================
-// RESPONSE INTERCEPTOR
-// =====================================================
 
 api.interceptors.response.use(
   (response) => {
@@ -145,13 +117,6 @@ api.interceptors.response.use(
       "API ERROR URL:",
       error?.config?.url
     );
-
-    // IMPORTANT:
-    // 401 par abhi token automatically DELETE
-    // nahi karna hai.
-    //
-    // Isse login ke turant baad accidental logout
-    // nahi hoga aur actual backend problem visible rahegi.
 
     return Promise.reject(error);
   }

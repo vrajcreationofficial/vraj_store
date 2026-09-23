@@ -6,8 +6,6 @@ import {
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
 
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
@@ -32,10 +30,6 @@ import {
   useAuth,
 } from "./context/AuthContext";
 
-// =====================================================
-// PROTECTED ROUTE
-// =====================================================
-
 const ProtectedRoute = ({
   children,
 }) => {
@@ -44,38 +38,22 @@ const ProtectedRoute = ({
     loading,
   } = useAuth();
 
-  // ===================================================
-  // AUTH CHECK RUNNING
-  // ===================================================
-
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
         <div className="text-center">
-
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-950 dark:border-slate-700 dark:border-t-white" />
 
           <p className="mt-4 text-sm font-bold text-slate-500 dark:text-slate-400">
             Checking authentication...
           </p>
-
         </div>
       </div>
     );
   }
 
-  // ===================================================
-  // TOKEN CHECK
-  // ===================================================
-
   const token =
-    localStorage.getItem(
-      "token"
-    );
-
-  // ===================================================
-  // USER / TOKEN MISSING
-  // ===================================================
+    localStorage.getItem("token");
 
   if (!token || !user) {
     return (
@@ -86,16 +64,8 @@ const ProtectedRoute = ({
     );
   }
 
-  // ===================================================
-  // AUTHENTICATED
-  // ===================================================
-
   return children;
 };
-
-// =====================================================
-// ADMIN PAGE
-// =====================================================
 
 const AdminPage = ({
   children,
@@ -103,19 +73,13 @@ const AdminPage = ({
   return (
     <ProtectedRoute>
       <AdminLayout>
-
         <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
           {children}
         </div>
-
       </AdminLayout>
     </ProtectedRoute>
   );
 };
-
-// =====================================================
-// APP ROUTES
-// =====================================================
 
 const AppRoutes = () => {
   const {
@@ -123,34 +87,22 @@ const AppRoutes = () => {
     loading,
   } = useAuth();
 
-  // ===================================================
-  // WAIT FOR AUTH INITIALIZATION
-  // ===================================================
-
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
         <div className="text-center">
-
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-950 dark:border-slate-700 dark:border-t-white" />
 
           <p className="mt-4 text-sm font-bold text-slate-500 dark:text-slate-400">
             Loading Vraj Creation...
           </p>
-
         </div>
       </div>
     );
   }
 
-  // ===================================================
-  // AUTHENTICATION STATUS
-  // ===================================================
-
   const token =
-    localStorage.getItem(
-      "token"
-    );
+    localStorage.getItem("token");
 
   const isAuthenticated =
     Boolean(
@@ -159,10 +111,6 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-
-      {/* =================================================
-          LOGIN
-      ================================================= */}
 
       <Route
         path="/login"
@@ -178,10 +126,6 @@ const AppRoutes = () => {
         }
       />
 
-      {/* =================================================
-          REGISTER
-      ================================================= */}
-
       <Route
         path="/register"
         element={
@@ -196,39 +140,6 @@ const AppRoutes = () => {
         }
       />
 
-      {/* =================================================
-          FORGOT PASSWORD
-      ================================================= */}
-
-      <Route
-        path="/forgot-password"
-        element={
-          isAuthenticated ? (
-            <Navigate
-              to="/dashboard"
-              replace
-            />
-          ) : (
-            <ForgotPassword />
-          )
-        }
-      />
-
-      {/* =================================================
-          RESET PASSWORD
-      ================================================= */}
-
-      <Route
-        path="/reset-password/:token"
-        element={
-          <ResetPassword />
-        }
-      />
-
-      {/* =================================================
-          DASHBOARD
-      ================================================= */}
-
       <Route
         path="/dashboard"
         element={
@@ -237,10 +148,6 @@ const AppRoutes = () => {
           </AdminPage>
         }
       />
-
-      {/* =================================================
-          CREATE BILL
-      ================================================= */}
 
       <Route
         path="/create-bill"
@@ -251,10 +158,6 @@ const AppRoutes = () => {
         }
       />
 
-      {/* =================================================
-          INVOICES / BILLS LIST
-      ================================================= */}
-
       <Route
         path="/invoices"
         element={
@@ -263,10 +166,6 @@ const AppRoutes = () => {
           </AdminPage>
         }
       />
-
-      {/* =================================================
-          PRODUCTS
-      ================================================= */}
 
       <Route
         path="/products"
@@ -277,10 +176,6 @@ const AppRoutes = () => {
         }
       />
 
-      {/* =================================================
-          ADD PRODUCT
-      ================================================= */}
-
       <Route
         path="/products/add"
         element={
@@ -289,10 +184,6 @@ const AppRoutes = () => {
           </AdminPage>
         }
       />
-
-      {/* =================================================
-          PRODUCT VIEW
-      ================================================= */}
 
       <Route
         path="/products/:id"
@@ -303,10 +194,6 @@ const AppRoutes = () => {
         }
       />
 
-      {/* =================================================
-          EDIT PRODUCT
-      ================================================= */}
-
       <Route
         path="/products/edit/:id"
         element={
@@ -315,10 +202,6 @@ const AppRoutes = () => {
           </AdminPage>
         }
       />
-
-      {/* =================================================
-          SALES
-      ================================================= */}
 
       <Route
         path="/sales"
@@ -329,10 +212,6 @@ const AppRoutes = () => {
         }
       />
 
-      {/* =================================================
-          PURCHASES
-      ================================================= */}
-
       <Route
         path="/purchases"
         element={
@@ -341,10 +220,6 @@ const AppRoutes = () => {
           </AdminPage>
         }
       />
-
-      {/* =================================================
-          OTHER EXPENSES
-      ================================================= */}
 
       <Route
         path="/other-expenses"
@@ -355,10 +230,6 @@ const AppRoutes = () => {
         }
       />
 
-      {/* =================================================
-          ADMIN APPROVALS
-      ================================================= */}
-
       <Route
         path="/admin/approvals"
         element={
@@ -368,10 +239,6 @@ const AppRoutes = () => {
         }
       />
 
-      {/* =================================================
-          EDIT BILL
-      ================================================= */}
-
       <Route
         path="/edit-bill/:id"
         element={
@@ -380,10 +247,6 @@ const AppRoutes = () => {
           </AdminPage>
         }
       />
-
-      {/* =================================================
-          HOME
-      ================================================= */}
 
       <Route
         path="/"
@@ -398,10 +261,6 @@ const AppRoutes = () => {
           />
         }
       />
-
-      {/* =================================================
-          404
-      ================================================= */}
 
       <Route
         path="*"
@@ -420,10 +279,6 @@ const AppRoutes = () => {
     </Routes>
   );
 };
-
-// =====================================================
-// APP
-// =====================================================
 
 function App() {
   return (

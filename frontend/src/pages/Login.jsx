@@ -33,10 +33,6 @@ const Login = () => {
   const [success, setSuccess] =
     useState("");
 
-  // =====================================================
-  // INPUT CHANGE
-  // =====================================================
-
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -54,10 +50,6 @@ const Login = () => {
     }
   };
 
-  // =====================================================
-  // LOGIN
-  // =====================================================
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -67,25 +59,29 @@ const Login = () => {
     const email =
       formData.email.trim().toLowerCase();
 
-    const password = formData.password;
-
-    // ---------------------------------------------------
-    // VALIDATION
-    // ---------------------------------------------------
+    const password =
+      formData.password;
 
     if (!email) {
-      setError("Please enter your email address.");
+      setError(
+        "Please enter your email address."
+      );
       return;
     }
 
     if (!password) {
-      setError("Please enter your password.");
+      setError(
+        "Please enter your password."
+      );
       return;
     }
 
     setLoading(true);
 
-    console.log("LOGIN START:", email);
+    console.log(
+      "LOGIN START:",
+      email
+    );
 
     try {
       const result = await login(
@@ -93,7 +89,10 @@ const Login = () => {
         password
       );
 
-      console.log("LOGIN RESULT:", result);
+      console.log(
+        "LOGIN RESULT:",
+        result
+      );
 
       if (!result?.success) {
         setError(
@@ -110,22 +109,29 @@ const Login = () => {
 
       console.log(
         "LOGIN PAGE TOKEN:",
-        localStorage.getItem("token")
+        localStorage.getItem(
+          "token"
+        )
           ? "FOUND"
           : "NOT FOUND"
       );
 
       console.log(
         "LOGIN PAGE USER:",
-        localStorage.getItem("user")
+        localStorage.getItem(
+          "user"
+        )
           ? "FOUND"
           : "NOT FOUND"
       );
 
       setTimeout(() => {
-        navigate("/dashboard", {
-          replace: true,
-        });
+        navigate(
+          "/dashboard",
+          {
+            replace: true,
+          }
+        );
       }, 400);
     } catch (err) {
       console.error(
@@ -143,16 +149,8 @@ const Login = () => {
     }
   };
 
-  // =====================================================
-  // UI
-  // =====================================================
-
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f7f7fb]">
-
-      {/* =================================================
-          BACKGROUND DECORATION
-      ================================================= */}
 
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
 
@@ -168,29 +166,15 @@ const Login = () => {
 
       </div>
 
-      {/* =================================================
-          MAIN
-      ================================================= */}
-
       <main className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
 
         <div className="w-full max-w-[1050px]">
-
-          {/* =================================================
-              CARD
-          ================================================= */}
 
           <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_25px_80px_rgba(31,41,55,0.10)]">
 
             <div className="grid lg:grid-cols-[0.9fr_1.1fr]">
 
-              {/* =================================================
-                  LEFT PANEL
-              ================================================= */}
-
               <div className="relative hidden min-h-[650px] overflow-hidden bg-[#4F39F6] lg:block">
-
-                {/* Decorative shapes */}
 
                 <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full border border-white/10" />
 
@@ -198,13 +182,9 @@ const Login = () => {
 
                 <div className="absolute right-16 top-28 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
 
-                {/* Content */}
-
                 <div className="relative flex h-full flex-col justify-between p-12 xl:p-14">
 
                   <div>
-
-                    {/* Logo */}
 
                     <div className="inline-flex rounded-2xl bg-white p-3 shadow-xl">
 
@@ -224,8 +204,6 @@ const Login = () => {
                       Admin Dashboard
                     </p>
 
-                    {/* Welcome text */}
-
                     <div className="mt-20 max-w-sm">
 
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/60">
@@ -239,17 +217,17 @@ const Login = () => {
                       </h2>
 
                       <p className="mt-5 text-sm leading-7 text-white/70">
-                        Manage products, inventory,
-                        sales, purchases and your
-                        Vraj Creation store from one
-                        simple dashboard.
+                        Manage products,
+                        inventory, sales,
+                        purchases and your
+                        Vraj Creation store
+                        from one simple
+                        dashboard.
                       </p>
 
                     </div>
 
                   </div>
-
-                  {/* Security */}
 
                   <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
 
@@ -277,17 +255,9 @@ const Login = () => {
 
               </div>
 
-              {/* =================================================
-                  RIGHT PANEL
-              ================================================= */}
-
               <div className="flex min-h-[650px] items-center justify-center px-6 py-10 sm:px-10 md:px-14 lg:px-14 xl:px-20">
 
                 <div className="w-full max-w-[420px]">
-
-                  {/* =================================================
-                      MOBILE LOGO
-                  ================================================= */}
 
                   <div className="mb-8 flex items-center gap-3 lg:hidden">
 
@@ -315,10 +285,6 @@ const Login = () => {
 
                   </div>
 
-                  {/* =================================================
-                      HEADING
-                  ================================================= */}
-
                   <div className="mb-8">
 
                     <div className="mb-4 inline-flex items-center rounded-full bg-[#4F39F6]/10 px-3 py-1.5">
@@ -334,15 +300,11 @@ const Login = () => {
                     </h2>
 
                     <p className="mt-3 text-sm leading-6 text-gray-500">
-                      Enter your details to access
-                      your dashboard.
+                      Enter your details to
+                      access your dashboard.
                     </p>
 
                   </div>
-
-                  {/* =================================================
-                      ERROR
-                  ================================================= */}
 
                   {error && (
                     <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
@@ -356,10 +318,6 @@ const Login = () => {
                     </div>
                   )}
 
-                  {/* =================================================
-                      SUCCESS
-                  ================================================= */}
-
                   {success && (
                     <div className="mb-5 flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
 
@@ -372,16 +330,12 @@ const Login = () => {
                     </div>
                   )}
 
-                  {/* =================================================
-                      FORM
-                  ================================================= */}
-
                   <form
-                    onSubmit={handleSubmit}
+                    onSubmit={
+                      handleSubmit
+                    }
                     className="space-y-5"
                   >
-
-                    {/* EMAIL */}
 
                     <div>
 
@@ -404,9 +358,15 @@ const Login = () => {
                           name="email"
                           type="email"
                           autoComplete="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          disabled={loading}
+                          value={
+                            formData.email
+                          }
+                          onChange={
+                            handleChange
+                          }
+                          disabled={
+                            loading
+                          }
                           placeholder="Enter your email"
                           className="h-14 w-full rounded-xl border border-gray-200 bg-gray-50 pl-11 pr-4 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 hover:border-gray-300 focus:border-[#4F39F6] focus:bg-white focus:ring-4 focus:ring-[#4F39F6]/10 disabled:cursor-not-allowed disabled:opacity-60"
                         />
@@ -415,27 +375,14 @@ const Login = () => {
 
                     </div>
 
-                    {/* PASSWORD */}
-
                     <div>
 
-                      <div className="mb-2 flex items-center justify-between">
-
-                        <label
-                          htmlFor="password"
-                          className="text-sm font-semibold text-gray-700"
-                        >
-                          Password
-                        </label>
-
-                        <Link
-                          to="/forgot-password"
-                          className="text-xs font-semibold text-[#4F39F6] transition hover:text-[#3c2bc4]"
-                        >
-                          Forgot password?
-                        </Link>
-
-                      </div>
+                      <label
+                        htmlFor="password"
+                        className="mb-2 block text-sm font-semibold text-gray-700"
+                      >
+                        Password
+                      </label>
 
                       <div className="group relative">
 
@@ -453,9 +400,15 @@ const Login = () => {
                               : "password"
                           }
                           autoComplete="current-password"
-                          value={formData.password}
-                          onChange={handleChange}
-                          disabled={loading}
+                          value={
+                            formData.password
+                          }
+                          onChange={
+                            handleChange
+                          }
+                          disabled={
+                            loading
+                          }
                           placeholder="Enter your password"
                           className="h-14 w-full rounded-xl border border-gray-200 bg-gray-50 pl-11 pr-12 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 hover:border-gray-300 focus:border-[#4F39F6] focus:bg-white focus:ring-4 focus:ring-[#4F39F6]/10 disabled:cursor-not-allowed disabled:opacity-60"
                         />
@@ -464,10 +417,13 @@ const Login = () => {
                           type="button"
                           onClick={() =>
                             setShowPassword(
-                              (prev) => !prev
+                              (prev) =>
+                                !prev
                             )
                           }
-                          disabled={loading}
+                          disabled={
+                            loading
+                          }
                           className="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 transition hover:bg-[#4F39F6]/10 hover:text-[#4F39F6]"
                           aria-label={
                             showPassword
@@ -476,17 +432,19 @@ const Login = () => {
                           }
                         >
                           {showPassword ? (
-                            <FiEyeOff size={18} />
+                            <FiEyeOff
+                              size={18}
+                            />
                           ) : (
-                            <FiEye size={18} />
+                            <FiEye
+                              size={18}
+                            />
                           )}
                         </button>
 
                       </div>
 
                     </div>
-
-                    {/* REMEMBER */}
 
                     <div className="flex items-center">
 
@@ -505,10 +463,6 @@ const Login = () => {
                       </label>
 
                     </div>
-
-                    {/* =================================================
-                        LOGIN BUTTON
-                    ================================================= */}
 
                     <button
                       type="submit"
@@ -541,10 +495,6 @@ const Login = () => {
 
                   </form>
 
-                  {/* =================================================
-                      REGISTER
-                  ================================================= */}
-
                   <div className="mt-8 text-center">
 
                     <p className="text-sm text-gray-500">
@@ -562,18 +512,17 @@ const Login = () => {
 
                   </div>
 
-                  {/* =================================================
-                      FOOTER
-                  ================================================= */}
-
                   <div className="mt-10 border-t border-gray-100 pt-6 text-center">
 
                     <p className="text-[11px] leading-5 text-gray-400">
-                      © {new Date().getFullYear()} Vraj
-                      Creation
+                      ©{" "}
+                      {new Date().getFullYear()}{" "}
+                      Vraj Creation
+
                       <span className="mx-2">
                         •
                       </span>
+
                       Traditional Craft,
                       Beautifully Made
                     </p>

@@ -1,50 +1,57 @@
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-
+const nodemailer = require("nodemailer");
 const User = require("../models/User");
 
 require("dotenv").config();
 
-// =====================================================
-// ENVIRONMENT
-// =====================================================
+const normalizeEmail = (email) =>
+  String(email || "")
+    .trim()
+    .toLowerCase();
+
+const normalizeName = (name) =>
+  String(name || "")
+    .trim();
+
+const normalizePhone = (phone) =>
+  String(phone || "")
+    .trim();
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
-  throw new Error(
-    "JWT_SECRET is missing in environment variables."
+  console.warn("WARNING: JWT_SECRET is not configured.");
+}
+
+const EMAIL_USER = String(process.env.EMAIL_USER || "").trim();
+const EMAIL_PASS = String(process.env.EMAIL_PASS || "").trim();
+
+let mailTransporter = null;
+
+if (EMAIL_USER && EMAIL_PASS) {
+  mailTransporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: EMAIL_USER,
+      pass: EMAIL_PASS,
+    },
+  });
+
+  console.log("EMAIL TRANSPORTER: CONFIGURED");
+} else {
+  console.warn(
+    "EMAIL TRANSPORTER: NOT CONFIGURED - EMAIL_USER or EMAIL_PASS missing"
   );
 }
 
-// =====================================================
-// ADMIN EMAILS
-// =====================================================
-
-const ADMIN_EMAILS = [
-  "pawanpatelcollege@gmail.com",
-  "ojhavikas30@gmail.com",
-  "kavyaojha05@gmail.com",
-].map((email) => email.toLowerCase());
-
-// =====================================================
-// HELPER - GENERATE JWT
-// =====================================================
-
-const generateToken = (
-  userId,
-  role,
-  tokenVersion = 0
-) => {
-  const normalizedTokenVersion =
-    Number(tokenVersion) || 0;
-
+const generateToken = (user) => {
   return jwt.sign(
     {
-      id: userId.toString(),
-      role,
-      tokenVersion: normalizedTokenVersion,
+      id: user._id.toString(),
+      email: user.email,
+      tokenVersion: user.tokenVersion || 0,
     },
     JWT_SECRET,
     {
@@ -53,53 +60,217 @@ const generateToken = (
   );
 };
 
-// =====================================================
-// HELPER - SAFE USER OBJECT
-// =====================================================
-
-const getSafeUser = (user) => {
-  if (!user) {
-    return null;
+const sendPasswordResetEmail = async ({
+  email,
+  name,
+  otp,
+}) => {
+  if (!mailTransporter) {
+    throw new Error(
+      "Email service is not configured. Please configure EMAIL_USER and EMAIL_PASS."
+    );
   }
 
-  return {
-    id: user._id || user.id,
-    name: user.name || "",
-    email: user.email || "",
-    role: user.role || "user",
-    status: user.status || "pending",
+  const safeName = name || "Customer";
+
+  const mailOptions = {
+    from: `"Vraj Creation India" <${EMAIL_USER}>`,
+    to: email,
+    subject: "Vraj Creation India - Password Reset OTP",
+    text: `Hello ${safeName},
+
+Your password reset OTP for Vraj Creation India is:
+
+${otp}
+
+This OTP is valid for 10 minutes.
+
+If you did not request a password reset, please ignore this email.
+
+Vraj Creation India
+Bringing Art to Life`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Password Reset OTP</title>
+        </head>
+
+        <body
+          style="
+            margin:0;
+            padding:0;
+            background:#f5f5f5;
+            font-family:Arial,Helvetica,sans-serif;
+          "
+        >
+          <div
+            style="
+              width:100%;
+              padding:30px 10px;
+              box-sizing:border-box;
+            "
+          >
+            <div
+              style="
+                max-width:600px;
+                margin:0 auto;
+                background:#ffffff;
+                border-radius:12px;
+                overflow:hidden;
+                box-shadow:0 4px 20px rgba(0,0,0,0.08);
+              "
+            >
+              <div
+                style="
+                  background:linear-gradient(135deg,#4f46e5,#7c3aed);
+                  padding:30px 20px;
+                  text-align:center;
+                  color:#ffffff;
+                "
+              >
+                <h1
+                  style="
+                    margin:0;
+                    font-size:28px;
+                  "
+                >
+                  Vraj Creation India
+                </h1>
+
+                <p
+                  style="
+                    margin:8px 0 0;
+                    font-size:14px;
+                    opacity:0.95;
+                  "
+                >
+                  Bringing Art to Life
+                </p>
+              </div>
+
+              <div
+                style="
+                  padding:35px 30px;
+                  color:#333333;
+                "
+              >
+                <h2
+                  style="
+                    margin-top:0;
+                    font-size:22px;
+                  "
+                >
+                  Password Reset Request
+                </h2>
+
+                <p
+                  style="
+                    font-size:15px;
+                    line-height:1.6;
+                  "
+                >
+                  Hello ${safeName},
+                </p>
+
+                <p
+                  style="
+                    font-size:15px;
+                    line-height:1.6;
+                  "
+                >
+                  We received a request to reset the password for your
+                  Vraj Creation India account.
+                </p>
+
+                <p
+                  style="
+                    font-size:15px;
+                    line-height:1.6;
+                  "
+                >
+                  Your One-Time Password (OTP) is:
+                </p>
+
+                <div
+                  style="
+                    margin:25px 0;
+                    padding:18px;
+                    background:#f3f4f6;
+                    border-radius:10px;
+                    text-align:center;
+                    letter-spacing:8px;
+                    font-size:32px;
+                    font-weight:bold;
+                    color:#4f46e5;
+                  "
+                >
+                  ${otp}
+                </div>
+
+                <p
+                  style="
+                    font-size:14px;
+                    line-height:1.6;
+                    color:#555555;
+                  "
+                >
+                  This OTP is valid for
+                  <strong>10 minutes</strong>.
+                </p>
+
+                <p
+                  style="
+                    font-size:14px;
+                    line-height:1.6;
+                    color:#555555;
+                  "
+                >
+                  If you did not request a password reset, you can safely
+                  ignore this email.
+                </p>
+
+                <hr
+                  style="
+                    border:none;
+                    border-top:1px solid #eeeeee;
+                    margin:30px 0;
+                  "
+                />
+
+                <p
+                  style="
+                    margin:0;
+                    font-size:13px;
+                    color:#777777;
+                    text-align:center;
+                  "
+                >
+                  Vraj Creation India
+                </p>
+
+                <p
+                  style="
+                    margin:5px 0 0;
+                    font-size:13px;
+                    color:#777777;
+                    text-align:center;
+                  "
+                >
+                  Bringing Art to Life
+                </p>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `,
   };
+
+  return mailTransporter.sendMail(mailOptions);
 };
-
-// =====================================================
-// HELPER - NORMALIZE EMAIL
-// =====================================================
-
-const normalizeEmail = (email) => {
-  return String(email || "")
-    .trim()
-    .toLowerCase();
-};
-
-// =====================================================
-// HELPER - PASSWORD VALIDATION
-// =====================================================
-
-const validatePassword = (password) => {
-  if (typeof password !== "string") {
-    return false;
-  }
-
-  if (password.length < 6) {
-    return false;
-  }
-
-  return true;
-};
-
-// =====================================================
-// REGISTER
-// =====================================================
 
 const register = async (req, res) => {
   try {
@@ -107,14 +278,12 @@ const register = async (req, res) => {
       name,
       email,
       password,
+      phone,
     } = req.body;
 
-    const cleanName = String(name || "").trim();
+    const cleanName = normalizeName(name);
     const cleanEmail = normalizeEmail(email);
-
-    // -------------------------------------------------
-    // VALIDATION
-    // -------------------------------------------------
+    const cleanPhone = normalizePhone(phone);
 
     if (!cleanName) {
       return res.status(400).json({
@@ -130,17 +299,19 @@ const register = async (req, res) => {
       });
     }
 
-    if (!validatePassword(password)) {
+    if (!password) {
       return res.status(400).json({
         success: false,
-        message:
-          "Password must be at least 6 characters.",
+        message: "Password is required.",
       });
     }
 
-    // -------------------------------------------------
-    // CHECK EXISTING USER
-    // -------------------------------------------------
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters.",
+      });
+    }
 
     const existingUser = await User.findOne({
       email: cleanEmail,
@@ -149,69 +320,51 @@ const register = async (req, res) => {
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        message:
-          "An account with this email already exists.",
+        message: "An account with this email already exists.",
       });
     }
 
-    // -------------------------------------------------
-    // DETERMINE ROLE / STATUS
-    // -------------------------------------------------
-
-    const isAdmin =
-      ADMIN_EMAILS.includes(cleanEmail);
-
-    const role = isAdmin ? "admin" : "user";
-
-    const status = isAdmin ? "active" : "pending";
-
-    // -------------------------------------------------
-    // CREATE USER
-    // -------------------------------------------------
-
-    const user = await User.create({
+    const userData = {
       name: cleanName,
       email: cleanEmail,
       password,
-      role,
-      status,
-      tokenVersion: 0,
-    });
+    };
 
-    // -------------------------------------------------
-    // RESPONSE
-    // -------------------------------------------------
+    if (cleanPhone) {
+      userData.phone = cleanPhone;
+    }
+
+    const user = await User.create(userData);
+
+    const token = generateToken(user);
 
     return res.status(201).json({
       success: true,
-
-      message: isAdmin
-        ? "Registration successful. You can login now."
-        : "Registration successful. Admin approval ke baad aap login kar sakenge.",
-
-      user: getSafeUser(user),
+      message: "Registration successful.",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || "",
+      },
     });
   } catch (error) {
     console.error("REGISTER ERROR:", error);
 
-    if (error?.code === 11000) {
+    if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        message:
-          "An account with this email already exists.",
+        message: "An account with this email already exists.",
       });
     }
 
     return res.status(500).json({
       success: false,
-      message: "Registration failed.",
+      message: "Unable to register user.",
     });
   }
 };
-
-// =====================================================
-// LOGIN
-// =====================================================
 
 const login = async (req, res) => {
   try {
@@ -222,31 +375,21 @@ const login = async (req, res) => {
 
     const cleanEmail = normalizeEmail(email);
 
-    // -------------------------------------------------
-    // VALIDATION
-    // -------------------------------------------------
-
-    if (!cleanEmail) {
+    if (!cleanEmail || !password) {
       return res.status(400).json({
         success: false,
-        message: "Email is required.",
+        message: "Email and password are required.",
       });
     }
-
-    if (!password) {
-      return res.status(400).json({
-        success: false,
-        message: "Password is required.",
-      });
-    }
-
-    // -------------------------------------------------
-    // FIND USER
-    // -------------------------------------------------
 
     const user = await User.findOne({
       email: cleanEmail,
-    }).select("+password");
+    });
+
+    console.log(
+      "AUTH USER FOUND:",
+      user ? user.email : "NO USER"
+    );
 
     if (!user) {
       return res.status(401).json({
@@ -255,43 +398,10 @@ const login = async (req, res) => {
       });
     }
 
-    // -------------------------------------------------
-    // ACCOUNT STATUS
-    // -------------------------------------------------
-
-    if (user.status === "pending") {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Your account is waiting for admin approval.",
-      });
-    }
-
-    if (user.status === "rejected") {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Your account has been rejected.",
-      });
-    }
-
-    if (user.status !== "active") {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Your account is not active.",
-      });
-    }
-
-    // -------------------------------------------------
-    // PASSWORD CHECK
-    // -------------------------------------------------
-
-    const isPasswordValid =
-      await bcrypt.compare(
-        password,
-        user.password
-      );
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      user.password
+    );
 
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -300,60 +410,24 @@ const login = async (req, res) => {
       });
     }
 
-    // -------------------------------------------------
-    // TOKEN VERSION
-    // -------------------------------------------------
+    const tokenVersion = user.tokenVersion || 0;
 
-    const tokenVersion =
-      Number(user.tokenVersion ?? 0);
-
-    // -------------------------------------------------
-    // GENERATE JWT
-    // -------------------------------------------------
-
-    const token = generateToken(
-      user._id,
-      user.role,
+    console.log(
+      "TOKEN VERSION:",
       tokenVersion
     );
 
-    console.log(
-      "LOGIN SUCCESS:",
-      user.email
-    );
-
-    console.log(
-      "JWT USER ID:",
-      user._id.toString()
-    );
-
-    console.log(
-      "JWT ROLE:",
-      user.role
-    );
-
-    console.log(
-      "JWT TOKEN VERSION:",
-      tokenVersion
-    );
-
-    // -------------------------------------------------
-    // RESPONSE
-    // -------------------------------------------------
+    const token = generateToken(user);
 
     return res.status(200).json({
       success: true,
-
-      message: "Login successful",
-
+      message: "Login successful.",
       token,
-
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role,
-        status: user.status,
+        phone: user.phone || "",
       },
     });
   } catch (error) {
@@ -361,127 +435,27 @@ const login = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Login failed.",
+      message: "Unable to login.",
     });
   }
 };
-
-// =====================================================
-// GET PROFILE
-// =====================================================
 
 const getProfile = async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required.",
-      });
-    }
-
-    const user = await User.findById(
-      req.user._id
-    )
-      .select(
-        "_id name email role status tokenVersion"
-      )
-      .lean();
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "User not found.",
-      });
-    }
-
-    if (user.status !== "active") {
-      return res.status(403).json({
-        success: false,
-        message: "Account is not active.",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-      },
-    });
-  } catch (error) {
-    console.error(
-      "GET PROFILE ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch profile.",
-    });
-  }
-};
-
-// =====================================================
-// GET PENDING USERS
-// =====================================================
-
-const getPendingUsers = async (req, res) => {
-  try {
-    const users = await User.find({
-      role: "user",
-      status: "pending",
-    })
-      .select(
-        "_id name email role status createdAt"
-      )
-      .sort({
-        createdAt: -1,
-      })
-      .lean();
-
-    return res.status(200).json({
-      success: true,
-      count: users.length,
-      users,
-    });
-  } catch (error) {
-    console.error(
-      "GET PENDING USERS ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to fetch pending users.",
-    });
-  }
-};
-
-// =====================================================
-// APPROVE USER
-// =====================================================
-
-const approveUser = async (req, res) => {
-  try {
-    const userId = req.params.id;
+    const userId =
+      req.user?.id ||
+      req.user?._id;
 
     if (!userId) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
-        message: "User ID is required.",
+        message: "Unauthorized.",
       });
     }
 
-    // -------------------------------------------------
-    // FIND USER
-    // -------------------------------------------------
-
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select(
+      "-password -resetPasswordOTP -resetPasswordOTPExpires"
+    );
 
     if (!user) {
       return res.status(404).json({
@@ -490,80 +464,25 @@ const approveUser = async (req, res) => {
       });
     }
 
-    // -------------------------------------------------
-    // ONLY NORMAL USERS CAN BE APPROVED
-    // -------------------------------------------------
-
-    if (user.role === "admin") {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Admin account does not require approval.",
-      });
-    }
-
-    // -------------------------------------------------
-    // ALREADY ACTIVE
-    // -------------------------------------------------
-
-    if (user.status === "active") {
-      return res.status(200).json({
-        success: true,
-        message: "User is already approved.",
-        user: getSafeUser(user),
-      });
-    }
-
-    // -------------------------------------------------
-    // APPROVE
-    // -------------------------------------------------
-
-    user.status = "active";
-
-    // Invalidate any old token if one exists.
-    user.tokenVersion =
-      Number(user.tokenVersion ?? 0) + 1;
-
-    await user.save();
-
-    console.log(
-      "USER APPROVED:",
-      user.email
-    );
-
     return res.status(200).json({
       success: true,
-      message: "User approved successfully.",
-      user: getSafeUser(user),
+      user,
     });
   } catch (error) {
-    console.error(
-      "APPROVE USER ERROR:",
-      error
-    );
-
-    // Invalid MongoDB ObjectId
-    if (error?.name === "CastError") {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid user ID.",
-      });
-    }
+    console.error("GET PROFILE ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Failed to approve user.",
+      message: "Unable to get profile.",
     });
   }
 };
 
-// =====================================================
-// FORGOT PASSWORD
-// =====================================================
-
 const forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
+    const {
+      email,
+    } = req.body;
 
     const cleanEmail = normalizeEmail(email);
 
@@ -578,7 +497,6 @@ const forgotPassword = async (req, res) => {
       email: cleanEmail,
     });
 
-    // Security: don't reveal account existence
     if (!user) {
       return res.status(200).json({
         success: true,
@@ -586,10 +504,6 @@ const forgotPassword = async (req, res) => {
           "If an account exists with this email, a password reset OTP has been sent.",
       });
     }
-
-    // -------------------------------------------------
-    // GENERATE OTP
-    // -------------------------------------------------
 
     const otp = crypto
       .randomInt(100000, 1000000)
@@ -603,17 +517,61 @@ const forgotPassword = async (req, res) => {
     await user.save();
 
     console.log(
-      "PASSWORD RESET OTP:",
-      cleanEmail,
-      otp
+      "PASSWORD RESET OTP GENERATED FOR:",
+      cleanEmail
     );
+
+    if (!mailTransporter) {
+      console.error(
+        "PASSWORD RESET EMAIL ERROR: EMAIL TRANSPORTER NOT CONFIGURED"
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Email service is not configured. Please contact administrator.",
+      });
+    }
+
+    try {
+      const mailResult =
+        await sendPasswordResetEmail({
+          email: cleanEmail,
+          name: user.name,
+          otp,
+        });
+
+      console.log(
+        "PASSWORD RESET EMAIL SENT:",
+        cleanEmail
+      );
+
+      console.log(
+        "EMAIL MESSAGE ID:",
+        mailResult.messageId
+      );
+    } catch (emailError) {
+      console.error(
+        "PASSWORD RESET EMAIL SEND ERROR:",
+        emailError
+      );
+
+      user.resetPasswordOTP = undefined;
+      user.resetPasswordOTPExpires = undefined;
+
+      await user.save();
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Unable to send password reset email. Please try again later.",
+      });
+    }
 
     return res.status(200).json({
       success: true,
-
       message:
         "If an account exists with this email, a password reset OTP has been sent.",
-
       ...(process.env.NODE_ENV !== "production"
         ? {
             developmentOTP: otp,
@@ -634,10 +592,6 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-// =====================================================
-// VERIFY RESET OTP
-// =====================================================
-
 const verifyResetOtp = async (req, res) => {
   try {
     const {
@@ -646,22 +600,12 @@ const verifyResetOtp = async (req, res) => {
     } = req.body;
 
     const cleanEmail = normalizeEmail(email);
+    const cleanOtp = String(otp || "").trim();
 
-    const cleanOtp = String(
-      otp || ""
-    ).trim();
-
-    if (!cleanEmail) {
+    if (!cleanEmail || !cleanOtp) {
       return res.status(400).json({
         success: false,
-        message: "Email is required.",
-      });
-    }
-
-    if (!cleanOtp) {
-      return res.status(400).json({
-        success: false,
-        message: "OTP is required.",
+        message: "Email and OTP are required.",
       });
     }
 
@@ -676,13 +620,10 @@ const verifyResetOtp = async (req, res) => {
       });
     }
 
-    if (
-      !user.resetPasswordOTP ||
-      user.resetPasswordOTP !== cleanOtp
-    ) {
+    if (!user.resetPasswordOTP) {
       return res.status(400).json({
         success: false,
-        message: "Invalid OTP.",
+        message: "Invalid or expired OTP.",
       });
     }
 
@@ -692,7 +633,17 @@ const verifyResetOtp = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message: "OTP has expired.",
+        message: "OTP has expired. Please request a new OTP.",
+      });
+    }
+
+    if (
+      String(user.resetPasswordOTP) !==
+      cleanOtp
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP.",
       });
     }
 
@@ -702,20 +653,17 @@ const verifyResetOtp = async (req, res) => {
     });
   } catch (error) {
     console.error(
-      "VERIFY OTP ERROR:",
+      "VERIFY RESET OTP ERROR:",
       error
     );
 
     return res.status(500).json({
       success: false,
-      message: "Unable to verify OTP.",
+      message:
+        "Unable to verify OTP.",
     });
   }
 };
-
-// =====================================================
-// RESET PASSWORD
-// =====================================================
 
 const resetPassword = async (req, res) => {
   try {
@@ -727,17 +675,10 @@ const resetPassword = async (req, res) => {
     } = req.body;
 
     const cleanEmail = normalizeEmail(email);
-
-    const cleanOtp = String(
-      otp || ""
-    ).trim();
+    const cleanOtp = String(otp || "").trim();
 
     const finalPassword =
-      newPassword || password;
-
-    // -------------------------------------------------
-    // VALIDATION
-    // -------------------------------------------------
+      String(newPassword || password || "").trim();
 
     if (!cleanEmail) {
       return res.status(400).json({
@@ -753,17 +694,20 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    if (!validatePassword(finalPassword)) {
+    if (!finalPassword) {
       return res.status(400).json({
         success: false,
-        message:
-          "Password must be at least 6 characters.",
+        message: "New password is required.",
       });
     }
 
-    // -------------------------------------------------
-    // FIND USER
-    // -------------------------------------------------
+    if (finalPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "New password must be at least 6 characters.",
+      });
+    }
 
     const user = await User.findOne({
       email: cleanEmail,
@@ -772,27 +716,16 @@ const resetPassword = async (req, res) => {
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: "Invalid reset request.",
+        message: "Invalid or expired OTP.",
       });
     }
 
-    // -------------------------------------------------
-    // VERIFY OTP
-    // -------------------------------------------------
-
-    if (
-      !user.resetPasswordOTP ||
-      user.resetPasswordOTP !== cleanOtp
-    ) {
+    if (!user.resetPasswordOTP) {
       return res.status(400).json({
         success: false,
-        message: "Invalid OTP.",
+        message: "Invalid or expired OTP.",
       });
     }
-
-    // -------------------------------------------------
-    // CHECK EXPIRY
-    // -------------------------------------------------
 
     if (
       !user.resetPasswordOTPExpires ||
@@ -800,36 +733,40 @@ const resetPassword = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message: "OTP has expired.",
+        message:
+          "OTP has expired. Please request a new OTP.",
       });
     }
 
-    // -------------------------------------------------
-    // UPDATE PASSWORD
-    // -------------------------------------------------
+    if (
+      String(user.resetPasswordOTP) !==
+      cleanOtp
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP.",
+      });
+    }
 
     user.password = finalPassword;
-
-    // -------------------------------------------------
-    // INVALIDATE OLD TOKENS
-    // -------------------------------------------------
-
-    user.tokenVersion =
-      Number(user.tokenVersion ?? 0) + 1;
-
-    // -------------------------------------------------
-    // CLEAR OTP
-    // -------------------------------------------------
 
     user.resetPasswordOTP = undefined;
     user.resetPasswordOTPExpires = undefined;
 
+    user.tokenVersion =
+      (user.tokenVersion || 0) + 1;
+
     await user.save();
+
+    console.log(
+      "PASSWORD RESET SUCCESS:",
+      cleanEmail
+    );
 
     return res.status(200).json({
       success: true,
       message:
-        "Password reset successful. Please login again.",
+        "Password reset successfully. Please login with your new password.",
     });
   } catch (error) {
     console.error(
@@ -845,23 +782,11 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// =====================================================
-// EXPORTS
-// =====================================================
-
 module.exports = {
   register,
   login,
   getProfile,
-
   forgotPassword,
   verifyResetOtp,
   resetPassword,
-
-  // Admin approval
-  getPendingUsers,
-  approveUser,
-
-  // JWT helper
-  generateToken,
 };

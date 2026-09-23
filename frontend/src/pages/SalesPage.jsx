@@ -6,10 +6,11 @@ import {
 } from "react";
 
 const API_BASE_URL =
-  window.location.hostname === "localhost"
+  import.meta.env.VITE_API_URL ||
+  (window.location.hostname === "localhost"
     ? "http://localhost:5000/api"
-    : "https://vraj-creation.onrender.com/api";
-
+    : "https://vraj-store.onrender.com/api");
+    
 const SALES_API_URL = `${API_BASE_URL}/sales`;
 const PRODUCTS_API_URL = `${API_BASE_URL}/products`;
 

@@ -31,8 +31,8 @@ const ProductView = () => {
       : `/${imagePath}`;
 
     const baseURL =
-      api.defaults.baseURL?.replace(/\/api\/?$/, "") ||
-      "https://vraj-creation.onrender.com";
+  api.defaults.baseURL?.replace(/\/api\/?$/, "") ||
+  "https://vraj-store.onrender.com";
 
     return `${baseURL}${path}`;
   };

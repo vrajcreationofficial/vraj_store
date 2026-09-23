@@ -1,3 +1,4 @@
+
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
@@ -72,6 +73,12 @@ const validatePassword = (password) => {
   return true;
 };
 
+/*
+|--------------------------------------------------------------------------
+| REGISTER
+|--------------------------------------------------------------------------
+*/
+
 const register = async (req, res) => {
   try {
     const {
@@ -117,30 +124,75 @@ const register = async (req, res) => {
       });
     }
 
+    /*
+     * Admin emails automatically become active.
+     * Normal users remain pending until admin approval.
+     */
     const isAdmin =
       ADMIN_EMAILS.includes(cleanEmail);
 
     const role = isAdmin ? "admin" : "user";
     const status = isAdmin ? "active" : "pending";
 
+    /*
+     * IMPORTANT:
+     * Password is hashed before saving to MongoDB.
+     */
+    const hashedPassword =
+      await bcrypt.hash(password, 12);
+
+    console.log("REGISTER DATA:", {
+      name: cleanName,
+      email: cleanEmail,
+      role,
+      status,
+    });
+
     const user = await User.create({
       name: cleanName,
       email: cleanEmail,
-      password,
+      password: hashedPassword,
       role,
       status,
       tokenVersion: 0,
     });
 
+    console.log("USER CREATED:", {
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      status: user.status,
+    });
+
+    /*
+     * Normal user:
+     * Registration successful, but login is blocked
+     * until admin approval.
+     */
+    if (!isAdmin) {
+      return res.status(201).json({
+        success: true,
+        message:
+          "Registration successful. Admin approval ke baad aap login kar sakenge.",
+        user: getSafeUser(user),
+      });
+    }
+
+    /*
+     * Admin account:
+     * Can login immediately.
+     */
     return res.status(201).json({
       success: true,
-      message: isAdmin
-        ? "Registration successful. You can login now."
-        : "Registration successful. Admin approval ke baad aap login kar sakenge.",
+      message:
+        "Registration successful. You can login now.",
       user: getSafeUser(user),
     });
   } catch (error) {
-    console.error("REGISTER ERROR:", error);
+    console.error(
+      "REGISTER ERROR:",
+      error
+    );
 
     if (error?.code === 11000) {
       return res.status(409).json({
@@ -156,6 +208,12 @@ const register = async (req, res) => {
     });
   }
 };
+
+/*
+|--------------------------------------------------------------------------
+| LOGIN
+|--------------------------------------------------------------------------
+*/
 
 const login = async (req, res) => {
   try {
@@ -191,22 +249,33 @@ const login = async (req, res) => {
       });
     }
 
+    /*
+     * Pending users cannot login.
+     */
     if (user.status === "pending") {
       return res.status(403).json({
         success: false,
         message:
-          "Your account is waiting for admin approval.",
+          "Registration successful, but your account is waiting for admin approval.",
       });
     }
 
+    /*
+     * Rejected users cannot login.
+     * Normally rejected users are deleted from DB,
+     * but this check protects against old records.
+     */
     if (user.status === "rejected") {
       return res.status(403).json({
         success: false,
         message:
-          "Your account has been rejected.",
+          "Your account registration has been rejected.",
       });
     }
 
+    /*
+     * Only active users can continue.
+     */
     if (user.status !== "active") {
       return res.status(403).json({
         success: false,
@@ -215,6 +284,9 @@ const login = async (req, res) => {
       });
     }
 
+    /*
+     * Compare entered password with bcrypt hash.
+     */
     const isPasswordValid =
       await bcrypt.compare(
         password,
@@ -259,7 +331,7 @@ const login = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Login successful",
+      message: "Login successful.",
       token,
       user: {
         id: user._id,
@@ -270,7 +342,10 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("LOGIN ERROR:", error);
+    console.error(
+      "LOGIN ERROR:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -278,6 +353,12 @@ const login = async (req, res) => {
     });
   }
 };
+
+/*
+|--------------------------------------------------------------------------
+| GET PROFILE
+|--------------------------------------------------------------------------
+*/
 
 const getProfile = async (req, res) => {
   try {
@@ -333,6 +414,12 @@ const getProfile = async (req, res) => {
   }
 };
 
+/*
+|--------------------------------------------------------------------------
+| GET PENDING USERS
+|--------------------------------------------------------------------------
+*/
+
 const getPendingUsers = async (req, res) => {
   try {
     const users = await User.find({
@@ -346,6 +433,11 @@ const getPendingUsers = async (req, res) => {
         createdAt: -1,
       })
       .lean();
+
+    console.log(
+      "PENDING USERS COUNT:",
+      users.length
+    );
 
     return res.status(200).json({
       success: true,
@@ -365,6 +457,12 @@ const getPendingUsers = async (req, res) => {
     });
   }
 };
+
+/*
+|--------------------------------------------------------------------------
+| APPROVE USER
+|--------------------------------------------------------------------------
+*/
 
 const approveUser = async (req, res) => {
   try {
@@ -402,6 +500,9 @@ const approveUser = async (req, res) => {
       });
     }
 
+    /*
+     * Approve normal user.
+     */
     user.status = "active";
 
     user.tokenVersion =
@@ -416,7 +517,8 @@ const approveUser = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "User approved successfully.",
+      message:
+        "User approved successfully. User can now login.",
       user: getSafeUser(user),
     });
   } catch (error) {
@@ -434,7 +536,94 @@ const approveUser = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to approve user.",
+      message:
+        "Failed to approve user.",
+    });
+  }
+};
+
+/*
+|--------------------------------------------------------------------------
+| REJECT USER
+|--------------------------------------------------------------------------
+|
+| IMPORTANT:
+| Reject means permanent deletion from MongoDB.
+|
+*/
+
+const rejectUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required.",
+      });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    /*
+     * Admin account cannot be rejected.
+     */
+    if (user.role === "admin") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Admin account cannot be rejected.",
+      });
+    }
+
+    const userEmail = user.email;
+
+    /*
+     * Permanently delete the user from MongoDB.
+     */
+    await User.deleteOne({
+      _id: user._id,
+    });
+
+    console.log(
+      "USER REJECTED AND DELETED:",
+      userEmail
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "User rejected and removed successfully.",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "REJECT USER ERROR:",
+      error
+    );
+
+    if (error?.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID.",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to reject and remove user.",
     });
   }
 };
@@ -445,5 +634,6 @@ module.exports = {
   getProfile,
   getPendingUsers,
   approveUser,
+  rejectUser,
   generateToken,
 };

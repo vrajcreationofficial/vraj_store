@@ -1,12 +1,19 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+
 import {
   FiArrowRight,
+  FiCheckCircle,
   FiEye,
   FiEyeOff,
   FiLock,
   FiMail,
   FiShield,
+  FiX,
 } from "react-icons/fi";
 
 import { useAuth } from "../context/AuthContext";
@@ -14,6 +21,8 @@ import logo from "../assets/logo.jpeg";
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
   const { login } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -33,6 +42,72 @@ const Login = () => {
   const [success, setSuccess] =
     useState("");
 
+  const [successType, setSuccessType] =
+    useState("");
+
+  useEffect(() => {
+    const registrationSuccess =
+      location.state?.registrationSuccess;
+
+    const registrationMessage =
+      location.state?.message;
+
+    if (
+      registrationSuccess &&
+      registrationMessage
+    ) {
+      console.log(
+        "REGISTRATION SUCCESS MESSAGE RECEIVED:",
+        registrationMessage
+      );
+
+      setSuccessType("registration");
+      setSuccess(registrationMessage);
+    }
+  }, [location.state]);
+
+  useEffect(() => {
+    if (!success) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setSuccess("");
+      setSuccessType("");
+
+      if (
+        location.state?.registrationSuccess
+      ) {
+        navigate("/login", {
+          replace: true,
+          state: {},
+        });
+      }
+    }, 6000);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [
+    success,
+    location.state,
+    navigate,
+  ]);
+
+  const closeSuccessPopup = () => {
+    setSuccess("");
+    setSuccessType("");
+
+    if (
+      location.state?.registrationSuccess
+    ) {
+      navigate("/login", {
+        replace: true,
+        state: {},
+      });
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -44,23 +119,28 @@ const Login = () => {
     if (error) {
       setError("");
     }
-
-    if (success) {
-      setSuccess("");
-    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (loading) {
+      return;
+    }
+
     setError("");
     setSuccess("");
+    setSuccessType("");
 
-    const email =
-      formData.email.trim().toLowerCase();
+    const email = String(
+      formData.email || ""
+    )
+      .trim()
+      .toLowerCase();
 
-    const password =
-      formData.password;
+    const password = String(
+      formData.password || ""
+    );
 
     if (!email) {
       setError(
@@ -99,9 +179,10 @@ const Login = () => {
           result?.message ||
             "Login failed. Please try again."
         );
-
         return;
       }
+
+      setSuccessType("login");
 
       setSuccess(
         "Login successful. Redirecting..."
@@ -109,30 +190,23 @@ const Login = () => {
 
       console.log(
         "LOGIN PAGE TOKEN:",
-        localStorage.getItem(
-          "token"
-        )
+        localStorage.getItem("token")
           ? "FOUND"
           : "NOT FOUND"
       );
 
       console.log(
         "LOGIN PAGE USER:",
-        localStorage.getItem(
-          "user"
-        )
+        localStorage.getItem("user")
           ? "FOUND"
           : "NOT FOUND"
       );
 
       setTimeout(() => {
-        navigate(
-          "/dashboard",
-          {
-            replace: true,
-          }
-        );
-      }, 400);
+        navigate("/dashboard", {
+          replace: true,
+        });
+      }, 700);
     } catch (err) {
       console.error(
         "LOGIN PAGE ERROR:",
@@ -141,6 +215,7 @@ const Login = () => {
 
       setError(
         err?.response?.data?.message ||
+          err?.response?.data?.error ||
           err?.message ||
           "Unable to login. Please try again."
       );
@@ -151,6 +226,49 @@ const Login = () => {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f7f7fb]">
+
+      {success && (
+        <div className="fixed right-5 top-5 z-[9999] w-[calc(100%-2.5rem)] max-w-sm animate-[slideIn_0.3s_ease-out]">
+
+          <div className="relative overflow-hidden rounded-2xl border border-green-200 bg-white shadow-[0_20px_50px_rgba(16,185,129,0.18)]">
+
+            <div className="h-1 w-full bg-green-500" />
+
+            <div className="flex items-start gap-3 p-4">
+
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600">
+                <FiCheckCircle size={21} />
+              </div>
+
+              <div className="min-w-0 flex-1 pr-7">
+
+                <p className="text-sm font-bold text-green-800">
+                  {successType === "registration"
+                    ? "Registration Successful"
+                    : "Login Successful"}
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-green-700">
+                  {success}
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={closeSuccessPopup}
+                className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Close notification"
+              >
+                <FiX size={17} />
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
 
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
 
@@ -232,9 +350,7 @@ const Login = () => {
                   <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
 
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white">
-
                       <FiShield size={19} />
-
                     </div>
 
                     <div>
@@ -318,22 +434,8 @@ const Login = () => {
                     </div>
                   )}
 
-                  {success && (
-                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
-
-                      <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-green-500" />
-
-                      <p className="text-sm leading-5 text-green-700">
-                        {success}
-                      </p>
-
-                    </div>
-                  )}
-
                   <form
-                    onSubmit={
-                      handleSubmit
-                    }
+                    onSubmit={handleSubmit}
                     className="space-y-5"
                   >
 
@@ -358,15 +460,9 @@ const Login = () => {
                           name="email"
                           type="email"
                           autoComplete="email"
-                          value={
-                            formData.email
-                          }
-                          onChange={
-                            handleChange
-                          }
-                          disabled={
-                            loading
-                          }
+                          value={formData.email}
+                          onChange={handleChange}
+                          disabled={loading}
                           placeholder="Enter your email"
                           className="h-14 w-full rounded-xl border border-gray-200 bg-gray-50 pl-11 pr-4 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 hover:border-gray-300 focus:border-[#4F39F6] focus:bg-white focus:ring-4 focus:ring-[#4F39F6]/10 disabled:cursor-not-allowed disabled:opacity-60"
                         />
@@ -400,15 +496,9 @@ const Login = () => {
                               : "password"
                           }
                           autoComplete="current-password"
-                          value={
-                            formData.password
-                          }
-                          onChange={
-                            handleChange
-                          }
-                          disabled={
-                            loading
-                          }
+                          value={formData.password}
+                          onChange={handleChange}
+                          disabled={loading}
                           placeholder="Enter your password"
                           className="h-14 w-full rounded-xl border border-gray-200 bg-gray-50 pl-11 pr-12 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 hover:border-gray-300 focus:border-[#4F39F6] focus:bg-white focus:ring-4 focus:ring-[#4F39F6]/10 disabled:cursor-not-allowed disabled:opacity-60"
                         />
@@ -417,13 +507,10 @@ const Login = () => {
                           type="button"
                           onClick={() =>
                             setShowPassword(
-                              (prev) =>
-                                !prev
+                              (prev) => !prev
                             )
                           }
-                          disabled={
-                            loading
-                          }
+                          disabled={loading}
                           className="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 transition hover:bg-[#4F39F6]/10 hover:text-[#4F39F6]"
                           aria-label={
                             showPassword
@@ -432,13 +519,9 @@ const Login = () => {
                           }
                         >
                           {showPassword ? (
-                            <FiEyeOff
-                              size={18}
-                            />
+                            <FiEyeOff size={18} />
                           ) : (
-                            <FiEye
-                              size={18}
-                            />
+                            <FiEye size={18} />
                           )}
                         </button>
 
@@ -498,7 +581,6 @@ const Login = () => {
                   <div className="mt-8 text-center">
 
                     <p className="text-sm text-gray-500">
-
                       Don't have an account?{" "}
 
                       <Link
@@ -507,7 +589,6 @@ const Login = () => {
                       >
                         Create account
                       </Link>
-
                     </p>
 
                   </div>
@@ -540,6 +621,22 @@ const Login = () => {
         </div>
 
       </main>
+
+      <style>
+        {`
+          @keyframes slideIn {
+            from {
+              opacity: 0;
+              transform: translateX(30px);
+            }
+
+            to {
+              opacity: 1;
+              transform: translateX(0);
+            }
+          }
+        `}
+      </style>
 
     </div>
   );

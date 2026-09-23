@@ -2,36 +2,23 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
-const User = require("../models/User");
-
 require("dotenv").config();
 
-const normalizeEmail = (email) =>
-  String(email || "")
-    .trim()
-    .toLowerCase();
-
-const normalizeName = (name) =>
-  String(name || "")
-    .trim();
-
-const normalizePhone = (phone) =>
-  String(phone || "")
-    .trim();
+const User = require("../models/User");
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
-  console.warn("WARNING: JWT_SECRET is not configured.");
+  console.error("JWT_SECRET: NOT CONFIGURED");
 }
 
 const EMAIL_USER = String(process.env.EMAIL_USER || "").trim();
 const EMAIL_PASS = String(process.env.EMAIL_PASS || "").trim();
 
-let mailTransporter = null;
+let transporter = null;
 
 if (EMAIL_USER && EMAIL_PASS) {
-  mailTransporter = nodemailer.createTransport({
+  transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
       user: EMAIL_USER,
@@ -41,16 +28,42 @@ if (EMAIL_USER && EMAIL_PASS) {
 
   console.log("EMAIL TRANSPORTER: CONFIGURED");
 } else {
-  console.warn(
-    "EMAIL TRANSPORTER: NOT CONFIGURED - EMAIL_USER or EMAIL_PASS missing"
-  );
+  console.warn("EMAIL TRANSPORTER: NOT CONFIGURED");
 }
 
-const generateToken = (user) => {
+const normalizeEmail = (value) => {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+};
+
+const normalizeName = (value) => {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ");
+};
+
+const hashValue = (value) => {
+  return crypto
+    .createHash("sha256")
+    .update(String(value))
+    .digest("hex");
+};
+
+const generateOtp = () => {
+  return crypto.randomInt(100000, 1000000).toString();
+};
+
+const generateResetVerifiedToken = () => {
+  return crypto.randomBytes(32).toString("hex");
+};
+
+const createToken = (user) => {
   return jwt.sign(
     {
       id: user._id.toString(),
       email: user.email,
+      role: user.role,
       tokenVersion: user.tokenVersion || 0,
     },
     JWT_SECRET,
@@ -60,262 +73,112 @@ const generateToken = (user) => {
   );
 };
 
-const sendPasswordResetEmail = async ({
-  email,
-  name,
-  otp,
-}) => {
-  if (!mailTransporter) {
-    throw new Error(
-      "Email service is not configured. Please configure EMAIL_USER and EMAIL_PASS."
-    );
+const sendPasswordResetEmail = async (email, name, otp) => {
+  if (!transporter) {
+    throw new Error("Email transporter is not configured.");
   }
-
-  const safeName = name || "Customer";
 
   const mailOptions = {
     from: `"Vraj Creation India" <${EMAIL_USER}>`,
     to: email,
-    subject: "Vraj Creation India - Password Reset OTP",
-    text: `Hello ${safeName},
+    subject: "Password Reset OTP - Vraj Creation India",
+    text: `Hello ${name || "User"},
 
-Your password reset OTP for Vraj Creation India is:
+Your Vraj Creation India password reset OTP is:
 
 ${otp}
 
-This OTP is valid for 10 minutes.
+This OTP is valid for 15 minutes.
 
 If you did not request a password reset, please ignore this email.
 
 Vraj Creation India
 Bringing Art to Life`,
     html: `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="UTF-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>Password Reset OTP</title>
-        </head>
+      <div style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
+        <div style="max-width:600px;margin:30px auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+          
+          <div style="padding:24px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;">
+            <h1 style="margin:0;font-size:24px;">Vraj Creation India</h1>
+            <p style="margin:8px 0 0;font-size:14px;">Bringing Art to Life</p>
+          </div>
 
-        <body
-          style="
-            margin:0;
-            padding:0;
-            background:#f5f5f5;
-            font-family:Arial,Helvetica,sans-serif;
-          "
-        >
-          <div
-            style="
-              width:100%;
-              padding:30px 10px;
-              box-sizing:border-box;
-            "
-          >
-            <div
-              style="
-                max-width:600px;
-                margin:0 auto;
-                background:#ffffff;
-                border-radius:12px;
-                overflow:hidden;
-                box-shadow:0 4px 20px rgba(0,0,0,0.08);
-              "
-            >
-              <div
-                style="
-                  background:linear-gradient(135deg,#4f46e5,#7c3aed);
-                  padding:30px 20px;
-                  text-align:center;
-                  color:#ffffff;
-                "
-              >
-                <h1
-                  style="
-                    margin:0;
-                    font-size:28px;
-                  "
-                >
-                  Vraj Creation India
-                </h1>
+          <div style="padding:30px;">
+            <h2 style="margin-top:0;color:#111827;">Password Reset</h2>
 
-                <p
-                  style="
-                    margin:8px 0 0;
-                    font-size:14px;
-                    opacity:0.95;
-                  "
-                >
-                  Bringing Art to Life
-                </p>
-              </div>
+            <p style="color:#374151;">
+              Hello ${name || "User"},
+            </p>
 
-              <div
-                style="
-                  padding:35px 30px;
-                  color:#333333;
-                "
-              >
-                <h2
-                  style="
-                    margin-top:0;
-                    font-size:22px;
-                  "
-                >
-                  Password Reset Request
-                </h2>
+            <p style="color:#374151;line-height:1.6;">
+              We received a request to reset your Vraj Creation India account password.
+              Use the OTP below to continue.
+            </p>
 
-                <p
-                  style="
-                    font-size:15px;
-                    line-height:1.6;
-                  "
-                >
-                  Hello ${safeName},
-                </p>
-
-                <p
-                  style="
-                    font-size:15px;
-                    line-height:1.6;
-                  "
-                >
-                  We received a request to reset the password for your
-                  Vraj Creation India account.
-                </p>
-
-                <p
-                  style="
-                    font-size:15px;
-                    line-height:1.6;
-                  "
-                >
-                  Your One-Time Password (OTP) is:
-                </p>
-
-                <div
-                  style="
-                    margin:25px 0;
-                    padding:18px;
-                    background:#f3f4f6;
-                    border-radius:10px;
-                    text-align:center;
-                    letter-spacing:8px;
-                    font-size:32px;
-                    font-weight:bold;
-                    color:#4f46e5;
-                  "
-                >
+            <div style="margin:25px 0;text-align:center;">
+              <div style="display:inline-block;padding:16px 28px;background:#f3f4f6;border-radius:10px;border:1px solid #d1d5db;">
+                <span style="font-size:32px;font-weight:700;letter-spacing:8px;color:#111827;">
                   ${otp}
-                </div>
-
-                <p
-                  style="
-                    font-size:14px;
-                    line-height:1.6;
-                    color:#555555;
-                  "
-                >
-                  This OTP is valid for
-                  <strong>10 minutes</strong>.
-                </p>
-
-                <p
-                  style="
-                    font-size:14px;
-                    line-height:1.6;
-                    color:#555555;
-                  "
-                >
-                  If you did not request a password reset, you can safely
-                  ignore this email.
-                </p>
-
-                <hr
-                  style="
-                    border:none;
-                    border-top:1px solid #eeeeee;
-                    margin:30px 0;
-                  "
-                />
-
-                <p
-                  style="
-                    margin:0;
-                    font-size:13px;
-                    color:#777777;
-                    text-align:center;
-                  "
-                >
-                  Vraj Creation India
-                </p>
-
-                <p
-                  style="
-                    margin:5px 0 0;
-                    font-size:13px;
-                    color:#777777;
-                    text-align:center;
-                  "
-                >
-                  Bringing Art to Life
-                </p>
+                </span>
               </div>
             </div>
+
+            <p style="color:#6b7280;font-size:14px;text-align:center;">
+              This OTP is valid for 15 minutes.
+            </p>
+
+            <p style="color:#374151;line-height:1.6;">
+              If you did not request this password reset, you can safely ignore this email.
+            </p>
+
+            <hr style="border:0;border-top:1px solid #e5e7eb;margin:25px 0;">
+
+            <p style="margin:0;color:#6b7280;font-size:13px;">
+              Vraj Creation India<br>
+              Bringing Art to Life
+            </p>
           </div>
-        </body>
-      </html>
+        </div>
+      </div>
     `,
   };
 
-  return mailTransporter.sendMail(mailOptions);
+  const info = await transporter.sendMail(mailOptions);
+
+  console.log("PASSWORD RESET EMAIL SENT:", email);
+  console.log("EMAIL MESSAGE ID:", info.messageId);
+
+  return info;
 };
 
 const register = async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      password,
-      phone,
-    } = req.body;
+    const name = normalizeName(req.body.name);
+    const email = normalizeEmail(req.body.email);
+    const password = String(req.body.password || "");
 
-    const cleanName = normalizeName(name);
-    const cleanEmail = normalizeEmail(email);
-    const cleanPhone = normalizePhone(phone);
-
-    if (!cleanName) {
+    if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: "Name is required.",
+        message: "Name, email and password are required.",
       });
     }
 
-    if (!cleanEmail) {
+    if (name.length < 2 || name.length > 100) {
       return res.status(400).json({
         success: false,
-        message: "Email is required.",
+        message: "Name must be between 2 and 100 characters.",
       });
     }
 
-    if (!password) {
+    if (password.length < 8) {
       return res.status(400).json({
         success: false,
-        message: "Password is required.",
+        message: "Password must be at least 8 characters.",
       });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: "Password must be at least 6 characters.",
-      });
-    }
-
-    const existingUser = await User.findOne({
-      email: cleanEmail,
-    });
+    const existingUser = await User.findOne({ email });
 
     if (existingUser) {
       return res.status(409).json({
@@ -324,29 +187,26 @@ const register = async (req, res) => {
       });
     }
 
-    const userData = {
-      name: cleanName,
-      email: cleanEmail,
-      password,
-    };
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-    if (cleanPhone) {
-      userData.phone = cleanPhone;
-    }
-
-    const user = await User.create(userData);
-
-    const token = generateToken(user);
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role: "user",
+      status: "pending",
+      tokenVersion: 0,
+    });
 
     return res.status(201).json({
       success: true,
-      message: "Registration successful.",
-      token,
+      message: "Registration successful. Your account is pending admin approval.",
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        phone: user.phone || "",
+        role: user.role,
+        status: user.status,
       },
     });
   } catch (error) {
@@ -361,34 +221,25 @@ const register = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Unable to register user.",
+      message: "Registration failed. Please try again.",
     });
   }
 };
 
 const login = async (req, res) => {
   try {
-    const {
-      email,
-      password,
-    } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const password = String(req.body.password || "");
 
-    const cleanEmail = normalizeEmail(email);
-
-    if (!cleanEmail || !password) {
+    if (!email || !password) {
       return res.status(400).json({
         success: false,
         message: "Email and password are required.",
       });
     }
 
-    const user = await User.findOne({
-      email: cleanEmail,
-    });
-
-    console.log(
-      "AUTH USER FOUND:",
-      user ? user.email : "NO USER"
+    const user = await User.findOne({ email }).select(
+      "+password +resetOtpHash +resetOtpExpires +resetVerifiedTokenHash +resetVerifiedTokenExpires"
     );
 
     if (!user) {
@@ -398,26 +249,93 @@ const login = async (req, res) => {
       });
     }
 
-    const isPasswordValid = await bcrypt.compare(
+    if (
+      user.lockUntil &&
+      user.lockUntil.getTime() > Date.now()
+    ) {
+      const remainingMinutes = Math.ceil(
+        (user.lockUntil.getTime() - Date.now()) / 60000
+      );
+
+      return res.status(423).json({
+        success: false,
+        message: `Account temporarily locked. Please try again after ${remainingMinutes} minute(s).`,
+      });
+    }
+
+    if (
+      user.lockUntil &&
+      user.lockUntil.getTime() <= Date.now()
+    ) {
+      user.lockUntil = null;
+      user.failedLoginAttempts = 0;
+      await user.save();
+    }
+
+    const passwordMatch = await bcrypt.compare(
       password,
       user.password
     );
 
-    if (!isPasswordValid) {
+    if (!passwordMatch) {
+      user.failedLoginAttempts =
+        (user.failedLoginAttempts || 0) + 1;
+
+      if (user.failedLoginAttempts >= 5) {
+        user.lockUntil = new Date(
+          Date.now() + 15 * 60 * 1000
+        );
+        user.failedLoginAttempts = 0;
+
+        await user.save();
+
+        return res.status(423).json({
+          success: false,
+          message:
+            "Too many failed login attempts. Account temporarily locked for 15 minutes.",
+        });
+      }
+
+      await user.save();
+
       return res.status(401).json({
         success: false,
         message: "Invalid email or password.",
       });
     }
 
-    const tokenVersion = user.tokenVersion || 0;
+    if (user.status === "pending") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your account is pending admin approval.",
+        status: user.status,
+      });
+    }
 
-    console.log(
-      "TOKEN VERSION:",
-      tokenVersion
-    );
+    if (user.status === "rejected") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your account registration has been rejected.",
+        status: user.status,
+      });
+    }
 
-    const token = generateToken(user);
+    if (user.status !== "active") {
+      return res.status(403).json({
+        success: false,
+        message: "Your account is not active.",
+        status: user.status,
+      });
+    }
+
+    user.failedLoginAttempts = 0;
+    user.lockUntil = null;
+
+    await user.save();
+
+    const token = createToken(user);
 
     return res.status(200).json({
       success: true,
@@ -427,7 +345,9 @@ const login = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        phone: user.phone || "",
+        role: user.role,
+        status: user.status,
+        tokenVersion: user.tokenVersion || 0,
       },
     });
   } catch (error) {
@@ -435,26 +355,22 @@ const login = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Unable to login.",
+      message: "Login failed. Please try again.",
     });
   }
 };
 
 const getProfile = async (req, res) => {
   try {
-    const userId =
-      req.user?.id ||
-      req.user?._id;
-
-    if (!userId) {
+    if (!req.user || !req.user.id) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized.",
+        message: "Authentication required.",
       });
     }
 
-    const user = await User.findById(userId).select(
-      "-password -resetPasswordOTP -resetPasswordOTPExpires"
+    const user = await User.findById(req.user.id).select(
+      "-password -resetOtpHash -resetOtpExpires -resetOtpAttempts -resetVerifiedTokenHash -resetVerifiedTokenExpires"
     );
 
     if (!user) {
@@ -466,36 +382,41 @@ const getProfile = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      user,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        tokenVersion: user.tokenVersion || 0,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
     });
   } catch (error) {
     console.error("GET PROFILE ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Unable to get profile.",
+      message: "Unable to fetch profile.",
     });
   }
 };
 
 const forgotPassword = async (req, res) => {
   try {
-    const {
-      email,
-    } = req.body;
+    const email = normalizeEmail(req.body.email);
 
-    const cleanEmail = normalizeEmail(email);
-
-    if (!cleanEmail) {
+    if (!email) {
       return res.status(400).json({
         success: false,
         message: "Email is required.",
       });
     }
 
-    const user = await User.findOne({
-      email: cleanEmail,
-    });
+    const user = await User.findOne({ email }).select(
+      "+resetOtpHash +resetOtpExpires +resetOtpAttempts +resetVerifiedTokenHash +resetVerifiedTokenExpires"
+    );
 
     if (!user) {
       return res.status(200).json({
@@ -505,23 +426,15 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    const otp = crypto
-      .randomInt(100000, 1000000)
-      .toString();
+    if (user.status === "rejected") {
+      return res.status(200).json({
+        success: true,
+        message:
+          "If an account exists with this email, a password reset OTP has been sent.",
+      });
+    }
 
-    user.resetPasswordOTP = otp;
-
-    user.resetPasswordOTPExpires =
-      Date.now() + 10 * 60 * 1000;
-
-    await user.save();
-
-    console.log(
-      "PASSWORD RESET OTP GENERATED FOR:",
-      cleanEmail
-    );
-
-    if (!mailTransporter) {
+    if (!transporter) {
       console.error(
         "PASSWORD RESET EMAIL ERROR: EMAIL TRANSPORTER NOT CONFIGURED"
       );
@@ -529,35 +442,43 @@ const forgotPassword = async (req, res) => {
       return res.status(500).json({
         success: false,
         message:
-          "Email service is not configured. Please contact administrator.",
+          "Password reset email service is currently unavailable.",
       });
     }
 
+    const otp = generateOtp();
+
+    user.resetOtpHash = hashValue(otp);
+    user.resetOtpExpires = new Date(
+      Date.now() + 15 * 60 * 1000
+    );
+    user.resetOtpAttempts = 0;
+
+    user.resetVerifiedTokenHash = null;
+    user.resetVerifiedTokenExpires = null;
+
+    await user.save();
+
+    console.log(
+      "PASSWORD RESET OTP GENERATED FOR:",
+      email
+    );
+
     try {
-      const mailResult =
-        await sendPasswordResetEmail({
-          email: cleanEmail,
-          name: user.name,
-          otp,
-        });
-
-      console.log(
-        "PASSWORD RESET EMAIL SENT:",
-        cleanEmail
-      );
-
-      console.log(
-        "EMAIL MESSAGE ID:",
-        mailResult.messageId
+      await sendPasswordResetEmail(
+        user.email,
+        user.name,
+        otp
       );
     } catch (emailError) {
       console.error(
         "PASSWORD RESET EMAIL SEND ERROR:",
-        emailError
+        emailError.message
       );
 
-      user.resetPasswordOTP = undefined;
-      user.resetPasswordOTPExpires = undefined;
+      user.resetOtpHash = null;
+      user.resetOtpExpires = null;
+      user.resetOtpAttempts = 0;
 
       await user.save();
 
@@ -572,17 +493,9 @@ const forgotPassword = async (req, res) => {
       success: true,
       message:
         "If an account exists with this email, a password reset OTP has been sent.",
-      ...(process.env.NODE_ENV !== "production"
-        ? {
-            developmentOTP: otp,
-          }
-        : {}),
     });
   } catch (error) {
-    console.error(
-      "FORGOT PASSWORD ERROR:",
-      error
-    );
+    console.error("FORGOT PASSWORD ERROR:", error);
 
     return res.status(500).json({
       success: false,
@@ -594,24 +507,26 @@ const forgotPassword = async (req, res) => {
 
 const verifyResetOtp = async (req, res) => {
   try {
-    const {
-      email,
-      otp,
-    } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const otp = String(req.body.otp || "").trim();
 
-    const cleanEmail = normalizeEmail(email);
-    const cleanOtp = String(otp || "").trim();
-
-    if (!cleanEmail || !cleanOtp) {
+    if (!email || !otp) {
       return res.status(400).json({
         success: false,
         message: "Email and OTP are required.",
       });
     }
 
-    const user = await User.findOne({
-      email: cleanEmail,
-    });
+    if (!/^\d{6}$/.test(otp)) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP must be a 6-digit number.",
+      });
+    }
+
+    const user = await User.findOne({ email }).select(
+      "+resetOtpHash +resetOtpExpires +resetOtpAttempts +resetVerifiedTokenHash +resetVerifiedTokenExpires"
+    );
 
     if (!user) {
       return res.status(400).json({
@@ -620,7 +535,7 @@ const verifyResetOtp = async (req, res) => {
       });
     }
 
-    if (!user.resetPasswordOTP) {
+    if (!user.resetOtpHash || !user.resetOtpExpires) {
       return res.status(400).json({
         success: false,
         message: "Invalid or expired OTP.",
@@ -628,140 +543,191 @@ const verifyResetOtp = async (req, res) => {
     }
 
     if (
-      !user.resetPasswordOTPExpires ||
-      user.resetPasswordOTPExpires < Date.now()
+      user.resetOtpExpires.getTime() < Date.now()
     ) {
+      user.resetOtpHash = null;
+      user.resetOtpExpires = null;
+      user.resetOtpAttempts = 0;
+
+      await user.save();
+
       return res.status(400).json({
         success: false,
         message: "OTP has expired. Please request a new OTP.",
       });
     }
 
-    if (
-      String(user.resetPasswordOTP) !==
-      cleanOtp
-    ) {
-      return res.status(400).json({
+    if ((user.resetOtpAttempts || 0) >= 5) {
+      user.resetOtpHash = null;
+      user.resetOtpExpires = null;
+      user.resetOtpAttempts = 0;
+
+      await user.save();
+
+      return res.status(429).json({
         success: false,
-        message: "Invalid OTP.",
+        message:
+          "Too many incorrect OTP attempts. Please request a new OTP.",
       });
     }
 
+    const submittedOtpHash = hashValue(otp);
+
+    if (
+      submittedOtpHash !== user.resetOtpHash
+    ) {
+      user.resetOtpAttempts =
+        (user.resetOtpAttempts || 0) + 1;
+
+      await user.save();
+
+      const attemptsLeft = Math.max(
+        0,
+        5 - user.resetOtpAttempts
+      );
+
+      return res.status(400).json({
+        success: false,
+        message:
+          attemptsLeft > 0
+            ? `Invalid OTP. ${attemptsLeft} attempt(s) remaining.`
+            : "Invalid OTP. Please request a new OTP.",
+      });
+    }
+
+    const resetVerifiedToken =
+      generateResetVerifiedToken();
+
+    user.resetVerifiedTokenHash =
+      hashValue(resetVerifiedToken);
+
+    user.resetVerifiedTokenExpires = new Date(
+      Date.now() + 10 * 60 * 1000
+    );
+
+    user.resetOtpHash = null;
+    user.resetOtpExpires = null;
+    user.resetOtpAttempts = 0;
+
+    await user.save();
+
     return res.status(200).json({
       success: true,
-      message: "OTP verified successfully.",
+      message:
+        "OTP verified successfully. You can now reset your password.",
+      resetToken: resetVerifiedToken,
     });
   } catch (error) {
-    console.error(
-      "VERIFY RESET OTP ERROR:",
-      error
-    );
+    console.error("VERIFY RESET OTP ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Unable to verify OTP.",
+      message: "Unable to verify OTP.",
     });
   }
 };
 
 const resetPassword = async (req, res) => {
   try {
-    const {
-      email,
-      otp,
-      password,
-      newPassword,
-    } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const resetToken = String(
+      req.body.resetToken || ""
+    ).trim();
+    const newPassword = String(
+      req.body.newPassword ||
+        req.body.password ||
+        ""
+    );
 
-    const cleanEmail = normalizeEmail(email);
-    const cleanOtp = String(otp || "").trim();
-
-    const finalPassword =
-      String(newPassword || password || "").trim();
-
-    if (!cleanEmail) {
-      return res.status(400).json({
-        success: false,
-        message: "Email is required.",
-      });
-    }
-
-    if (!cleanOtp) {
-      return res.status(400).json({
-        success: false,
-        message: "OTP is required.",
-      });
-    }
-
-    if (!finalPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "New password is required.",
-      });
-    }
-
-    if (finalPassword.length < 6) {
+    if (!email || !resetToken || !newPassword) {
       return res.status(400).json({
         success: false,
         message:
-          "New password must be at least 6 characters.",
+          "Email, reset token and new password are required.",
       });
     }
 
-    const user = await User.findOne({
-      email: cleanEmail,
-    });
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "New password must be at least 8 characters.",
+      });
+    }
+
+    const user = await User.findOne({ email }).select(
+      "+password +resetVerifiedTokenHash +resetVerifiedTokenExpires"
+    );
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: "Invalid or expired OTP.",
-      });
-    }
-
-    if (!user.resetPasswordOTP) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or expired OTP.",
+        message: "Invalid password reset request.",
       });
     }
 
     if (
-      !user.resetPasswordOTPExpires ||
-      user.resetPasswordOTPExpires < Date.now()
+      !user.resetVerifiedTokenHash ||
+      !user.resetVerifiedTokenExpires
     ) {
       return res.status(400).json({
         success: false,
         message:
-          "OTP has expired. Please request a new OTP.",
+          "Password reset session is invalid or expired.",
       });
     }
 
     if (
-      String(user.resetPasswordOTP) !==
-      cleanOtp
+      user.resetVerifiedTokenExpires.getTime() <
+      Date.now()
     ) {
+      user.resetVerifiedTokenHash = null;
+      user.resetVerifiedTokenExpires = null;
+
+      await user.save();
+
       return res.status(400).json({
         success: false,
-        message: "Invalid OTP.",
+        message:
+          "Password reset session has expired. Please start again.",
       });
     }
 
-    user.password = finalPassword;
+    const submittedTokenHash =
+      hashValue(resetToken);
 
-    user.resetPasswordOTP = undefined;
-    user.resetPasswordOTPExpires = undefined;
+    if (
+      submittedTokenHash !==
+      user.resetVerifiedTokenHash
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid password reset token.",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(
+      newPassword,
+      12
+    );
+
+    user.password = hashedPassword;
+
+    user.resetVerifiedTokenHash = null;
+    user.resetVerifiedTokenExpires = null;
+
+    user.resetOtpHash = null;
+    user.resetOtpExpires = null;
+    user.resetOtpAttempts = 0;
+
+    user.failedLoginAttempts = 0;
+    user.lockUntil = null;
 
     user.tokenVersion =
       (user.tokenVersion || 0) + 1;
 
     await user.save();
-
-    console.log(
-      "PASSWORD RESET SUCCESS:",
-      cleanEmail
-    );
 
     return res.status(200).json({
       success: true,
@@ -769,15 +735,147 @@ const resetPassword = async (req, res) => {
         "Password reset successfully. Please login with your new password.",
     });
   } catch (error) {
-    console.error(
-      "RESET PASSWORD ERROR:",
-      error
-    );
+    console.error("RESET PASSWORD ERROR:", error);
 
     return res.status(500).json({
       success: false,
       message:
-        "Unable to reset password.",
+        "Unable to reset password. Please try again.",
+    });
+  }
+};
+
+const getPendingUsers = async (req, res) => {
+  try {
+    const users = await User.find({
+      status: "pending",
+    })
+      .select(
+        "-password -resetOtpHash -resetOtpExpires -resetOtpAttempts -resetVerifiedTokenHash -resetVerifiedTokenExpires"
+      )
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      users,
+    });
+  } catch (error) {
+    console.error("GET PENDING USERS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch pending users.",
+    });
+  }
+};
+
+const approveUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required.",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    if (user.status === "active") {
+      return res.status(200).json({
+        success: true,
+        message: "User is already active.",
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+        },
+      });
+    }
+
+    user.status = "active";
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "User approved successfully.",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+      },
+    });
+  } catch (error) {
+    console.error("APPROVE USER ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to approve user.",
+    });
+  }
+};
+
+const rejectUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required.",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    user.status = "rejected";
+
+    user.resetOtpHash = null;
+    user.resetOtpExpires = null;
+    user.resetOtpAttempts = 0;
+
+    user.resetVerifiedTokenHash = null;
+    user.resetVerifiedTokenExpires = null;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "User rejected successfully.",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+      },
+    });
+  } catch (error) {
+    console.error("REJECT USER ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to reject user.",
     });
   }
 };
@@ -789,4 +887,7 @@ module.exports = {
   forgotPassword,
   verifyResetOtp,
   resetPassword,
+  getPendingUsers,
+  approveUser,
+  rejectUser,
 };

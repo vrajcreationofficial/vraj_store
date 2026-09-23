@@ -1,41 +1,36 @@
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const User = require("../models/User");
 
-const JWT_SECRET = String(process.env.JWT_SECRET || "").trim();
+const JWT_SECRET = String(
+  process.env.JWT_SECRET || ""
+).trim();
 
 if (!JWT_SECRET) {
   console.error("JWT_SECRET: NOT CONFIGURED");
 }
 
-const EMAIL_USER = String(process.env.EMAIL_USER || "").trim();
-const EMAIL_PASS = String(process.env.EMAIL_PASS || "").trim();
+const RESEND_API_KEY = String(
+  process.env.RESEND_API_KEY || ""
+).trim();
 
-let transporter = null;
+const RESEND_FROM_EMAIL = String(
+  process.env.RESEND_FROM_EMAIL || ""
+).trim();
 
-if (EMAIL_USER && EMAIL_PASS) {
-  transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    family: 4,
-    auth: {
-      user: EMAIL_USER,
-      pass: EMAIL_PASS,
-    },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 20000,
-  });
-
-  console.log("EMAIL TRANSPORTER: CONFIGURED");
+if (RESEND_API_KEY) {
+  console.log("RESEND EMAIL API: CONFIGURED");
 } else {
-  console.warn("EMAIL TRANSPORTER: NOT CONFIGURED");
+  console.warn("RESEND EMAIL API: NOT CONFIGURED");
+}
+
+if (RESEND_FROM_EMAIL) {
+  console.log("RESEND FROM EMAIL: CONFIGURED");
+} else {
+  console.warn("RESEND FROM EMAIL: NOT CONFIGURED");
 }
 
 const normalizeEmail = (value) => {
@@ -58,8 +53,15 @@ const hashValue = (value) => {
 };
 
 const safeHashCompare = (valueA, valueB) => {
-  const a = Buffer.from(String(valueA || ""), "utf8");
-  const b = Buffer.from(String(valueB || ""), "utf8");
+  const a = Buffer.from(
+    String(valueA || ""),
+    "utf8"
+  );
+
+  const b = Buffer.from(
+    String(valueB || ""),
+    "utf8"
+  );
 
   if (a.length !== b.length) {
     return false;
@@ -78,16 +80,22 @@ const escapeHtml = (value) => {
 };
 
 const generateOtp = () => {
-  return crypto.randomInt(100000, 1000000).toString();
+  return crypto
+    .randomInt(100000, 1000000)
+    .toString();
 };
 
 const generateResetVerifiedToken = () => {
-  return crypto.randomBytes(32).toString("hex");
+  return crypto
+    .randomBytes(32)
+    .toString("hex");
 };
 
 const createToken = (user) => {
   if (!JWT_SECRET) {
-    throw new Error("JWT_SECRET is not configured.");
+    throw new Error(
+      "JWT_SECRET is not configured."
+    );
   }
 
   return jwt.sign(
@@ -95,7 +103,8 @@ const createToken = (user) => {
       id: user._id.toString(),
       email: user.email,
       role: user.role,
-      tokenVersion: user.tokenVersion || 0,
+      tokenVersion:
+        user.tokenVersion || 0,
     },
     JWT_SECRET,
     {
@@ -109,22 +118,25 @@ const sendPasswordResetEmail = async (
   name,
   otp
 ) => {
-  if (!transporter) {
+  if (!RESEND_API_KEY) {
     throw new Error(
-      "Email transporter is not configured."
+      "Resend API key is not configured."
     );
   }
 
-  const safeName = escapeHtml(name || "User");
+  if (!RESEND_FROM_EMAIL) {
+    throw new Error(
+      "Resend sender email is not configured."
+    );
+  }
+
+  const safeName = escapeHtml(
+    name || "User"
+  );
+
   const safeOtp = escapeHtml(otp);
 
-  const mailOptions = {
-    from: `"Vraj Creation India" <${EMAIL_USER}>`,
-    to: email,
-    subject:
-      "Password Reset OTP - Vraj Creation India",
-
-    text: `Hello ${name || "User"},
+  const text = `Hello ${name || "User"},
 
 Your Vraj Creation India password reset OTP is:
 
@@ -135,84 +147,132 @@ This OTP is valid for 15 minutes.
 If you did not request a password reset, please ignore this email.
 
 Vraj Creation India
-Bringing Art to Life`,
+Bringing Art to Life`;
 
-    html: `
-      <div style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
-        <div style="max-width:600px;margin:30px auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+  const html = `
+    <div style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
+      <div style="max-width:600px;margin:30px auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
 
-          <div style="padding:24px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;">
-            <h1 style="margin:0;font-size:24px;">Vraj Creation India</h1>
-            <p style="margin:8px 0 0;font-size:14px;">Bringing Art to Life</p>
-          </div>
+        <div style="padding:24px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;">
+          <h1 style="margin:0;font-size:24px;">
+            Vraj Creation India
+          </h1>
 
-          <div style="padding:30px;">
+          <p style="margin:8px 0 0;font-size:14px;">
+            Bringing Art to Life
+          </p>
+        </div>
 
-            <h2 style="margin-top:0;color:#111827;">
-              Password Reset
-            </h2>
+        <div style="padding:30px;">
 
-            <p style="color:#374151;">
-              Hello ${safeName},
-            </p>
+          <h2 style="margin-top:0;color:#111827;">
+            Password Reset
+          </h2>
 
-            <p style="color:#374151;line-height:1.6;">
-              We received a request to reset your Vraj Creation India account password.
-              Use the OTP below to continue.
-            </p>
+          <p style="color:#374151;">
+            Hello ${safeName},
+          </p>
 
-            <div style="margin:25px 0;text-align:center;">
-              <div style="display:inline-block;padding:16px 28px;background:#f3f4f6;border-radius:10px;border:1px solid #d1d5db;">
-                <span style="font-size:32px;font-weight:700;letter-spacing:8px;color:#111827;">
-                  ${safeOtp}
-                </span>
-              </div>
+          <p style="color:#374151;line-height:1.6;">
+            We received a request to reset your Vraj Creation India account password.
+            Use the OTP below to continue.
+          </p>
+
+          <div style="margin:25px 0;text-align:center;">
+            <div style="display:inline-block;padding:16px 28px;background:#f3f4f6;border-radius:10px;border:1px solid #d1d5db;">
+              <span style="font-size:32px;font-weight:700;letter-spacing:8px;color:#111827;">
+                ${safeOtp}
+              </span>
             </div>
-
-            <p style="color:#6b7280;font-size:14px;text-align:center;">
-              This OTP is valid for 15 minutes.
-            </p>
-
-            <p style="color:#374151;line-height:1.6;">
-              If you did not request this password reset, you can safely ignore this email.
-            </p>
-
-            <hr style="border:0;border-top:1px solid #e5e7eb;margin:25px 0;">
-
-            <p style="margin:0;color:#6b7280;font-size:13px;">
-              Vraj Creation India<br>
-              Bringing Art to Life
-            </p>
-
           </div>
+
+          <p style="color:#6b7280;font-size:14px;text-align:center;">
+            This OTP is valid for 15 minutes.
+          </p>
+
+          <p style="color:#374151;line-height:1.6;">
+            If you did not request this password reset, you can safely ignore this email.
+          </p>
+
+          <hr style="border:0;border-top:1px solid #e5e7eb;margin:25px 0;">
+
+          <p style="margin:0;color:#6b7280;font-size:13px;">
+            Vraj Creation India<br>
+            Bringing Art to Life
+          </p>
+
         </div>
       </div>
-    `,
-  };
+    </div>
+  `;
 
-  const info = await transporter.sendMail(
-    mailOptions
+  const response = await fetch(
+    "https://api.resend.com/emails",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: `Vraj Creation India <${RESEND_FROM_EMAIL}>`,
+        to: [email],
+        subject:
+          "Password Reset OTP - Vraj Creation India",
+        text,
+        html,
+      }),
+    }
   );
+
+  let result = {};
+
+  try {
+    result = await response.json();
+  } catch (parseError) {
+    result = {};
+  }
+
+  if (!response.ok) {
+    console.error(
+      "RESEND API ERROR:",
+      result?.message ||
+        result?.error ||
+        `HTTP ${response.status}`
+    );
+
+    throw new Error(
+      result?.message ||
+        result?.error ||
+        `Email service returned HTTP ${response.status}`
+    );
+  }
 
   console.log(
     "PASSWORD RESET EMAIL SENT:",
     email
   );
 
-  if (info?.messageId) {
+  if (result?.id) {
     console.log(
       "EMAIL MESSAGE ID:",
-      info.messageId
+      result.id
     );
   }
 
-  return info;
+  return result;
 };
 
 const register = async (req, res) => {
   try {
-    const name = normalizeName(req.body?.name);
-    const email = normalizeEmail(req.body?.email);
+    const name = normalizeName(
+      req.body?.name
+    );
+
+    const email = normalizeEmail(
+      req.body?.email
+    );
+
     const password = String(
       req.body?.password || ""
     );
@@ -225,7 +285,10 @@ const register = async (req, res) => {
       });
     }
 
-    if (name.length < 2 || name.length > 100) {
+    if (
+      name.length < 2 ||
+      name.length > 100
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -257,9 +320,10 @@ const register = async (req, res) => {
       });
     }
 
-    const existingUser = await User.findOne({
-      email,
-    });
+    const existingUser =
+      await User.findOne({
+        email,
+      });
 
     if (existingUser) {
       return res.status(409).json({
@@ -270,7 +334,10 @@ const register = async (req, res) => {
     }
 
     const hashedPassword =
-      await bcrypt.hash(password, 12);
+      await bcrypt.hash(
+        password,
+        12
+      );
 
     const user = await User.create({
       name,
@@ -319,7 +386,10 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const email = normalizeEmail(req.body?.email);
+    const email = normalizeEmail(
+      req.body?.email
+    );
+
     const password = String(
       req.body?.password || ""
     );
@@ -332,11 +402,12 @@ const login = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({
-      email,
-    }).select(
-      "+password +resetOtpHash +resetOtpExpires +resetVerifiedTokenHash +resetVerifiedTokenExpires"
-    );
+    const user =
+      await User.findOne({
+        email,
+      }).select(
+        "+password +resetOtpHash +resetOtpExpires +resetVerifiedTokenHash +resetVerifiedTokenExpires"
+      );
 
     if (!user) {
       return res.status(401).json({
@@ -348,13 +419,15 @@ const login = async (req, res) => {
 
     if (
       user.lockUntil &&
-      user.lockUntil.getTime() > Date.now()
+      user.lockUntil.getTime() >
+        Date.now()
     ) {
-      const remainingMinutes = Math.ceil(
-        (user.lockUntil.getTime() -
-          Date.now()) /
-          60000
-      );
+      const remainingMinutes =
+        Math.ceil(
+          (user.lockUntil.getTime() -
+            Date.now()) /
+            60000
+        );
 
       return res.status(423).json({
         success: false,
@@ -364,7 +437,8 @@ const login = async (req, res) => {
 
     if (
       user.lockUntil &&
-      user.lockUntil.getTime() <= Date.now()
+      user.lockUntil.getTime() <=
+        Date.now()
     ) {
       user.lockUntil = null;
       user.failedLoginAttempts = 0;
@@ -380,15 +454,17 @@ const login = async (req, res) => {
 
     if (!passwordMatch) {
       user.failedLoginAttempts =
-        (user.failedLoginAttempts || 0) + 1;
+        (user.failedLoginAttempts || 0) +
+        1;
 
       if (
         user.failedLoginAttempts >= 5
       ) {
-        user.lockUntil = new Date(
-          Date.now() +
-            15 * 60 * 1000
-        );
+        user.lockUntil =
+          new Date(
+            Date.now() +
+              15 * 60 * 1000
+          );
 
         user.failedLoginAttempts = 0;
 
@@ -410,7 +486,9 @@ const login = async (req, res) => {
       });
     }
 
-    if (user.status === "pending") {
+    if (
+      user.status === "pending"
+    ) {
       return res.status(403).json({
         success: false,
         message:
@@ -419,7 +497,9 @@ const login = async (req, res) => {
       });
     }
 
-    if (user.status === "rejected") {
+    if (
+      user.status === "rejected"
+    ) {
       return res.status(403).json({
         success: false,
         message:
@@ -428,7 +508,9 @@ const login = async (req, res) => {
       });
     }
 
-    if (user.status !== "active") {
+    if (
+      user.status !== "active"
+    ) {
       return res.status(403).json({
         success: false,
         message:
@@ -472,9 +554,15 @@ const login = async (req, res) => {
   }
 };
 
-const getProfile = async (req, res) => {
+const getProfile = async (
+  req,
+  res
+) => {
   try {
-    if (!req.user || !req.user.id) {
+    if (
+      !req.user ||
+      !req.user.id
+    ) {
       return res.status(401).json({
         success: false,
         message:
@@ -507,8 +595,10 @@ const getProfile = async (req, res) => {
         status: user.status,
         tokenVersion:
           user.tokenVersion || 0,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
+        createdAt:
+          user.createdAt,
+        updatedAt:
+          user.updatedAt,
       },
     });
   } catch (error) {
@@ -525,7 +615,10 @@ const getProfile = async (req, res) => {
   }
 };
 
-const forgotPassword = async (req, res) => {
+const forgotPassword = async (
+  req,
+  res
+) => {
   try {
     const email = normalizeEmail(
       req.body?.email
@@ -556,16 +649,30 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    if (user.status === "rejected") {
+    if (
+      user.status === "rejected"
+    ) {
       return res.status(200).json({
         success: true,
         message: genericMessage,
       });
     }
 
-    if (!transporter) {
+    if (!RESEND_API_KEY) {
       console.error(
-        "PASSWORD RESET EMAIL ERROR: EMAIL TRANSPORTER NOT CONFIGURED"
+        "PASSWORD RESET EMAIL ERROR: RESEND API KEY NOT CONFIGURED"
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Password reset email service is currently unavailable.",
+      });
+    }
+
+    if (!RESEND_FROM_EMAIL) {
+      console.error(
+        "PASSWORD RESET EMAIL ERROR: RESEND FROM EMAIL NOT CONFIGURED"
       );
 
       return res.status(500).json({
@@ -713,7 +820,8 @@ const verifyResetOtp = async (
     }
 
     if (
-      (user.resetOtpAttempts || 0) >= 5
+      (user.resetOtpAttempts || 0) >=
+      5
     ) {
       user.resetOtpHash = null;
       user.resetOtpExpires = null;
@@ -747,7 +855,8 @@ const verifyResetOtp = async (
       const attemptsLeft =
         Math.max(
           0,
-          5 - user.resetOtpAttempts
+          5 -
+            user.resetOtpAttempts
         );
 
       return res.status(400).json({
@@ -878,7 +987,8 @@ const resetPassword = async (
       Date.now()
     ) {
       user.resetVerifiedTokenHash = null;
-      user.resetVerifiedTokenExpires = null;
+      user.resetVerifiedTokenExpires =
+        null;
 
       await user.save();
 
@@ -912,7 +1022,8 @@ const resetPassword = async (
         12
       );
 
-    user.password = hashedPassword;
+    user.password =
+      hashedPassword;
 
     user.resetVerifiedTokenHash =
       null;
@@ -1011,7 +1122,9 @@ const approveUser = async (
       });
     }
 
-    if (user.status === "active") {
+    if (
+      user.status === "active"
+    ) {
       return res.status(200).json({
         success: true,
         message:
@@ -1088,7 +1201,9 @@ const rejectUser = async (
     user.resetOtpExpires = null;
     user.resetOtpAttempts = 0;
 
-    user.resetVerifiedTokenHash = null;
+    user.resetVerifiedTokenHash =
+      null;
+
     user.resetVerifiedTokenExpires =
       null;
 

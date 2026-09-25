@@ -1,4 +1,3 @@
-
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
@@ -20,6 +19,150 @@ const ADMIN_EMAILS = [
   "kavyaojha05@gmail.com",
 ].map((email) => email.toLowerCase());
 
+/*
+|--------------------------------------------------------------------------
+| LOGIN SECURITY
+|--------------------------------------------------------------------------
+*/
+
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_LOCK_SECONDS = 30;
+const LOGIN_LOCK_MS =
+  LOGIN_LOCK_SECONDS * 1000;
+
+/*
+ * In-memory login attempt storage.
+ *
+ * Example:
+ *
+ * loginAttempts = {
+ *   "email@example.com": {
+ *      attempts: 3,
+ *      lockedUntil: 0
+ *   }
+ * }
+ *
+ * Server restart hone par ye reset ho jayega.
+ */
+
+const loginAttempts = new Map();
+
+const getLoginAttemptData = (email) => {
+  const existing =
+    loginAttempts.get(email);
+
+  if (!existing) {
+    return {
+      attempts: 0,
+      lockedUntil: 0,
+    };
+  }
+
+  /*
+   * Lock expired
+   */
+  if (
+    existing.lockedUntil &&
+    Date.now() >= existing.lockedUntil
+  ) {
+    loginAttempts.delete(email);
+
+    return {
+      attempts: 0,
+      lockedUntil: 0,
+    };
+  }
+
+  return existing;
+};
+
+const isLoginLocked = (email) => {
+  const data =
+    getLoginAttemptData(email);
+
+  if (
+    data.lockedUntil &&
+    Date.now() < data.lockedUntil
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+const getRemainingLockSeconds = (
+  email
+) => {
+  const data =
+    getLoginAttemptData(email);
+
+  if (!data.lockedUntil) {
+    return 0;
+  }
+
+  const remaining =
+    data.lockedUntil - Date.now();
+
+  if (remaining <= 0) {
+    loginAttempts.delete(email);
+
+    return 0;
+  }
+
+  return Math.ceil(
+    remaining / 1000
+  );
+};
+
+const recordFailedLogin = (email) => {
+  const data =
+    getLoginAttemptData(email);
+
+  data.attempts =
+    Number(data.attempts || 0) + 1;
+
+  /*
+   * 5 failed attempts
+   */
+  if (
+    data.attempts >=
+    MAX_LOGIN_ATTEMPTS
+  ) {
+    data.lockedUntil =
+      Date.now() +
+      LOGIN_LOCK_MS;
+
+    loginAttempts.set(
+      email,
+      data
+    );
+
+    return {
+      locked: true,
+      attempts: data.attempts,
+      remainingSeconds:
+        LOGIN_LOCK_SECONDS,
+    };
+  }
+
+  loginAttempts.set(
+    email,
+    data
+  );
+
+  return {
+    locked: false,
+    attempts: data.attempts,
+    remainingSeconds: 0,
+  };
+};
+
+const resetLoginAttempts = (
+  email
+) => {
+  loginAttempts.delete(email);
+};
+
 const generateToken = (
   userId,
   role,
@@ -32,7 +175,8 @@ const generateToken = (
     {
       id: userId.toString(),
       role,
-      tokenVersion: normalizedTokenVersion,
+      tokenVersion:
+        normalizedTokenVersion,
     },
     JWT_SECRET,
     {
@@ -51,7 +195,8 @@ const getSafeUser = (user) => {
     name: user.name || "",
     email: user.email || "",
     role: user.role || "user",
-    status: user.status || "pending",
+    status:
+      user.status || "pending",
   };
 };
 
@@ -61,8 +206,12 @@ const normalizeEmail = (email) => {
     .toLowerCase();
 };
 
-const validatePassword = (password) => {
-  if (typeof password !== "string") {
+const validatePassword = (
+  password
+) => {
+  if (
+    typeof password !== "string"
+  ) {
     return false;
   }
 
@@ -79,7 +228,10 @@ const validatePassword = (password) => {
 |--------------------------------------------------------------------------
 */
 
-const register = async (req, res) => {
+const register = async (
+  req,
+  res
+) => {
   try {
     const {
       name,
@@ -87,24 +239,31 @@ const register = async (req, res) => {
       password,
     } = req.body;
 
-    const cleanName = String(name || "").trim();
-    const cleanEmail = normalizeEmail(email);
+    const cleanName =
+      String(name || "").trim();
+
+    const cleanEmail =
+      normalizeEmail(email);
 
     if (!cleanName) {
       return res.status(400).json({
         success: false,
-        message: "Name is required.",
+        message:
+          "Name is required.",
       });
     }
 
     if (!cleanEmail) {
       return res.status(400).json({
         success: false,
-        message: "Email is required.",
+        message:
+          "Email is required.",
       });
     }
 
-    if (!validatePassword(password)) {
+    if (
+      !validatePassword(password)
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -112,9 +271,10 @@ const register = async (req, res) => {
       });
     }
 
-    const existingUser = await User.findOne({
-      email: cleanEmail,
-    });
+    const existingUser =
+      await User.findOne({
+        email: cleanEmail,
+      });
 
     if (existingUser) {
       return res.status(409).json({
@@ -126,67 +286,86 @@ const register = async (req, res) => {
 
     /*
      * Admin emails automatically become active.
-     * Normal users remain pending until admin approval.
+     * Normal users remain pending.
      */
+
     const isAdmin =
-      ADMIN_EMAILS.includes(cleanEmail);
+      ADMIN_EMAILS.includes(
+        cleanEmail
+      );
 
-    const role = isAdmin ? "admin" : "user";
-    const status = isAdmin ? "active" : "pending";
+    const role = isAdmin
+      ? "admin"
+      : "user";
+
+    const status = isAdmin
+      ? "active"
+      : "pending";
 
     /*
-     * IMPORTANT:
-     * Password is hashed before saving to MongoDB.
+     * Password hashing
      */
+
     const hashedPassword =
-      await bcrypt.hash(password, 12);
+      await bcrypt.hash(
+        password,
+        12
+      );
 
-    console.log("REGISTER DATA:", {
-      name: cleanName,
-      email: cleanEmail,
-      role,
-      status,
-    });
+    console.log(
+      "REGISTER DATA:",
+      {
+        name: cleanName,
+        email: cleanEmail,
+        role,
+        status,
+      }
+    );
 
-    const user = await User.create({
-      name: cleanName,
-      email: cleanEmail,
-      password: hashedPassword,
-      role,
-      status,
-      tokenVersion: 0,
-    });
+    const user =
+      await User.create({
+        name: cleanName,
+        email: cleanEmail,
+        password: hashedPassword,
+        role,
+        status,
+        tokenVersion: 0,
+      });
 
-    console.log("USER CREATED:", {
-      id: user._id.toString(),
-      email: user.email,
-      role: user.role,
-      status: user.status,
-    });
+    console.log(
+      "USER CREATED:",
+      {
+        id: user._id.toString(),
+        email: user.email,
+        role: user.role,
+        status: user.status,
+      }
+    );
 
     /*
-     * Normal user:
-     * Registration successful, but login is blocked
-     * until admin approval.
+     * Normal user
      */
+
     if (!isAdmin) {
       return res.status(201).json({
         success: true,
         message:
           "Registration successful. Admin approval ke baad aap login kar sakenge.",
-        user: getSafeUser(user),
+        user:
+          getSafeUser(user),
       });
     }
 
     /*
-     * Admin account:
-     * Can login immediately.
+     * Admin account
      */
+
     return res.status(201).json({
       success: true,
       message:
         "Registration successful. You can login now.",
-      user: getSafeUser(user),
+      user:
+        getSafeUser(user),
     });
   } catch (error) {
     console.error(
@@ -194,7 +373,9 @@ const register = async (req, res) => {
       error
     );
 
-    if (error?.code === 11000) {
+    if (
+      error?.code === 11000
+    ) {
       return res.status(409).json({
         success: false,
         message:
@@ -204,7 +385,8 @@ const register = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Registration failed.",
+      message:
+        "Registration failed.",
     });
   }
 };
@@ -215,44 +397,119 @@ const register = async (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-const login = async (req, res) => {
+const login = async (
+  req,
+  res
+) => {
   try {
     const {
       email,
       password,
     } = req.body;
 
-    const cleanEmail = normalizeEmail(email);
+    const cleanEmail =
+      normalizeEmail(email);
 
     if (!cleanEmail) {
       return res.status(400).json({
         success: false,
-        message: "Email is required.",
+        message:
+          "Email is required.",
       });
     }
 
     if (!password) {
       return res.status(400).json({
         success: false,
-        message: "Password is required.",
-      });
-    }
-
-    const user = await User.findOne({
-      email: cleanEmail,
-    }).select("+password");
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid email or password.",
+        message:
+          "Password is required.",
       });
     }
 
     /*
-     * Pending users cannot login.
+     * ------------------------------------------------------
+     * CHECK 30 SECOND LOCK
+     * ------------------------------------------------------
      */
-    if (user.status === "pending") {
+
+    if (
+      isLoginLocked(cleanEmail)
+    ) {
+      const remainingSeconds =
+        getRemainingLockSeconds(
+          cleanEmail
+        );
+
+      return res
+        .status(429)
+        .json({
+          success: false,
+          message:
+            `Too many login attempts. Please try again after ${remainingSeconds} seconds.`,
+          retryAfter:
+            remainingSeconds,
+          maxAttempts:
+            MAX_LOGIN_ATTEMPTS,
+        });
+    }
+
+    /*
+     * ------------------------------------------------------
+     * FIND USER
+     * ------------------------------------------------------
+     */
+
+    const user =
+      await User.findOne({
+        email: cleanEmail,
+      }).select("+password");
+
+    /*
+     * ------------------------------------------------------
+     * USER NOT FOUND
+     * ------------------------------------------------------
+     */
+
+    if (!user) {
+      const failed =
+        recordFailedLogin(
+          cleanEmail
+        );
+
+      if (failed.locked) {
+        return res
+          .status(429)
+          .json({
+            success: false,
+            message:
+              "Too many login attempts. Please try again after 30 seconds.",
+            retryAfter:
+              failed.remainingSeconds,
+            maxAttempts:
+              MAX_LOGIN_ATTEMPTS,
+          });
+      }
+
+      return res.status(401).json({
+        success: false,
+        message:
+          "Invalid email or password.",
+        attemptsRemaining:
+          MAX_LOGIN_ATTEMPTS -
+          failed.attempts,
+      });
+    }
+
+    /*
+     * ------------------------------------------------------
+     * PENDING USER
+     * ------------------------------------------------------
+     */
+
+    if (
+      user.status ===
+      "pending"
+    ) {
       return res.status(403).json({
         success: false,
         message:
@@ -261,11 +518,15 @@ const login = async (req, res) => {
     }
 
     /*
-     * Rejected users cannot login.
-     * Normally rejected users are deleted from DB,
-     * but this check protects against old records.
+     * ------------------------------------------------------
+     * REJECTED USER
+     * ------------------------------------------------------
      */
-    if (user.status === "rejected") {
+
+    if (
+      user.status ===
+      "rejected"
+    ) {
       return res.status(403).json({
         success: false,
         message:
@@ -274,9 +535,14 @@ const login = async (req, res) => {
     }
 
     /*
-     * Only active users can continue.
+     * ------------------------------------------------------
+     * ONLY ACTIVE USERS
+     * ------------------------------------------------------
      */
-    if (user.status !== "active") {
+
+    if (
+      user.status !== "active"
+    ) {
       return res.status(403).json({
         success: false,
         message:
@@ -285,29 +551,88 @@ const login = async (req, res) => {
     }
 
     /*
-     * Compare entered password with bcrypt hash.
+     * ------------------------------------------------------
+     * PASSWORD CHECK
+     * ------------------------------------------------------
      */
+
     const isPasswordValid =
       await bcrypt.compare(
         password,
         user.password
       );
 
+    /*
+     * ------------------------------------------------------
+     * WRONG PASSWORD
+     * ------------------------------------------------------
+     */
+
     if (!isPasswordValid) {
+      const failed =
+        recordFailedLogin(
+          cleanEmail
+        );
+
+      if (failed.locked) {
+        console.warn(
+          "LOGIN LOCKED FOR 30 SECONDS:",
+          cleanEmail
+        );
+
+        return res
+          .status(429)
+          .json({
+            success: false,
+            message:
+              "Too many login attempts. Please try again after 30 seconds.",
+            retryAfter:
+              failed.remainingSeconds,
+            maxAttempts:
+              MAX_LOGIN_ATTEMPTS,
+          });
+      }
+
+      console.warn(
+        "INVALID PASSWORD:",
+        cleanEmail,
+        "ATTEMPTS:",
+        failed.attempts
+      );
+
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password.",
+        message:
+          "Invalid email or password.",
+        attemptsRemaining:
+          MAX_LOGIN_ATTEMPTS -
+          failed.attempts,
       });
     }
 
-    const tokenVersion =
-      Number(user.tokenVersion ?? 0);
+    /*
+     * ------------------------------------------------------
+     * SUCCESSFUL LOGIN
+     * ------------------------------------------------------
+     *
+     * Reset failed attempts.
+     */
 
-    const token = generateToken(
-      user._id,
-      user.role,
-      tokenVersion
+    resetLoginAttempts(
+      cleanEmail
     );
+
+    const tokenVersion =
+      Number(
+        user.tokenVersion ?? 0
+      );
+
+    const token =
+      generateToken(
+        user._id,
+        user.role,
+        tokenVersion
+      );
 
     console.log(
       "LOGIN SUCCESS:",
@@ -331,7 +656,8 @@ const login = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Login successful.",
+      message:
+        "Login successful.",
       token,
       user: {
         id: user._id,
@@ -349,7 +675,8 @@ const login = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Login failed.",
+      message:
+        "Login failed.",
     });
   }
 };
@@ -360,34 +687,43 @@ const login = async (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-const getProfile = async (req, res) => {
+const getProfile = async (
+  req,
+  res
+) => {
   try {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: "Authentication required.",
+        message:
+          "Authentication required.",
       });
     }
 
-    const user = await User.findById(
-      req.user._id
-    )
-      .select(
-        "_id name email role status tokenVersion"
+    const user =
+      await User.findById(
+        req.user._id
       )
-      .lean();
+        .select(
+          "_id name email role status tokenVersion"
+        )
+        .lean();
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "User not found.",
+        message:
+          "User not found.",
       });
     }
 
-    if (user.status !== "active") {
+    if (
+      user.status !== "active"
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Account is not active.",
+        message:
+          "Account is not active.",
       });
     }
 
@@ -409,7 +745,8 @@ const getProfile = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch profile.",
+      message:
+        "Failed to fetch profile.",
     });
   }
 };
@@ -420,19 +757,23 @@ const getProfile = async (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-const getPendingUsers = async (req, res) => {
+const getPendingUsers = async (
+  req,
+  res
+) => {
   try {
-    const users = await User.find({
-      role: "user",
-      status: "pending",
-    })
-      .select(
-        "_id name email role status createdAt"
-      )
-      .sort({
-        createdAt: -1,
+    const users =
+      await User.find({
+        role: "user",
+        status: "pending",
       })
-      .lean();
+        .select(
+          "_id name email role status createdAt"
+        )
+        .sort({
+          createdAt: -1,
+        })
+        .lean();
 
     console.log(
       "PENDING USERS COUNT:",
@@ -464,27 +805,38 @@ const getPendingUsers = async (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-const approveUser = async (req, res) => {
+const approveUser = async (
+  req,
+  res
+) => {
   try {
-    const userId = req.params.id;
+    const userId =
+      req.params.id;
 
     if (!userId) {
       return res.status(400).json({
         success: false,
-        message: "User ID is required.",
+        message:
+          "User ID is required.",
       });
     }
 
-    const user = await User.findById(userId);
+    const user =
+      await User.findById(
+        userId
+      );
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: "User not found.",
+        message:
+          "User not found.",
       });
     }
 
-    if (user.role === "admin") {
+    if (
+      user.role === "admin"
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -492,21 +844,28 @@ const approveUser = async (req, res) => {
       });
     }
 
-    if (user.status === "active") {
+    if (
+      user.status === "active"
+    ) {
       return res.status(200).json({
         success: true,
-        message: "User is already approved.",
-        user: getSafeUser(user),
+        message:
+          "User is already approved.",
+        user:
+          getSafeUser(user),
       });
     }
 
     /*
      * Approve normal user.
      */
+
     user.status = "active";
 
     user.tokenVersion =
-      Number(user.tokenVersion ?? 0) + 1;
+      Number(
+        user.tokenVersion ?? 0
+      ) + 1;
 
     await user.save();
 
@@ -519,7 +878,8 @@ const approveUser = async (req, res) => {
       success: true,
       message:
         "User approved successfully. User can now login.",
-      user: getSafeUser(user),
+      user:
+        getSafeUser(user),
     });
   } catch (error) {
     console.error(
@@ -527,10 +887,14 @@ const approveUser = async (req, res) => {
       error
     );
 
-    if (error?.name === "CastError") {
+    if (
+      error?.name ===
+      "CastError"
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Invalid user ID.",
+        message:
+          "Invalid user ID.",
       });
     }
 
@@ -546,36 +910,44 @@ const approveUser = async (req, res) => {
 |--------------------------------------------------------------------------
 | REJECT USER
 |--------------------------------------------------------------------------
-|
-| IMPORTANT:
-| Reject means permanent deletion from MongoDB.
-|
 */
 
-const rejectUser = async (req, res) => {
+const rejectUser = async (
+  req,
+  res
+) => {
   try {
-    const userId = req.params.id;
+    const userId =
+      req.params.id;
 
     if (!userId) {
       return res.status(400).json({
         success: false,
-        message: "User ID is required.",
+        message:
+          "User ID is required.",
       });
     }
 
-    const user = await User.findById(userId);
+    const user =
+      await User.findById(
+        userId
+      );
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: "User not found.",
+        message:
+          "User not found.",
       });
     }
 
     /*
      * Admin account cannot be rejected.
      */
-    if (user.role === "admin") {
+
+    if (
+      user.role === "admin"
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -583,14 +955,25 @@ const rejectUser = async (req, res) => {
       });
     }
 
-    const userEmail = user.email;
+    const userEmail =
+      user.email;
 
     /*
-     * Permanently delete the user from MongoDB.
+     * Permanently delete user.
      */
+
     await User.deleteOne({
       _id: user._id,
     });
+
+    /*
+     * Also reset login attempts
+     * for this email.
+     */
+
+    resetLoginAttempts(
+      userEmail
+    );
 
     console.log(
       "USER REJECTED AND DELETED:",
@@ -613,10 +996,14 @@ const rejectUser = async (req, res) => {
       error
     );
 
-    if (error?.name === "CastError") {
+    if (
+      error?.name ===
+      "CastError"
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Invalid user ID.",
+        message:
+          "Invalid user ID.",
       });
     }
 

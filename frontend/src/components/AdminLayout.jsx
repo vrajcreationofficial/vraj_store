@@ -8,6 +8,7 @@ const AdminLayout = ({ children }) => {
   const { user, logout } = useAuth();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("theme") === "dark";
@@ -67,16 +68,11 @@ const AdminLayout = ({ children }) => {
       path: "/purchases",
       icon: "🛒",
     },
-
-    // ===================================================
-    // OTHER EXPENSES
-    // ===================================================
     {
       name: "Other Expenses",
       path: "/other-expenses",
       icon: "💸",
     },
-
     {
       name: "User Approvals",
       path: "/admin/approvals",
@@ -88,6 +84,8 @@ const AdminLayout = ({ children }) => {
   // LOGOUT
   // =====================================================
   const handleLogout = () => {
+    setProfileOpen(false);
+
     logout();
 
     navigate("/login", {
@@ -120,7 +118,7 @@ const AdminLayout = ({ children }) => {
         {/* =================================================
             LOGO SECTION
         ================================================= */}
-        <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-5 dark:border-slate-800 lg:h-20">
+        <div className="flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 px-5 dark:border-slate-800 lg:h-20">
           <img
             src={logoImg}
             alt="Vraj Creation Logo"
@@ -179,40 +177,6 @@ const AdminLayout = ({ children }) => {
             ))}
           </div>
         </nav>
-
-        {/* =================================================
-            USER / LOGOUT
-        ================================================= */}
-        <div className="border-t border-slate-200 p-4 dark:border-slate-800">
-          <div className="mb-3 flex items-center gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-            {/* Avatar */}
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 font-bold text-white dark:bg-white dark:text-slate-950">
-              {user?.name
-                ? user.name.charAt(0).toUpperCase()
-                : "A"}
-            </div>
-
-            {/* User details */}
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold">
-                {user?.name || "Admin"}
-              </p>
-
-              <p className="truncate text-xs text-slate-400">
-                {user?.email || "Administrator"}
-              </p>
-            </div>
-          </div>
-
-          {/* Logout */}
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-red-600 transition hover:bg-red-50 dark:hover:bg-red-950/30"
-          >
-            🚪 Logout
-          </button>
-        </div>
       </aside>
 
       {/* =================================================
@@ -223,7 +187,9 @@ const AdminLayout = ({ children }) => {
             TOP HEADER
         ================================================= */}
         <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:px-6 lg:h-20 lg:px-8">
-          {/* LEFT */}
+          {/* =================================================
+              LEFT
+          ================================================= */}
           <div className="flex items-center gap-3">
             {/* Mobile menu */}
             <button
@@ -253,25 +219,10 @@ const AdminLayout = ({ children }) => {
             </div>
           </div>
 
-          {/* RIGHT */}
+          {/* =================================================
+              RIGHT
+          ================================================= */}
           <div className="flex items-center gap-3">
-            {/* =================================================
-                QUICK USER APPROVALS
-            ================================================= */}
-            <NavLink
-              to="/admin/approvals"
-              title="User Approvals"
-              className={({ isActive }) =>
-                `flex h-10 w-10 items-center justify-center rounded-xl border transition ${
-                  isActive
-                    ? "border-slate-950 bg-slate-950 text-white dark:border-white dark:bg-white dark:text-slate-950"
-                    : "border-slate-200 bg-white hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
-                }`
-              }
-            >
-              🛡️
-            </NavLink>
-
             {/* =================================================
                 DARK MODE
             ================================================= */}
@@ -295,22 +246,82 @@ const AdminLayout = ({ children }) => {
               {darkMode ? "☀️" : "🌙"}
             </button>
 
-            {/* USER INFO */}
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-bold">
-                {user?.name || "Admin"}
-              </p>
+            {/* =================================================
+                USER PROFILE DROPDOWN
+            ================================================= */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() =>
+                  setProfileOpen((prev) => !prev)
+                }
+                className="flex items-center gap-2 rounded-xl p-1.5 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                aria-label="Open user menu"
+              >
+                {/* USER INFO */}
+                <div className="hidden text-right sm:block">
+                  <p className="text-sm font-bold">
+                    {user?.name || "Admin"}
+                  </p>
 
-              <p className="text-xs text-slate-400">
-                Administrator
-              </p>
-            </div>
+                  <p className="text-xs text-slate-400">
+                    Administrator
+                  </p>
+                </div>
 
-            {/* USER AVATAR */}
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 font-bold text-white dark:bg-white dark:text-slate-950">
-              {user?.name
-                ? user.name.charAt(0).toUpperCase()
-                : "A"}
+                {/* USER AVATAR */}
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 font-bold text-white dark:bg-white dark:text-slate-950">
+                  {user?.name
+                    ? user.name
+                        .charAt(0)
+                        .toUpperCase()
+                    : "A"}
+                </div>
+
+                {/* ARROW */}
+                <span
+                  className={`hidden text-xs text-slate-400 transition sm:block ${
+                    profileOpen
+                      ? "rotate-180"
+                      : ""
+                  }`}
+                >
+                  ▼
+                </span>
+              </button>
+
+              {/* =================================================
+                  DROPDOWN
+              ================================================= */}
+              {profileOpen && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                  {/* Profile */}
+                  <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+                    <p className="truncate text-sm font-bold">
+                      {user?.name || "Admin"}
+                    </p>
+
+                    <p className="truncate text-xs text-slate-400">
+                      Administrator
+                    </p>
+                  </div>
+
+                  {/* Logout */}
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-bold text-red-600 transition hover:bg-red-50 dark:hover:bg-red-950/30"
+                  >
+                    <span className="text-base">
+                      🚪
+                    </span>
+
+                    <span>
+                      Logout
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>

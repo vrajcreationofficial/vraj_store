@@ -17,7 +17,6 @@ export const AuthProvider = ({ children }) => {
   // =====================================================
   // CLEAR AUTH
   // =====================================================
-
   const clearAuth = () => {
     console.log("CLEARING AUTH...");
 
@@ -28,29 +27,19 @@ export const AuthProvider = ({ children }) => {
   };
 
   // =====================================================
-  // CHECK EXISTING LOGIN
+  // CHECK AUTH STATUS
   // =====================================================
-
   useEffect(() => {
     let mounted = true;
 
     const checkAuthStatus = async () => {
       try {
-        const token =
-          localStorage.getItem("token");
+        const token = localStorage.getItem("token");
+        const savedUser = localStorage.getItem("user");
 
-        const savedUser =
-          localStorage.getItem("user");
-
-        console.log(
-          "AUTH CHECK - TOKEN:",
-          token ? "FOUND" : "NOT FOUND"
-        );
-
-        // -------------------------------------------------
+        // -----------------------------------------------
         // NO TOKEN
-        // -------------------------------------------------
-
+        // -----------------------------------------------
         if (!token) {
           if (mounted) {
             setUser(null);
@@ -60,21 +49,16 @@ export const AuthProvider = ({ children }) => {
           return;
         }
 
-        // -------------------------------------------------
-        // LOAD SAVED USER
-        // -------------------------------------------------
-
+        // -----------------------------------------------
+        // READ SAVED USER
+        // -----------------------------------------------
         let parsedUser = null;
 
         if (savedUser) {
           try {
-            parsedUser =
-              JSON.parse(savedUser);
+            parsedUser = JSON.parse(savedUser);
 
-            if (
-              mounted &&
-              parsedUser
-            ) {
+            if (mounted && parsedUser) {
               setUser(parsedUser);
             }
           } catch (error) {
@@ -83,16 +67,13 @@ export const AuthProvider = ({ children }) => {
               error
             );
 
-            localStorage.removeItem(
-              "user"
-            );
+            localStorage.removeItem("user");
           }
         }
 
-        // -------------------------------------------------
-        // VERIFY JWT WITH BACKEND
-        // -------------------------------------------------
-
+        // -----------------------------------------------
+        // VERIFY TOKEN WITH BACKEND
+        // -----------------------------------------------
         try {
           const response =
             await api.get(
@@ -106,17 +87,15 @@ export const AuthProvider = ({ children }) => {
           const data =
             response?.data || {};
 
-          console.log(
-            "PROFILE RESPONSE:",
-            data
-          );
-
           const profileUser =
             data?.user ||
             data?.data?.user ||
             data?.data ||
             null;
 
+          // ---------------------------------------------
+          // PROFILE FOUND
+          // ---------------------------------------------
           if (
             profileUser &&
             typeof profileUser ===
@@ -131,42 +110,44 @@ export const AuthProvider = ({ children }) => {
 
             localStorage.setItem(
               "user",
-              JSON.stringify(
-                updatedUser
-              )
+              JSON.stringify(updatedUser)
             );
           } else {
-            console.warn(
-              "PROFILE USER NOT FOUND:",
-              data
-            );
-
+            // -------------------------------------------
+            // PROFILE NOT FOUND
+            // -------------------------------------------
             if (!parsedUser) {
-              clearAuth();
+              localStorage.removeItem(
+                "token"
+              );
+
+              localStorage.removeItem(
+                "user"
+              );
+
+              setUser(null);
             }
           }
         } catch (profileError) {
-          console.error(
-            "PROFILE CHECK ERROR:",
-            profileError
-          );
-
           const status =
             profileError?.response
               ?.status;
 
-          // -------------------------------------------------
-          // INVALID / EXPIRED TOKEN
-          // -------------------------------------------------
+          console.error(
+            "PROFILE CHECK ERROR:",
+            status,
+            profileError?.response
+              ?.data ||
+              profileError?.message
+          );
 
+          // ---------------------------------------------
+          // TOKEN INVALID / EXPIRED
+          // ---------------------------------------------
           if (
             status === 401 ||
             status === 403
           ) {
-            console.warn(
-              "AUTH TOKEN INVALID OR EXPIRED. CLEARING AUTH."
-            );
-
             if (mounted) {
               localStorage.removeItem(
                 "token"
@@ -178,14 +159,17 @@ export const AuthProvider = ({ children }) => {
 
               setUser(null);
             }
-          } else if (
-            mounted &&
-            parsedUser
-          ) {
-            // Temporary network/server
-            // problem. Keep saved user.
-
-            setUser(parsedUser);
+          } else {
+            // -------------------------------------------
+            // SERVER TEMPORARY ERROR
+            // Keep saved user if available
+            // -------------------------------------------
+            if (
+              mounted &&
+              parsedUser
+            ) {
+              setUser(parsedUser);
+            }
           }
         }
       } catch (error) {
@@ -210,21 +194,18 @@ export const AuthProvider = ({ children }) => {
   // =====================================================
   // LOGIN
   // =====================================================
-
   const login = async (
     email,
     password
   ) => {
     try {
-      setLoading(true);
-
       const cleanEmail =
         String(email || "")
           .trim()
           .toLowerCase();
 
       console.log(
-        "LOGIN START:",
+        "AUTH LOGIN START:",
         cleanEmail
       );
 
@@ -241,75 +222,117 @@ export const AuthProvider = ({ children }) => {
         response?.data || {};
 
       console.log(
-        "LOGIN RESPONSE:",
+        "AUTH LOGIN RESPONSE:",
         data
       );
 
-      // -------------------------------------------------
-      // GET TOKEN
-      // -------------------------------------------------
+      // =================================================
+      // BACKEND EXPLICIT FAILURE
+      // =================================================
+      if (
+        data?.success === false
+      ) {
+        const message =
+          data?.message ||
+          data?.error ||
+          data?.data?.message ||
+          data?.data?.error ||
+          "Invalid email or password.";
 
+        console.error(
+          "AUTH LOGIN FAILED:",
+          message
+        );
+
+        return {
+          success: false,
+          status:
+            response?.status,
+          message:
+            String(message),
+          retryAfter: Number(
+            data?.retryAfter || 0
+          ),
+          attemptsRemaining:
+            Number(
+              data?.attemptsRemaining ||
+                0
+            ),
+        };
+      }
+
+      // =================================================
+      // GET TOKEN
+      // =================================================
       const token =
         data?.token ||
         data?.accessToken ||
         data?.data?.token;
 
-      // -------------------------------------------------
+      // =================================================
       // GET USER
-      // -------------------------------------------------
-
+      // =================================================
       const loggedInUser =
         data?.user ||
         data?.data?.user ||
         null;
 
-      // -------------------------------------------------
+      // =================================================
       // TOKEN MISSING
-      // -------------------------------------------------
-
+      // =================================================
       if (!token) {
+        const message =
+          data?.message ||
+          data?.error ||
+          "Backend login response mein JWT token nahi mila.";
+
         console.error(
-          "LOGIN TOKEN MISSING:",
-          data
+          "AUTH LOGIN TOKEN MISSING:",
+          message
         );
 
         return {
           success: false,
+          status:
+            response?.status,
           message:
-            "Backend login response mein JWT token nahi mila.",
+            String(message),
         };
       }
 
-      // -------------------------------------------------
+      // =================================================
       // USER MISSING
-      // -------------------------------------------------
-
+      // =================================================
       if (!loggedInUser) {
+        const message =
+          data?.message ||
+          "Backend login response mein user information nahi mili.";
+
         console.error(
-          "LOGIN USER MISSING:",
-          data
+          "AUTH LOGIN USER MISSING:",
+          message
         );
 
         return {
           success: false,
+          status:
+            response?.status,
           message:
-            "Backend login response mein user information nahi mili.",
+            String(message),
         };
       }
 
-      // -------------------------------------------------
+      // =================================================
       // SAVE TOKEN
-      // -------------------------------------------------
-
+      // =================================================
       localStorage.setItem(
         "token",
         String(token)
       );
 
-      // -------------------------------------------------
+      // =================================================
       // SAVE USER
-      // -------------------------------------------------
-
+      // =================================================
       localStorage.setItem(
         "user",
         JSON.stringify(
@@ -317,16 +340,14 @@ export const AuthProvider = ({ children }) => {
         )
       );
 
-      // -------------------------------------------------
-      // UPDATE STATE
-      // -------------------------------------------------
-
+      // =================================================
+      // UPDATE CONTEXT USER
+      // =================================================
       setUser(loggedInUser);
 
-      // -------------------------------------------------
+      // =================================================
       // VERIFY LOCAL STORAGE
-      // -------------------------------------------------
-
+      // =================================================
       const savedToken =
         localStorage.getItem(
           "token"
@@ -336,20 +357,6 @@ export const AuthProvider = ({ children }) => {
         localStorage.getItem(
           "user"
         );
-
-      console.log(
-        "TOKEN SAVED:",
-        savedToken
-          ? "YES"
-          : "NO"
-      );
-
-      console.log(
-        "USER SAVED:",
-        savedUser
-          ? "YES"
-          : "NO"
-      );
 
       if (!savedToken) {
         setUser(null);
@@ -361,17 +368,27 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
+      if (!savedUser) {
+        setUser(null);
+
+        return {
+          success: false,
+          message:
+            "User information localStorage mein save nahi hui.",
+        };
+      }
+
+      // =================================================
+      // LOGIN SUCCESS
+      // =================================================
       console.log(
-        "LOGIN SUCCESSFUL"
+        "AUTH LOGIN SUCCESS"
       );
 
       return {
         success: true,
-
         token: savedToken,
-
         user: loggedInUser,
-
         message:
           data?.message ||
           "Login successful.",
@@ -390,77 +407,135 @@ export const AuthProvider = ({ children }) => {
       const status =
         error?.response?.status;
 
-      const message =
-        error?.response?.data
-          ?.message ||
-        error?.response?.data
-          ?.error ||
-        "Login failed. Please check your credentials.";
+      const responseData =
+        error?.response?.data || {};
 
-      // -------------------------------------------------
-      // PENDING / REJECTED USER
-      // -------------------------------------------------
+      let message =
+        responseData?.message ||
+        responseData?.error ||
+        responseData?.data?.message ||
+        responseData?.data?.error ||
+        "";
 
+      // =================================================
+      // VALIDATION ERRORS
+      // =================================================
       if (
-        status === 401 ||
-        status === 403
+        Array.isArray(
+          responseData?.errors
+        ) &&
+        responseData.errors.length >
+          0
       ) {
-        console.warn(
-          "LOGIN BLOCKED:",
-          message
-        );
+        message =
+          responseData.errors
+            .map((item) => {
+              if (
+                typeof item ===
+                "string"
+              ) {
+                return item;
+              }
+
+              return (
+                item?.message ||
+                item?.msg ||
+                ""
+              );
+            })
+            .filter(Boolean)
+            .join(", ");
       }
 
+      // =================================================
+      // STATUS BASED ERROR
+      // =================================================
+      if (!message) {
+        if (status === 401) {
+          message =
+            "Invalid email or password.";
+        } else if (
+          status === 403
+        ) {
+          message =
+            "Your account is not authorized to login.";
+        } else if (
+          status === 429
+        ) {
+          message =
+            "Too many login attempts. Please try again after 30 seconds.";
+        } else if (
+          status === 400
+        ) {
+          message =
+            "Please check your email and password.";
+        } else if (
+          status === 404
+        ) {
+          message =
+            "Login service was not found.";
+        } else if (
+          status &&
+          status >= 500
+        ) {
+          message =
+            "Server error. Please try again.";
+        } else if (
+          error?.request &&
+          !error?.response
+        ) {
+          message =
+            "Unable to connect to the server.";
+        } else {
+          message =
+            "Invalid email or password.";
+        }
+      }
+
+      console.error(
+        "AUTH LOGIN ERROR MESSAGE:",
+        message
+      );
+
+      // =================================================
+      // RETURN LOGIN ERROR
+      // =================================================
       return {
         success: false,
         status,
-        message,
+        message:
+          String(message),
+        error,
+        retryAfter: Number(
+          responseData?.retryAfter ||
+            0
+        ),
+        attemptsRemaining:
+          Number(
+            responseData?.attemptsRemaining ||
+              0
+          ),
       };
-    } finally {
-      setLoading(false);
     }
   };
 
   // =====================================================
   // REGISTER
   // =====================================================
-
   const register = async (
     name,
     email,
-    password
+    password,
+    extraData = {}
   ) => {
     try {
-      setLoading(true);
-
       const cleanName =
-        String(name || "")
-          .trim();
+        String(name || "").trim();
 
       const cleanEmail =
         String(email || "")
           .trim()
           .toLowerCase();
-
-      console.log(
-        "================================="
-      );
-
-      console.log(
-        "REGISTER START:",
-        {
-          name: cleanName,
-          email: cleanEmail,
-        }
-      );
-
-      console.log(
-        "================================="
-      );
-
-      // -------------------------------------------------
-      // SEND REGISTRATION REQUEST
-      // -------------------------------------------------
 
       const response =
         await api.post(
@@ -469,117 +544,37 @@ export const AuthProvider = ({ children }) => {
             name: cleanName,
             email: cleanEmail,
             password,
+            ...extraData,
           }
         );
-
-      console.log(
-        "REGISTER HTTP STATUS:",
-        response?.status
-      );
-
-      console.log(
-        "REGISTER RESPONSE:",
-        response?.data
-      );
 
       const data =
         response?.data || {};
 
-      // -------------------------------------------------
-      // SUCCESS CHECK
-      // -------------------------------------------------
-
-      const httpSuccess =
-        response?.status >= 200 &&
-        response?.status < 300;
-
-      const backendSuccess =
-        data?.success === true;
-
-      const registrationSuccess =
-        httpSuccess ||
-        backendSuccess;
-
-      console.log(
-        "REGISTER HTTP SUCCESS:",
-        httpSuccess
-      );
-
-      console.log(
-        "REGISTER BACKEND SUCCESS:",
-        backendSuccess
-      );
-
-      console.log(
-        "REGISTER FINAL SUCCESS:",
-        registrationSuccess
-      );
-
-      // -------------------------------------------------
-      // SUCCESS RESPONSE
-      // -------------------------------------------------
-
-      if (registrationSuccess) {
-        console.log(
-          "REGISTRATION SUCCESSFUL"
-        );
-
-        /*
-          IMPORTANT:
-
-          Registration ke baad token
-          save nahi karna.
-
-          Normal user:
-          role   = user
-          status = pending
-
-          Admin approval ke baad hi
-          user login karega.
-        */
-
+      if (
+        data?.success === false
+      ) {
         return {
-          success: true,
-
+          success: false,
           status:
             response?.status,
-
           message:
             data?.message ||
-            "Registration ho gaya hai! Admin approval ke baad aap login kar sakenge.",
-
-          user:
-            data?.user ||
-            data?.data?.user ||
-            null,
+            data?.error ||
+            "Registration failed.",
         };
       }
 
-      // -------------------------------------------------
-      // UNEXPECTED RESPONSE
-      // -------------------------------------------------
-
-      console.warn(
-        "REGISTRATION FAILED RESPONSE:",
-        data
-      );
-
       return {
-        success: false,
-
+        success: true,
         status:
           response?.status,
-
         message:
           data?.message ||
-          data?.error ||
-          "Registration failed. Please try again.",
+          "Registration successful.",
+        data,
       };
     } catch (error) {
-      console.error(
-        "================================="
-      );
-
       console.error(
         "REGISTER ERROR:",
         error
@@ -590,46 +585,88 @@ export const AuthProvider = ({ children }) => {
         error?.response?.data
       );
 
-      console.error(
-        "REGISTER ERROR STATUS:",
-        error?.response?.status
-      );
-
-      console.error(
-        "================================="
-      );
-
       const status =
         error?.response?.status;
 
-      const message =
-        error?.response?.data
-          ?.message ||
-        error?.response?.data
-          ?.error ||
-        error?.message ||
-        "Registration failed. Please try again.";
+      const responseData =
+        error?.response?.data || {};
+
+      let message =
+        responseData?.message ||
+        responseData?.error ||
+        responseData?.data?.message ||
+        responseData?.data?.error ||
+        "";
+
+      if (
+        Array.isArray(
+          responseData?.errors
+        ) &&
+        responseData.errors.length >
+          0
+      ) {
+        message =
+          responseData.errors
+            .map((item) => {
+              if (
+                typeof item ===
+                "string"
+              ) {
+                return item;
+              }
+
+              return (
+                item?.message ||
+                item?.msg ||
+                ""
+              );
+            })
+            .filter(Boolean)
+            .join(", ");
+      }
+
+      if (!message) {
+        if (status === 400) {
+          message =
+            "Please check the registration details.";
+        } else if (
+          status === 409
+        ) {
+          message =
+            "This email is already registered.";
+        } else if (
+          status &&
+          status >= 500
+        ) {
+          message =
+            "Server error. Please try again.";
+        } else if (
+          error?.request &&
+          !error?.response
+        ) {
+          message =
+            "Unable to connect to the server.";
+        } else {
+          message =
+            "Registration failed. Please try again.";
+        }
+      }
 
       return {
         success: false,
-
         status,
-
-        message,
+        message:
+          String(message),
+        error,
       };
-    } finally {
-      setLoading(false);
     }
   };
 
   // =====================================================
   // LOGOUT
   // =====================================================
-
   const logout = () => {
-    console.log(
-      "LOGOUT CALLED"
-    );
+    console.log("LOGOUT");
 
     clearAuth();
   };
@@ -637,7 +674,6 @@ export const AuthProvider = ({ children }) => {
   // =====================================================
   // AUTHENTICATED STATUS
   // =====================================================
-
   const isAuthenticated =
     Boolean(
       user &&
@@ -649,7 +685,6 @@ export const AuthProvider = ({ children }) => {
   // =====================================================
   // CONTEXT VALUE
   // =====================================================
-
   const value = useMemo(
     () => ({
       user,
@@ -667,10 +702,6 @@ export const AuthProvider = ({ children }) => {
     ]
   );
 
-  // =====================================================
-  // PROVIDER
-  // =====================================================
-
   return (
     <AuthContext.Provider
       value={value}
@@ -680,10 +711,9 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// =====================================================
-// USE AUTH
-// =====================================================
-
+// =======================================================
+// USE AUTH HOOK
+// =======================================================
 export const useAuth = () => {
   const context =
     useContext(AuthContext);

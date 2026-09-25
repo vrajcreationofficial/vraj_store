@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
+
 import {
   Link,
   useLocation,
@@ -25,10 +29,11 @@ const Login = () => {
 
   const { login } = useAuth();
 
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+  const [formData, setFormData] =
+    useState({
+      email: "",
+      password: "",
+    });
 
   const [showPassword, setShowPassword] =
     useState(false);
@@ -45,6 +50,36 @@ const Login = () => {
   const [successType, setSuccessType] =
     useState("");
 
+  const [lockSeconds, setLockSeconds] =
+    useState(0);
+
+  // =====================================================
+  // LOGIN LOCK COUNTDOWN
+  // =====================================================
+  useEffect(() => {
+    if (lockSeconds <= 0) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setLockSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, [lockSeconds]);
+
+  // =====================================================
+  // REGISTRATION SUCCESS MESSAGE
+  // =====================================================
   useEffect(() => {
     const registrationSuccess =
       location.state?.registrationSuccess;
@@ -61,11 +96,19 @@ const Login = () => {
         registrationMessage
       );
 
-      setSuccessType("registration");
-      setSuccess(registrationMessage);
+      setSuccessType(
+        "registration"
+      );
+
+      setSuccess(
+        registrationMessage
+      );
     }
   }, [location.state]);
 
+  // =====================================================
+  // SUCCESS MESSAGE TIMER
+  // =====================================================
   useEffect(() => {
     if (!success) {
       return;
@@ -76,7 +119,8 @@ const Login = () => {
       setSuccessType("");
 
       if (
-        location.state?.registrationSuccess
+        location.state
+          ?.registrationSuccess
       ) {
         navigate("/login", {
           replace: true,
@@ -94,12 +138,16 @@ const Login = () => {
     navigate,
   ]);
 
+  // =====================================================
+  // CLOSE SUCCESS POPUP
+  // =====================================================
   const closeSuccessPopup = () => {
     setSuccess("");
     setSuccessType("");
 
     if (
-      location.state?.registrationSuccess
+      location.state
+        ?.registrationSuccess
     ) {
       navigate("/login", {
         replace: true,
@@ -108,26 +156,174 @@ const Login = () => {
     }
   };
 
+  // =====================================================
+  // INPUT CHANGE
+  // =====================================================
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const {
+      name,
+      value,
+    } = e.target;
 
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
 
-    if (error) {
+    if (
+      error &&
+      lockSeconds <= 0
+    ) {
       setError("");
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // =====================================================
+  // GET LOGIN ERROR MESSAGE
+  // =====================================================
+  const getLoginErrorMessage = (
+    err,
+    result
+  ) => {
+    // ---------------------------------------------------
+    // LOGIN RESULT ERROR
+    // ---------------------------------------------------
+    if (
+      result &&
+      result.success === false
+    ) {
+      const status =
+        result?.status ||
+        result?.statusCode ||
+        result?.response?.status;
 
-    if (loading) {
+      const message =
+        result?.message ||
+        result?.error ||
+        result?.data?.message ||
+        result?.data?.error;
+
+      if (status === 429) {
+        return (
+          message ||
+          "Too many failed login attempts. Please try again after 30 seconds."
+        );
+      }
+
+      if (status === 403) {
+        return (
+          message ||
+          "Your account is not allowed to login. Please contact the administrator."
+        );
+      }
+
+      if (status === 401) {
+        return (
+          message ||
+          "Invalid email or password."
+        );
+      }
+
+      if (message) {
+        return String(message);
+      }
+
+      return "Invalid email or password.";
+    }
+
+    // ---------------------------------------------------
+    // AXIOS ERROR
+    // ---------------------------------------------------
+    const status =
+      err?.response?.status ||
+      err?.status ||
+      err?.statusCode;
+
+    const responseData =
+      err?.response?.data;
+
+    const backendMessage =
+      responseData?.message ||
+      responseData?.error ||
+      responseData?.msg ||
+      responseData?.errors?.[0]
+        ?.message ||
+      responseData?.errors?.[0] ||
+      responseData?.data?.message ||
+      responseData?.data?.error ||
+      responseData?.data?.msg;
+
+    if (status === 429) {
+      return (
+        backendMessage ||
+        "Too many failed login attempts. Please try again after 30 seconds."
+      );
+    }
+
+    if (status === 403) {
+      return (
+        backendMessage ||
+        "Your account is not allowed to login. Please contact the administrator."
+      );
+    }
+
+    if (status === 401) {
+      return (
+        backendMessage ||
+        "Invalid email or password."
+      );
+    }
+
+    if (backendMessage) {
+      return String(
+        backendMessage
+      );
+    }
+
+    // ---------------------------------------------------
+    // NETWORK ERROR
+    // ---------------------------------------------------
+    if (
+      err?.code ===
+        "ERR_NETWORK" ||
+      err?.message ===
+        "Network Error"
+    ) {
+      return (
+        "Unable to connect to the server. Please make sure the backend server is running."
+      );
+    }
+
+    // ---------------------------------------------------
+    // GENERIC ERROR
+    // ---------------------------------------------------
+    if (err?.message) {
+      return String(
+        err.message
+      );
+    }
+
+    return "Invalid email or password.";
+  };
+
+  // =====================================================
+  // LOGIN SUBMIT
+  // =====================================================
+  const handleSubmit = async (
+    e
+  ) => {
+    // Prevent browser form reload
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (
+      loading ||
+      lockSeconds > 0
+    ) {
       return;
     }
 
+    // Clear old messages
     setError("");
     setSuccess("");
     setSuccessType("");
@@ -142,6 +338,9 @@ const Login = () => {
       formData.password || ""
     );
 
+    // ---------------------------------------------------
+    // EMAIL VALIDATION
+    // ---------------------------------------------------
     if (!email) {
       setError(
         "Please enter your email address."
@@ -149,6 +348,9 @@ const Login = () => {
       return;
     }
 
+    // ---------------------------------------------------
+    // PASSWORD VALIDATION
+    // ---------------------------------------------------
     if (!password) {
       setError(
         "Please enter your password."
@@ -164,23 +366,84 @@ const Login = () => {
     );
 
     try {
-      const result = await login(
-        email,
-        password
-      );
+      const result =
+        await login(
+          email,
+          password
+        );
 
       console.log(
         "LOGIN RESULT:",
         result
       );
 
-      if (!result?.success) {
-        setError(
-          result?.message ||
-            "Login failed. Please try again."
+      // =================================================
+      // LOGIN FAILED
+      // =================================================
+      if (
+        !result ||
+        result.success !== true
+      ) {
+        const loginError =
+          getLoginErrorMessage(
+            null,
+            result
+          );
+
+        console.error(
+          "LOGIN FAILED:",
+          loginError
         );
+
+        // Stop loading first
+        setLoading(false);
+
+        // Clear success
+        setSuccess("");
+        setSuccessType("");
+
+        // -----------------------------------------------
+        // 30 SECOND LOCK
+        // -----------------------------------------------
+        const retryAfter =
+          Number(
+            result?.retryAfter ||
+              0
+          );
+
+        if (retryAfter > 0) {
+          setLockSeconds(
+            retryAfter
+          );
+
+          setError(
+            "Too many login attempts. Please try again."
+          );
+        } else {
+          // ---------------------------------------------
+          // NORMAL LOGIN ERROR
+          // ---------------------------------------------
+          setError(
+            String(
+              loginError ||
+                "Invalid email or password."
+            )
+          );
+        }
+
+        // VERY IMPORTANT:
+        // Do not navigate
         return;
       }
+
+      // =================================================
+      // LOGIN SUCCESS
+      // =================================================
+      setLoading(false);
+
+      setLockSeconds(0);
+
+      setError("");
 
       setSuccessType("login");
 
@@ -190,22 +453,29 @@ const Login = () => {
 
       console.log(
         "LOGIN PAGE TOKEN:",
-        localStorage.getItem("token")
+        localStorage.getItem(
+          "token"
+        )
           ? "FOUND"
           : "NOT FOUND"
       );
 
       console.log(
         "LOGIN PAGE USER:",
-        localStorage.getItem("user")
+        localStorage.getItem(
+          "user"
+        )
           ? "FOUND"
           : "NOT FOUND"
       );
 
       setTimeout(() => {
-        navigate("/dashboard", {
-          replace: true,
-        });
+        navigate(
+          "/dashboard",
+          {
+            replace: true,
+          }
+        );
       }, 700);
     } catch (err) {
       console.error(
@@ -213,20 +483,56 @@ const Login = () => {
         err
       );
 
-      setError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          err?.message ||
-          "Unable to login. Please try again."
+      const loginError =
+        getLoginErrorMessage(
+          err,
+          null
+        );
+
+      console.error(
+        "LOGIN PAGE ERROR MESSAGE:",
+        loginError
       );
-    } finally {
+
       setLoading(false);
+
+      setSuccess("");
+      setSuccessType("");
+
+      // -----------------------------------------------
+      // 30 SECOND LOCK
+      // -----------------------------------------------
+      const retryAfter =
+        Number(
+          err?.response?.data
+            ?.retryAfter || 0
+        );
+
+      if (retryAfter > 0) {
+        setLockSeconds(
+          retryAfter
+        );
+
+        setError(
+          "Too many login attempts. Please try again."
+        );
+      } else {
+        setError(
+          String(
+            loginError ||
+              "Invalid email or password."
+          )
+        );
+      }
     }
   };
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f7f7fb]">
 
+      {/* =================================================
+          SUCCESS POPUP
+      ================================================= */}
       {success && (
         <div className="fixed right-5 top-5 z-[9999] w-[calc(100%-2.5rem)] max-w-sm animate-[slideIn_0.3s_ease-out]">
 
@@ -237,13 +543,16 @@ const Login = () => {
             <div className="flex items-start gap-3 p-4">
 
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600">
-                <FiCheckCircle size={21} />
+                <FiCheckCircle
+                  size={21}
+                />
               </div>
 
               <div className="min-w-0 flex-1 pr-7">
 
                 <p className="text-sm font-bold text-green-800">
-                  {successType === "registration"
+                  {successType ===
+                  "registration"
                     ? "Registration Successful"
                     : "Login Successful"}
                 </p>
@@ -256,7 +565,9 @@ const Login = () => {
 
               <button
                 type="button"
-                onClick={closeSuccessPopup}
+                onClick={
+                  closeSuccessPopup
+                }
                 className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
                 aria-label="Close notification"
               >
@@ -270,6 +581,9 @@ const Login = () => {
         </div>
       )}
 
+      {/* =================================================
+          BACKGROUND DECORATION
+      ================================================= */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
 
         <div className="absolute -left-32 -top-32 h-80 w-80 rounded-full bg-[#4F39F6]/10 blur-3xl" />
@@ -284,6 +598,9 @@ const Login = () => {
 
       </div>
 
+      {/* =================================================
+          MAIN
+      ================================================= */}
       <main className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
 
         <div className="w-full max-w-[1050px]">
@@ -292,6 +609,9 @@ const Login = () => {
 
             <div className="grid lg:grid-cols-[0.9fr_1.1fr]">
 
+              {/* =================================================
+                  LEFT PANEL
+              ================================================= */}
               <div className="relative hidden min-h-[650px] overflow-hidden bg-[#4F39F6] lg:block">
 
                 <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full border border-white/10" />
@@ -350,7 +670,9 @@ const Login = () => {
                   <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
 
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white">
-                      <FiShield size={19} />
+                      <FiShield
+                        size={19}
+                      />
                     </div>
 
                     <div>
@@ -371,10 +693,14 @@ const Login = () => {
 
               </div>
 
+              {/* =================================================
+                  RIGHT PANEL
+              ================================================= */}
               <div className="flex min-h-[650px] items-center justify-center px-6 py-10 sm:px-10 md:px-14 lg:px-14 xl:px-20">
 
                 <div className="w-full max-w-[420px]">
 
+                  {/* Mobile logo */}
                   <div className="mb-8 flex items-center gap-3 lg:hidden">
 
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 p-2">
@@ -401,6 +727,9 @@ const Login = () => {
 
                   </div>
 
+                  {/* =================================================
+                      HEADING
+                  ================================================= */}
                   <div className="mb-8">
 
                     <div className="mb-4 inline-flex items-center rounded-full bg-[#4F39F6]/10 px-3 py-1.5">
@@ -422,23 +751,61 @@ const Login = () => {
 
                   </div>
 
+                  {/* =================================================
+                      ERROR MESSAGE
+                  ================================================= */}
                   {error && (
-                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                    <div
+                      role="alert"
+                      aria-live="assertive"
+                      className="mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3"
+                    >
 
-                      <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-red-500" />
+                      <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                        <FiX size={13} />
+                      </div>
 
-                      <p className="text-sm leading-5 text-red-700">
-                        {error}
-                      </p>
+                      <div className="min-w-0 flex-1">
+
+                        <p className="text-sm font-bold text-red-800">
+                          Login failed
+                        </p>
+
+                        <p className="mt-0.5 text-sm leading-5 text-red-700">
+                          {error}
+                        </p>
+
+                        {lockSeconds >
+                          0 && (
+                          <p className="mt-1 text-sm font-bold text-red-700">
+                            Please try
+                            again in{" "}
+                            <span className="font-extrabold">
+                              {
+                                lockSeconds
+                              }
+                            
+                          </span>{" "}
+                            seconds.
+                          </p>
+                        )}
+
+                      </div>
 
                     </div>
                   )}
 
+                  {/* =================================================
+                      LOGIN FORM
+                  ================================================= */}
                   <form
-                    onSubmit={handleSubmit}
+                    onSubmit={
+                      handleSubmit
+                    }
                     className="space-y-5"
                   >
 
+                    {/* EMAIL */}
                     <div>
 
                       <label
@@ -460,9 +827,17 @@ const Login = () => {
                           name="email"
                           type="email"
                           autoComplete="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          disabled={loading}
+                          value={
+                            formData.email
+                          }
+                          onChange={
+                            handleChange
+                          }
+                          disabled={
+                            loading ||
+                            lockSeconds >
+                              0
+                          }
                           placeholder="Enter your email"
                           className="h-14 w-full rounded-xl border border-gray-200 bg-gray-50 pl-11 pr-4 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 hover:border-gray-300 focus:border-[#4F39F6] focus:bg-white focus:ring-4 focus:ring-[#4F39F6]/10 disabled:cursor-not-allowed disabled:opacity-60"
                         />
@@ -471,6 +846,7 @@ const Login = () => {
 
                     </div>
 
+                    {/* PASSWORD */}
                     <div>
 
                       <label
@@ -496,9 +872,17 @@ const Login = () => {
                               : "password"
                           }
                           autoComplete="current-password"
-                          value={formData.password}
-                          onChange={handleChange}
-                          disabled={loading}
+                          value={
+                            formData.password
+                          }
+                          onChange={
+                            handleChange
+                          }
+                          disabled={
+                            loading ||
+                            lockSeconds >
+                              0
+                          }
                           placeholder="Enter your password"
                           className="h-14 w-full rounded-xl border border-gray-200 bg-gray-50 pl-11 pr-12 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 hover:border-gray-300 focus:border-[#4F39F6] focus:bg-white focus:ring-4 focus:ring-[#4F39F6]/10 disabled:cursor-not-allowed disabled:opacity-60"
                         />
@@ -507,11 +891,16 @@ const Login = () => {
                           type="button"
                           onClick={() =>
                             setShowPassword(
-                              (prev) => !prev
+                              (prev) =>
+                                !prev
                             )
                           }
-                          disabled={loading}
-                          className="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 transition hover:bg-[#4F39F6]/10 hover:text-[#4F39F6]"
+                          disabled={
+                            loading ||
+                            lockSeconds >
+                              0
+                          }
+                          className="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 transition hover:bg-[#4F39F6]/10 hover:text-[#4F39F6] disabled:cursor-not-allowed disabled:opacity-50"
                           aria-label={
                             showPassword
                               ? "Hide password"
@@ -519,9 +908,13 @@ const Login = () => {
                           }
                         >
                           {showPassword ? (
-                            <FiEyeOff size={18} />
+                            <FiEyeOff
+                              size={18}
+                            />
                           ) : (
-                            <FiEye size={18} />
+                            <FiEye
+                              size={18}
+                            />
                           )}
                         </button>
 
@@ -529,6 +922,7 @@ const Login = () => {
 
                     </div>
 
+                    {/* KEEP SIGNED IN */}
                     <div className="flex items-center">
 
                       <label className="flex cursor-pointer items-center gap-2">
@@ -547,9 +941,14 @@ const Login = () => {
 
                     </div>
 
+                    {/* LOGIN BUTTON */}
                     <button
                       type="submit"
-                      disabled={loading}
+                      disabled={
+                        loading ||
+                        lockSeconds >
+                          0
+                      }
                       className="group flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-[#4F39F6] px-6 text-sm font-bold text-white shadow-[0_10px_25px_rgba(79,57,246,0.20)] transition-all duration-200 hover:bg-[#4230d5] hover:shadow-[0_14px_30px_rgba(79,57,246,0.25)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
                     >
 
@@ -559,6 +958,21 @@ const Login = () => {
 
                           <span>
                             Signing in...
+                          </span>
+                        </>
+                      ) : lockSeconds >
+                        0 ? (
+                        <>
+                          <FiLock
+                            size={18}
+                          />
+
+                          <span>
+                            Try again in{" "}
+                            {
+                              lockSeconds
+                            }
+                            s
                           </span>
                         </>
                       ) : (
@@ -578,6 +992,7 @@ const Login = () => {
 
                   </form>
 
+                  {/* REGISTER */}
                   <div className="mt-8 text-center">
 
                     <p className="text-sm text-gray-500">
@@ -593,6 +1008,7 @@ const Login = () => {
 
                   </div>
 
+                  {/* FOOTER */}
                   <div className="mt-10 border-t border-gray-100 pt-6 text-center">
 
                     <p className="text-[11px] leading-5 text-gray-400">
@@ -622,6 +1038,9 @@ const Login = () => {
 
       </main>
 
+      {/* =================================================
+          ANIMATION
+      ================================================= */}
       <style>
         {`
           @keyframes slideIn {

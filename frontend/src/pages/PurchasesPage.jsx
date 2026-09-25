@@ -140,15 +140,9 @@ const PurchasePage = () => {
     try {
       const response = await api.get("/purchases");
 
-      setPurchases(
-        getPurchasesFromResponse(response)
-      );
+      setPurchases(getPurchasesFromResponse(response));
     } catch (error) {
-      console.error(
-        "FETCH PURCHASES ERROR:",
-        error
-      );
-
+      console.error("FETCH PURCHASES ERROR:", error);
       throw error;
     }
   };
@@ -161,15 +155,9 @@ const PurchasePage = () => {
     try {
       const response = await api.get("/products");
 
-      setProducts(
-        getProductsFromResponse(response)
-      );
+      setProducts(getProductsFromResponse(response));
     } catch (error) {
-      console.error(
-        "FETCH PRODUCTS ERROR:",
-        error
-      );
-
+      console.error("FETCH PRODUCTS ERROR:", error);
       throw error;
     }
   };
@@ -188,10 +176,7 @@ const PurchasePage = () => {
         fetchProducts(),
       ]);
     } catch (error) {
-      console.error(
-        "FETCH PURCHASE PAGE ERROR:",
-        error
-      );
+      console.error("FETCH PURCHASE PAGE ERROR:", error);
 
       setError(
         error.response?.data?.message ||
@@ -222,18 +207,14 @@ const PurchasePage = () => {
           String(formData.productId)
       ) || null
     );
-  }, [
-    products,
-    formData.productId,
-  ]);
+  }, [products, formData.productId]);
 
   // =====================================================
   // FILTER PURCHASES
   // =====================================================
 
   const filteredPurchases = useMemo(() => {
-    const search =
-      searchTerm.trim().toLowerCase();
+    const search = searchTerm.trim().toLowerCase();
 
     if (!search) {
       return purchases;
@@ -266,36 +247,25 @@ const PurchasePage = () => {
           .includes(search)
       );
     });
-  }, [
-    purchases,
-    searchTerm,
-    products,
-  ]);
+  }, [purchases, searchTerm, products]);
 
   // =====================================================
   // FILTER PRODUCTS
   // =====================================================
 
   const filteredModalProducts = useMemo(() => {
-    const query =
-      productSearchQuery.trim().toLowerCase();
+    const query = productSearchQuery.trim().toLowerCase();
 
     if (!query) {
       return products;
     }
 
     return products.filter((product) => {
-      const name =
-        String(product.name || "")
-          .toLowerCase();
+      const name = String(product.name || "").toLowerCase();
 
-      const sku =
-        String(getProductSku(product))
-          .toLowerCase();
+      const sku = String(getProductSku(product)).toLowerCase();
 
-      const id =
-        String(product._id || "")
-          .toLowerCase();
+      const id = String(product._id || "").toLowerCase();
 
       return (
         name.includes(query) ||
@@ -303,10 +273,7 @@ const PurchasePage = () => {
         id.includes(query)
       );
     });
-  }, [
-    products,
-    productSearchQuery,
-  ]);
+  }, [products, productSearchQuery]);
 
   // =====================================================
   // SELECT CHECKBOX
@@ -315,9 +282,7 @@ const PurchasePage = () => {
   const handleToggleSelect = (id) => {
     setSelectedIds((prev) =>
       prev.includes(id)
-        ? prev.filter(
-            (item) => item !== id
-          )
+        ? prev.filter((item) => item !== id)
         : [...prev, id]
     );
   };
@@ -328,10 +293,7 @@ const PurchasePage = () => {
 
   const handleToggleSelectAll = (e) => {
     if (e.target.checked) {
-      const ids =
-        filteredPurchases.map(
-          (item) => item._id
-        );
+      const ids = filteredPurchases.map((item) => item._id);
 
       setSelectedIds(ids);
     } else {
@@ -343,14 +305,9 @@ const PurchasePage = () => {
   // CALCULATE TOTAL
   // =====================================================
 
-  const calculateTotalPurchaseCost = (
-    item
-  ) => {
-    const cost =
-      Number(item.rawCost) || 0;
-
-    const quantity =
-      Number(item.quantity) || 0;
+  const calculateTotalPurchaseCost = (item) => {
+    const cost = Number(item.rawCost) || 0;
+    const quantity = Number(item.quantity) || 0;
 
     return cost * quantity;
   };
@@ -360,9 +317,7 @@ const PurchasePage = () => {
   // =====================================================
 
   const formatCurrency = (value) => {
-    return `₹${Number(
-      value || 0
-    ).toLocaleString("en-IN")}`;
+    return `₹${Number(value || 0).toLocaleString("en-IN")}`;
   };
 
   // =====================================================
@@ -370,27 +325,23 @@ const PurchasePage = () => {
   // =====================================================
 
   const getProductDisplayId = (item) => {
-    const matchingProduct =
-      products.find(
-        (product) =>
-          String(product._id) ===
-          String(item.productId)
-      );
+    const matchingProduct = products.find(
+      (product) =>
+        String(product._id) ===
+        String(item.productId)
+    );
 
     return (
       getProductSku(matchingProduct) ||
       item.productSku ||
-      (typeof item.productId ===
-      "string"
-        ? item.productId
-            .slice(-6)
-            .toUpperCase()
+      (typeof item.productId === "string"
+        ? item.productId.slice(-6).toUpperCase()
         : "-")
     );
   };
 
   // =====================================================
-  // PRODUCT IMAGE FOR PURCHASE
+  // PRODUCT IMAGE
   // =====================================================
 
   const getPurchaseImage = (item) => {
@@ -398,18 +349,13 @@ const PurchasePage = () => {
       return item.productImage;
     }
 
-    const matchingProduct =
-      products.find(
-        (product) =>
-          String(product._id) ===
-          String(item.productId)
-      );
-
-    return (
-      getProductImage(
-        matchingProduct
-      ) || DEFAULT_IMAGE
+    const matchingProduct = products.find(
+      (product) =>
+        String(product._id) ===
+        String(item.productId)
     );
+
+    return getProductImage(matchingProduct) || DEFAULT_IMAGE;
   };
 
   // =====================================================
@@ -429,58 +375,38 @@ const PurchasePage = () => {
   // OPEN EDIT
   // =====================================================
 
-  const handleOpenEditModal = (
-    item
-  ) => {
-    const matchingProduct =
-      products.find(
-        (product) =>
-          String(product._id) ===
-          String(item.productId)
-      );
+  const handleOpenEditModal = (item) => {
+    const matchingProduct = products.find(
+      (product) =>
+        String(product._id) ===
+        String(item.productId)
+    );
 
     const productSku =
-      getProductSku(
-        matchingProduct
-      ) ||
+      getProductSku(matchingProduct) ||
       item.productSku ||
       "";
 
     setEditingId(item._id);
 
     setFormData({
-      productId:
-        item.productId || "",
-
+      productId: item.productId || "",
       productSku,
-
-      purchaseDate:
-        item.purchaseDate ||
-        getToday(),
-
+      purchaseDate: item.purchaseDate || getToday(),
       productName:
         matchingProduct?.name ||
         item.productName ||
         "",
-
       rawCost:
         item.rawCost ??
         matchingProduct?.purchasePrice ??
         "",
-
-      supplierName:
-        item.supplierName || "",
-
-      quantity:
-        item.quantity ?? 1,
-
+      supplierName: item.supplierName || "",
+      quantity: item.quantity ?? 1,
       productImage:
         item.productImage ||
-        getProductImage(
-          matchingProduct
-        ) ||
+        getProductImage(matchingProduct) ||
         "",
-
       imageFile: null,
     });
 
@@ -506,20 +432,14 @@ const PurchasePage = () => {
 
     if (
       formData.productImage &&
-      formData.productImage.startsWith(
-        "blob:"
-      )
+      formData.productImage.startsWith("blob:")
     ) {
-      URL.revokeObjectURL(
-        formData.productImage
-      );
+      URL.revokeObjectURL(formData.productImage);
     }
 
     setIsModalOpen(false);
     setEditingId(null);
-    setFormData(
-      createInitialForm()
-    );
+    setFormData(createInitialForm());
     setProductSearchQuery("");
     setIsProductDropdownOpen(false);
     setError("");
@@ -531,10 +451,7 @@ const PurchasePage = () => {
   // =====================================================
 
   const handleChange = (e) => {
-    const {
-      name,
-      value,
-    } = e.target;
+    const { name, value } = e.target;
 
     setFormData((prev) => ({
       ...prev,
@@ -546,9 +463,7 @@ const PurchasePage = () => {
   // SELECT PRODUCT
   // =====================================================
 
-  const handleSelectProduct = (
-    product
-  ) => {
+  const handleSelectProduct = (product) => {
     if (!product) {
       setFormData((prev) => ({
         ...prev,
@@ -565,11 +480,8 @@ const PurchasePage = () => {
       return;
     }
 
-    const productSku =
-      getProductSku(product);
-
-    const productImage =
-      getProductImage(product);
+    const productSku = getProductSku(product);
+    const productImage = getProductImage(product);
 
     const purchasePrice =
       product.purchasePrice ??
@@ -578,32 +490,14 @@ const PurchasePage = () => {
 
     setFormData((prev) => ({
       ...prev,
-
-      // AUTO
-      productId:
-        product._id || "",
-
-      // AUTO SKU / PRODUCT ID
+      productId: product._id || "",
       productSku,
-
-      // AUTO NAME
-      productName:
-        product.name || "",
-
-      // AUTO PURCHASE PRICE
-      rawCost:
-        purchasePrice,
-
-      // AUTO IMAGE
-      productImage:
-        productImage || "",
-
+      productName: product.name || "",
+      rawCost: purchasePrice,
+      productImage: productImage || "",
     }));
 
-    setProductSearchQuery(
-      product.name || ""
-    );
-
+    setProductSearchQuery(product.name || "");
     setIsProductDropdownOpen(false);
     setError("");
   };
@@ -612,48 +506,30 @@ const PurchasePage = () => {
   // IMAGE UPLOAD
   // =====================================================
 
-  const handleImageFileChange = (
-    e
-  ) => {
-    const file =
-      e.target.files?.[0];
+  const handleImageFileChange = (e) => {
+    const file = e.target.files?.[0];
 
     if (!file) {
       return;
     }
 
-    if (
-      !file.type.startsWith(
-        "image/"
-      )
-    ) {
-      setError(
-        "Please select a valid image file."
-      );
-
+    if (!file.type.startsWith("image/")) {
+      setError("Please select a valid image file.");
       e.target.value = "";
       return;
     }
 
-    if (
-      file.size >
-      5 * 1024 * 1024
-    ) {
-      setError(
-        "Image size should be less than 5 MB."
-      );
-
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image size should be less than 5 MB.");
       e.target.value = "";
       return;
     }
 
-    const previewUrl =
-      URL.createObjectURL(file);
+    const previewUrl = URL.createObjectURL(file);
 
     setFormData((prev) => ({
       ...prev,
-      productImage:
-        previewUrl,
+      productImage: previewUrl,
       imageFile: file,
     }));
 
@@ -667,13 +543,9 @@ const PurchasePage = () => {
   const handleRemoveImage = () => {
     if (
       formData.productImage &&
-      formData.productImage.startsWith(
-        "blob:"
-      )
+      formData.productImage.startsWith("blob:")
     ) {
-      URL.revokeObjectURL(
-        formData.productImage
-      );
+      URL.revokeObjectURL(formData.productImage);
     }
 
     setFormData((prev) => ({
@@ -687,13 +559,10 @@ const PurchasePage = () => {
   // DELETE
   // =====================================================
 
-  const handleDelete = async (
-    id
-  ) => {
-    const confirmed =
-      window.confirm(
-        "Kya aap is purchase entry ko delete karna chahte hain?\n\nDelete karne par backend Product stock ko bhi automatically adjust karega."
-      );
+  const handleDelete = async (id) => {
+    const confirmed = window.confirm(
+      "Kya aap is purchase entry ko delete karna chahte hain?\n\nDelete karne par backend Product stock ko bhi automatically adjust karega."
+    );
 
     if (!confirmed) {
       return;
@@ -702,40 +571,26 @@ const PurchasePage = () => {
     try {
       setError("");
 
-      await api.delete(
-        `/purchases/${id}`
-      );
+      await api.delete(`/purchases/${id}`);
 
       setPurchases((prev) =>
-        prev.filter(
-          (item) =>
-            item._id !== id
-        )
+        prev.filter((item) => item._id !== id)
       );
 
       setSelectedIds((prev) =>
-        prev.filter(
-          (selectedId) =>
-            selectedId !== id
-        )
+        prev.filter((selectedId) => selectedId !== id)
       );
 
       await fetchProducts();
 
       window.dispatchEvent(
-        new Event(
-          "inventory-updated"
-        )
+        new Event("inventory-updated")
       );
     } catch (error) {
-      console.error(
-        "DELETE PURCHASE ERROR:",
-        error
-      );
+      console.error("DELETE PURCHASE ERROR:", error);
 
       setError(
-        error.response?.data
-          ?.message ||
+        error.response?.data?.message ||
           "Purchase delete nahi ho pa raha."
       );
     }
@@ -745,93 +600,61 @@ const PurchasePage = () => {
   // SUBMIT
   // =====================================================
 
-  const handleSubmit = async (
-    e
-  ) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    const productId =
-      String(
-        formData.productId || ""
-      ).trim();
+    const productId = String(
+      formData.productId || ""
+    ).trim();
 
-    const productName =
-      String(
-        formData.productName ||
-          ""
-      ).trim();
+    const productName = String(
+      formData.productName || ""
+    ).trim();
 
-    const supplierName =
-      String(
-        formData.supplierName ||
-          ""
-      ).trim();
+    const supplierName = String(
+      formData.supplierName || ""
+    ).trim();
 
-    const rawCost =
-      Number(formData.rawCost);
-
-    const quantity =
-      Number(formData.quantity);
+    const rawCost = Number(formData.rawCost);
+    const quantity = Number(formData.quantity);
 
     if (!productId) {
-      setError(
-        "Please select a product."
-      );
+      setError("Please select a product.");
       return;
     }
 
     if (!productName) {
-      setError(
-        "Product name is missing."
-      );
+      setError("Product name is missing.");
       return;
     }
 
     if (!supplierName) {
-      setError(
-        "Please enter supplier name."
-      );
+      setError("Please enter supplier name.");
       return;
     }
 
     if (!formData.purchaseDate) {
-      setError(
-        "Please select purchase date."
-      );
+      setError("Please select purchase date.");
       return;
     }
 
-    if (
-      !Number.isFinite(
-        rawCost
-      ) ||
-      rawCost <= 0
-    ) {
-      setError(
-        "Raw cost must be greater than 0."
-      );
+    if (!Number.isFinite(rawCost) || rawCost <= 0) {
+      setError("Raw cost must be greater than 0.");
       return;
     }
 
-    if (
-      !Number.isInteger(
-        quantity
-      ) ||
-      quantity <= 0
-    ) {
+    if (!Number.isInteger(quantity) || quantity <= 0) {
       setError(
         "Quantity must be a whole number greater than 0."
       );
       return;
     }
 
-    const productExists =
-      products.some(
-        (product) =>
-          String(product._id) ===
-          String(productId)
-      );
+    const productExists = products.some(
+      (product) =>
+        String(product._id) === String(productId)
+    );
 
     if (!productExists) {
       setError(
@@ -840,62 +663,34 @@ const PurchasePage = () => {
       return;
     }
 
-    const data =
-      new FormData();
+    const data = new FormData();
 
-    data.append(
-      "productId",
-      productId
-    );
-
+    data.append("productId", productId);
     data.append(
       "productSku",
-      String(
-        formData.productSku || ""
-      )
+      String(formData.productSku || "")
     );
-
     data.append(
       "purchaseDate",
       formData.purchaseDate
     );
-
-    data.append(
-      "productName",
-      productName
-    );
-
-    data.append(
-      "rawCost",
-      String(rawCost)
-    );
-
-    data.append(
-      "supplierName",
-      supplierName
-    );
-
-    data.append(
-      "quantity",
-      String(quantity)
-    );
+    data.append("productName", productName);
+    data.append("rawCost", String(rawCost));
+    data.append("supplierName", supplierName);
+    data.append("quantity", String(quantity));
 
     if (formData.imageFile) {
-      data.append(
-        "imageFile",
-        formData.imageFile
-      );
+      data.append("imageFile", formData.imageFile);
     }
 
     try {
       setSaving(true);
 
       if (editingId) {
-        const response =
-          await api.put(
-            `/purchases/${editingId}`,
-            data
-          );
+        const response = await api.put(
+          `/purchases/${editingId}`,
+          data
+        );
 
         const updatedPurchase =
           response.data?.purchase ||
@@ -909,11 +704,10 @@ const PurchasePage = () => {
           )
         );
       } else {
-        const response =
-          await api.post(
-            "/purchases",
-            data
-          );
+        const response = await api.post(
+          "/purchases",
+          data
+        );
 
         const newPurchase =
           response.data?.purchase ||
@@ -928,28 +722,20 @@ const PurchasePage = () => {
       await fetchProducts();
 
       window.dispatchEvent(
-        new Event(
-          "inventory-updated"
-        )
+        new Event("inventory-updated")
       );
 
       setIsModalOpen(false);
       setEditingId(null);
-      setFormData(
-        createInitialForm()
-      );
+      setFormData(createInitialForm());
       setProductSearchQuery("");
       setIsProductDropdownOpen(false);
       setError("");
     } catch (error) {
-      console.error(
-        "SAVE PURCHASE ERROR:",
-        error
-      );
+      console.error("SAVE PURCHASE ERROR:", error);
 
       setError(
-        error.response?.data
-          ?.message ||
+        error.response?.data?.message ||
           "Purchase save nahi ho pa raha."
       );
     } finally {
@@ -958,119 +744,175 @@ const PurchasePage = () => {
   };
 
   // =====================================================
-  // PDF HTML
+  // PDF HTML - IMPROVED PRINT REPORT
   // =====================================================
 
   const createPurchaseReportHTML = (
     itemsToExport,
     title = "Purchase Statement"
   ) => {
-    const totalQty =
-      itemsToExport.reduce(
-        (total, item) =>
-          total +
-          (Number(
-            item.quantity
-          ) || 0),
-        0
+    const totalQty = itemsToExport.reduce(
+      (total, item) =>
+        total + (Number(item.quantity) || 0),
+      0
+    );
+
+    const totalExp = itemsToExport.reduce(
+      (total, item) =>
+        total + calculateTotalPurchaseCost(item),
+      0
+    );
+
+    const totalRawCost = itemsToExport.reduce(
+      (total, item) =>
+        total +
+        (Number(item.rawCost) || 0),
+      0
+    );
+
+    const generatedDate =
+      new Date().toLocaleDateString(
+        "en-IN",
+        {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }
       );
 
-    const totalExp =
-      itemsToExport.reduce(
-        (total, item) =>
-          total +
-          calculateTotalPurchaseCost(
-            item
-          ),
-        0
-      );
+    const reportRows = itemsToExport
+      .map((item, index) => {
+        const productName = escapeHtml(
+          item.productName || "-"
+        );
 
-    const reportRows =
-      itemsToExport
-        .map(
-          (item, index) => {
-            const productName =
-              escapeHtml(
-                item.productName ||
-                  "-"
-              );
+        const prodIdDisplay =
+          getProductDisplayId(item);
 
-            const prodIdDisplay =
-              getProductDisplayId(
-                item
-              );
+        const purchaseDate = escapeHtml(
+          item.purchaseDate || "-"
+        );
 
-            const purchaseDate =
-              escapeHtml(
-                item.purchaseDate ||
-                  "-"
-              );
+        const supplierName = escapeHtml(
+          item.supplierName || "-"
+        );
 
-            const supplierName =
-              escapeHtml(
-                item.supplierName ||
-                  "-"
-              );
+        const quantity =
+          Number(item.quantity || 0);
 
-            const quantity =
-              Number(
-                item.quantity || 0
-              );
+        const rawCost =
+          Number(item.rawCost || 0);
 
-            const rawCost =
-              Number(
-                item.rawCost || 0
-              );
+        const totalExpense =
+          calculateTotalPurchaseCost(item);
 
-            const totalExpense =
-              calculateTotalPurchaseCost(
-                item
-              );
+        return `
+          <tr
+            style="
+              page-break-inside:avoid;
+              break-inside:avoid;
+            "
+          >
 
-            return `
-              <tr style="page-break-inside:avoid;break-inside:avoid;">
-                <td style="padding:7px 5px;border:1px solid #cbd5e1;text-align:center;">
-                  ${index + 1}
-                </td>
+            <td
+              style="
+                padding:9px 6px;
+                border:1px solid #cbd5e1;
+                text-align:center;
+                color:#111827;
+              "
+            >
+              ${index + 1}
+            </td>
 
-                <td style="padding:7px 6px;border:1px solid #cbd5e1;overflow-wrap:anywhere;word-break:break-word;">
-                  ${productName}
-                </td>
+            <td
+              style="
+                padding:9px 7px;
+                border:1px solid #cbd5e1;
+                overflow-wrap:anywhere;
+                word-break:break-word;
+                font-weight:700;
+                color:#111827;
+              "
+            >
+              ${productName}
+            </td>
 
-                <td style="padding:7px 6px;border:1px solid #cbd5e1;font-size:9px;">
-                  ${escapeHtml(
-                    prodIdDisplay
-                  )}
-                </td>
+            <td
+              style="
+                padding:9px 7px;
+                border:1px solid #cbd5e1;
+                font-family:monospace;
+                font-size:9px;
+                color:#374151;
+              "
+            >
+              ${escapeHtml(prodIdDisplay)}
+            </td>
 
-                <td style="padding:7px 6px;border:1px solid #cbd5e1;">
-                  ${purchaseDate}
-                </td>
+            <td
+              style="
+                padding:9px 7px;
+                border:1px solid #cbd5e1;
+                color:#374151;
+              "
+            >
+              ${purchaseDate}
+            </td>
 
-                <td style="padding:7px 6px;border:1px solid #cbd5e1;overflow-wrap:anywhere;">
-                  ${supplierName}
-                </td>
+            <td
+              style="
+                padding:9px 7px;
+                border:1px solid #cbd5e1;
+                overflow-wrap:anywhere;
+                word-break:break-word;
+                color:#374151;
+              "
+            >
+              ${supplierName}
+            </td>
 
-                <td style="padding:7px 5px;border:1px solid #cbd5e1;text-align:center;">
-                  ${quantity}
-                </td>
+            <td
+              style="
+                padding:9px 6px;
+                border:1px solid #cbd5e1;
+                text-align:center;
+                font-weight:700;
+                color:#111827;
+              "
+            >
+              ${quantity.toLocaleString("en-IN")}
+            </td>
 
-                <td style="padding:7px 5px;border:1px solid #cbd5e1;text-align:right;white-space:nowrap;">
-                  ₹${rawCost.toLocaleString(
-                    "en-IN"
-                  )}
-                </td>
+            <td
+              style="
+                padding:9px 6px;
+                border:1px solid #cbd5e1;
+                text-align:right;
+                white-space:nowrap;
+                color:#374151;
+              "
+            >
+              ₹${rawCost.toLocaleString("en-IN")}
+            </td>
 
-                <td style="padding:7px 5px;border:1px solid #cbd5e1;text-align:right;white-space:nowrap;font-weight:700;">
-                  ₹${totalExpense.toLocaleString(
-                    "en-IN"
-                  )}
-                </td>
-              </tr>
-            `;
-          }
-        )
-        .join("");
+            <td
+              style="
+                padding:9px 6px;
+                border:1px solid #cbd5e1;
+                text-align:right;
+                white-space:nowrap;
+                font-weight:800;
+                color:#111827;
+              "
+            >
+              ₹${totalExpense.toLocaleString("en-IN")}
+            </td>
+
+          </tr>
+        `;
+      })
+      .join("");
 
     return `
       <div
@@ -1081,86 +923,271 @@ const PurchasePage = () => {
           background:#ffffff;
           color:#111827;
           font-family:Arial,Helvetica,sans-serif;
-          padding:20px;
+          padding:28px;
           margin:0;
         "
       >
+
+        <!-- REPORT HEADER -->
 
         <div
           style="
             display:flex;
             justify-content:space-between;
             align-items:flex-start;
+            gap:30px;
+            padding-bottom:18px;
+            margin-bottom:18px;
             border-bottom:2px solid #111827;
-            padding-bottom:12px;
-            margin-bottom:16px;
           "
         >
 
           <div>
 
+            <div
+              style="
+                font-size:11px;
+                font-weight:800;
+                letter-spacing:2px;
+                color:#64748b;
+                margin-bottom:5px;
+              "
+            >
+              VRAJ CREATION
+            </div>
+
             <h1
               style="
                 margin:0;
-                font-size:24px;
+                font-size:25px;
+                line-height:1.2;
+                color:#111827;
               "
             >
-              Vraj Creation
+              ${escapeHtml(title)}
             </h1>
-
-            <h2
-              style="
-                margin:5px 0 0;
-                font-size:16px;
-                color:#374151;
-              "
-            >
-              ${escapeHtml(
-                title
-              )}
-            </h2>
 
             <p
               style="
-                margin:5px 0 0;
-                font-size:9px;
-                color:#6b7280;
+                margin:7px 0 0;
+                font-size:10px;
+                color:#64748b;
               "
             >
-              Generated:
-              ${new Date().toLocaleDateString(
-                "en-IN"
-              )}
+              Purchase Management & Inventory Record
             </p>
 
           </div>
 
           <div
             style="
+              min-width:150px;
               text-align:right;
             "
           >
 
             <div
               style="
-                color:#6b7280;
-                font-size:9px;
+                font-size:8px;
+                font-weight:800;
+                letter-spacing:1px;
+                text-transform:uppercase;
+                color:#94a3b8;
+                margin-bottom:4px;
+              "
+            >
+              Generated On
+            </div>
+
+            <div
+              style="
+                font-size:12px;
+                font-weight:800;
+                color:#111827;
+              "
+            >
+              ${generatedDate}
+            </div>
+
+            <div
+              style="
+                margin-top:10px;
+                font-size:8px;
+                font-weight:800;
+                letter-spacing:1px;
+                text-transform:uppercase;
+                color:#94a3b8;
+                margin-bottom:4px;
+              "
+            >
+              Total Records
+            </div>
+
+            <div
+              style="
+                font-size:18px;
+                font-weight:900;
+                color:#111827;
+              "
+            >
+              ${itemsToExport.length}
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- SUMMARY -->
+
+        <div
+          style="
+            display:grid;
+            grid-template-columns:repeat(4,1fr);
+            gap:9px;
+            margin-bottom:18px;
+          "
+        >
+
+          <div
+            style="
+              border:1px solid #cbd5e1;
+              background:#f8fafc;
+              padding:11px;
+              border-radius:6px;
+            "
+          >
+            <div
+              style="
+                font-size:8px;
+                font-weight:800;
+                text-transform:uppercase;
+                letter-spacing:.5px;
+                color:#64748b;
+              "
+            >
+              Purchase Qty
+            </div>
+
+            <div
+              style="
+                margin-top:5px;
+                font-size:16px;
+                font-weight:900;
+                color:#111827;
+              "
+            >
+              ${totalQty.toLocaleString("en-IN")}
+              <span
+                style="
+                  font-size:9px;
+                  font-weight:600;
+                  color:#64748b;
+                "
+              >
+                Units
+              </span>
+            </div>
+          </div>
+
+          <div
+            style="
+              border:1px solid #cbd5e1;
+              background:#f8fafc;
+              padding:11px;
+              border-radius:6px;
+            "
+          >
+            <div
+              style="
+                font-size:8px;
+                font-weight:800;
+                text-transform:uppercase;
+                letter-spacing:.5px;
+                color:#64748b;
               "
             >
               Records
             </div>
 
-            <strong
+            <div
               style="
-                font-size:18px;
+                margin-top:5px;
+                font-size:16px;
+                font-weight:900;
+                color:#111827;
               "
             >
               ${itemsToExport.length}
-            </strong>
+            </div>
+          </div>
 
+          <div
+            style="
+              border:1px solid #cbd5e1;
+              background:#f8fafc;
+              padding:11px;
+              border-radius:6px;
+            "
+          >
+            <div
+              style="
+                font-size:8px;
+                font-weight:800;
+                text-transform:uppercase;
+                letter-spacing:.5px;
+                color:#64748b;
+              "
+            >
+              Raw Cost / Unit Total
+            </div>
+
+            <div
+              style="
+                margin-top:5px;
+                font-size:16px;
+                font-weight:900;
+                color:#111827;
+              "
+            >
+              ₹${totalRawCost.toLocaleString("en-IN")}
+            </div>
+          </div>
+
+          <div
+            style="
+              border:2px solid #111827;
+              background:#f1f5f9;
+              padding:10px;
+              border-radius:6px;
+            "
+          >
+            <div
+              style="
+                font-size:8px;
+                font-weight:800;
+                text-transform:uppercase;
+                letter-spacing:.5px;
+                color:#475569;
+              "
+            >
+              Total Expense
+            </div>
+
+            <div
+              style="
+                margin-top:5px;
+                font-size:17px;
+                font-weight:900;
+                color:#111827;
+              "
+            >
+              ₹${totalExp.toLocaleString("en-IN")}
+            </div>
           </div>
 
         </div>
+
+        <!-- TABLE -->
 
         <table
           style="
@@ -1185,42 +1212,110 @@ const PurchasePage = () => {
 
           <thead>
 
-            <tr
-              style="
-                background:#f1f5f9;
-              "
-            >
+            <tr style="background:#e2e8f0;">
 
-              <th style="padding:7px;border:1px solid #cbd5e1;">
+              <th
+                style="
+                  padding:9px 6px;
+                  border:1px solid #94a3b8;
+                  font-size:8px;
+                  font-weight:900;
+                  color:#111827;
+                  text-align:center;
+                "
+              >
                 #
               </th>
 
-              <th style="padding:7px;border:1px solid #cbd5e1;text-align:left;">
-                Product
+              <th
+                style="
+                  padding:9px 7px;
+                  border:1px solid #94a3b8;
+                  font-size:8px;
+                  font-weight:900;
+                  color:#111827;
+                  text-align:left;
+                "
+              >
+                PRODUCT
               </th>
 
-              <th style="padding:7px;border:1px solid #cbd5e1;text-align:left;">
-                Product ID
+              <th
+                style="
+                  padding:9px 7px;
+                  border:1px solid #94a3b8;
+                  font-size:8px;
+                  font-weight:900;
+                  color:#111827;
+                  text-align:left;
+                "
+              >
+                PRODUCT ID
               </th>
 
-              <th style="padding:7px;border:1px solid #cbd5e1;text-align:left;">
-                Date
+              <th
+                style="
+                  padding:9px 7px;
+                  border:1px solid #94a3b8;
+                  font-size:8px;
+                  font-weight:900;
+                  color:#111827;
+                  text-align:left;
+                "
+              >
+                DATE
               </th>
 
-              <th style="padding:7px;border:1px solid #cbd5e1;text-align:left;">
-                Supplier
+              <th
+                style="
+                  padding:9px 7px;
+                  border:1px solid #94a3b8;
+                  font-size:8px;
+                  font-weight:900;
+                  color:#111827;
+                  text-align:left;
+                "
+              >
+                SUPPLIER
               </th>
 
-              <th style="padding:7px;border:1px solid #cbd5e1;">
-                Qty
+              <th
+                style="
+                  padding:9px 6px;
+                  border:1px solid #94a3b8;
+                  font-size:8px;
+                  font-weight:900;
+                  color:#111827;
+                  text-align:center;
+                "
+              >
+                QTY
               </th>
 
-              <th style="padding:7px;border:1px solid #cbd5e1;text-align:right;">
-                Raw Cost
+              <th
+                style="
+                  padding:9px 6px;
+                  border:1px solid #94a3b8;
+                  font-size:8px;
+                  font-weight:900;
+                  color:#111827;
+                  text-align:right;
+                "
+              >
+                RAW COST
               </th>
 
-              <th style="padding:7px;border:1px solid #cbd5e1;text-align:right;">
-                Total Expense
+              <th
+                style="
+                  padding:9px 6px;
+                  border:1px solid #94a3b8;
+                  font-size:8px;
+                  font-weight:900;
+                  color:#111827;
+                  text-align:right;
+                "
+              >
+                TOTAL EXPENSE
               </th>
 
             </tr>
@@ -1228,10 +1323,29 @@ const PurchasePage = () => {
           </thead>
 
           <tbody>
-            ${reportRows}
+            ${
+              reportRows ||
+              `
+                <tr>
+                  <td
+                    colspan="8"
+                    style="
+                      padding:25px;
+                      text-align:center;
+                      border:1px solid #cbd5e1;
+                      color:#64748b;
+                    "
+                  >
+                    No purchase records found.
+                  </td>
+                </tr>
+              `
+            }
           </tbody>
 
         </table>
+
+        <!-- TOTAL BOX -->
 
         <div
           style="
@@ -1243,9 +1357,9 @@ const PurchasePage = () => {
 
           <table
             style="
-              width:310px;
+              width:330px;
               border-collapse:collapse;
-              font-size:10px;
+              font-size:9px;
             "
           >
 
@@ -1253,25 +1367,51 @@ const PurchasePage = () => {
 
               <tr>
 
-                <td style="padding:7px;border:1px solid #cbd5e1;">
+                <td
+                  style="
+                    padding:8px;
+                    border:1px solid #cbd5e1;
+                    color:#475569;
+                  "
+                >
                   Total Purchase Qty
                 </td>
 
-                <td style="padding:7px;border:1px solid #cbd5e1;text-align:right;font-weight:700;">
-                  ${totalQty.toLocaleString(
-                    "en-IN"
-                  )} Units
+                <td
+                  style="
+                    padding:8px;
+                    border:1px solid #cbd5e1;
+                    text-align:right;
+                    font-weight:800;
+                    color:#111827;
+                  "
+                >
+                  ${totalQty.toLocaleString("en-IN")} Units
                 </td>
 
               </tr>
 
               <tr>
 
-                <td style="padding:7px;border:1px solid #cbd5e1;">
+                <td
+                  style="
+                    padding:8px;
+                    border:1px solid #cbd5e1;
+                    color:#475569;
+                  "
+                >
                   Total Records
                 </td>
 
-                <td style="padding:7px;border:1px solid #cbd5e1;text-align:right;font-weight:700;">
+                <td
+                  style="
+                    padding:8px;
+                    border:1px solid #cbd5e1;
+                    text-align:right;
+                    font-weight:800;
+                    color:#111827;
+                  "
+                >
                   ${itemsToExport.length}
                 </td>
 
@@ -1279,14 +1419,29 @@ const PurchasePage = () => {
 
               <tr>
 
-                <td style="padding:7px;border:1px solid #cbd5e1;font-weight:700;">
-                  Total Raw Expense
+                <td
+                  style="
+                    padding:9px;
+                    border:2px solid #111827;
+                    font-weight:900;
+                    color:#111827;
+                    background:#f8fafc;
+                  "
+                >
+                  GRAND TOTAL EXPENSE
                 </td>
 
-                <td style="padding:7px;border:1px solid #cbd5e1;text-align:right;font-weight:700;">
-                  ₹${totalExp.toLocaleString(
-                    "en-IN"
-                  )}
+                <td
+                  style="
+                    padding:9px;
+                    border:2px solid #111827;
+                    text-align:right;
+                    font-weight:900;
+                    color:#111827;
+                    background:#f8fafc;
+                  "
+                >
+                  ₹${totalExp.toLocaleString("en-IN")}
                 </td>
 
               </tr>
@@ -1297,17 +1452,30 @@ const PurchasePage = () => {
 
         </div>
 
+        <!-- FOOTER -->
+
         <div
           style="
-            margin-top:22px;
-            padding-top:9px;
-            border-top:1px solid #e5e7eb;
+            margin-top:24px;
+            padding-top:10px;
+            border-top:1px solid #cbd5e1;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:20px;
             font-size:8px;
-            color:#9ca3af;
-            text-align:center;
+            color:#64748b;
           "
         >
-          Vraj Creation • Purchase Management Report
+
+          <span>
+            Vraj Creation • Purchase Management Report
+          </span>
+
+          <span>
+            Computer Generated Document
+          </span>
+
         </div>
 
       </div>
@@ -1341,42 +1509,26 @@ const PurchasePage = () => {
           title
         );
 
-      wrapper =
-        document.createElement(
-          "div"
-        );
+      wrapper = document.createElement("div");
 
-      wrapper.style.position =
-        "fixed";
-
-      wrapper.style.left =
-        "-100000px";
-
+      wrapper.style.position = "fixed";
+      wrapper.style.left = "-100000px";
       wrapper.style.top = "0";
+      wrapper.style.width = "1000px";
+      wrapper.style.background = "#ffffff";
+      wrapper.style.color = "#111827";
+      wrapper.style.zIndex = "-9999";
 
-      wrapper.style.width =
-        "1000px";
+      wrapper.innerHTML = reportHTML;
 
-      wrapper.style.background =
-        "#fff";
+      document.body.appendChild(wrapper);
 
-      wrapper.innerHTML =
-        reportHTML;
-
-      document.body.appendChild(
-        wrapper
-      );
-
-      await new Promise(
-        (resolve) =>
-          setTimeout(
-            resolve,
-            500
-          )
+      await new Promise((resolve) =>
+        setTimeout(resolve, 700)
       );
 
       const options = {
-        margin: [6, 6, 6, 6],
+        margin: [5, 5, 5, 5],
 
         filename,
 
@@ -1386,39 +1538,33 @@ const PurchasePage = () => {
         },
 
         html2canvas: {
-          scale: 1.5,
+          scale: 2,
           useCORS: true,
           allowTaint: true,
-          backgroundColor:
-            "#ffffff",
+          backgroundColor: "#ffffff",
           logging: false,
           scrollX: 0,
           scrollY: 0,
           windowWidth: 1000,
+          windowHeight: 1400,
         },
 
         jsPDF: {
           unit: "mm",
           format: "a4",
-          orientation:
-            "landscape",
+          orientation: "landscape",
           compress: true,
         },
 
         pagebreak: {
-          mode: [
-            "css",
-            "legacy",
-          ],
+          mode: ["css", "legacy"],
           avoid: ["tr"],
         },
       };
 
       await html2pdf()
         .set(options)
-        .from(
-          wrapper.firstElementChild
-        )
+        .from(wrapper.firstElementChild)
         .save();
     } catch (error) {
       console.error(
@@ -1440,93 +1586,66 @@ const PurchasePage = () => {
   // SELECTED PDF
   // =====================================================
 
-  const handleDownloadPDF =
-    async () => {
-      const itemsToExport =
-        purchases.filter(
-          (item) =>
-            selectedIds.includes(
-              item._id
-            )
-        );
+  const handleDownloadPDF = async () => {
+    const itemsToExport = purchases.filter(
+      (item) =>
+        selectedIds.includes(item._id)
+    );
 
-      if (
-        !itemsToExport.length
-      ) {
-        setError(
-          "PDF export ke liye table mein se kam se kam ek purchase select karein."
-        );
-        return;
-      }
+    if (!itemsToExport.length) {
+      setError(
+        "PDF export ke liye table mein se kam se kam ek purchase select karein."
+      );
+      return;
+    }
+
+    await generatePurchasePDF(
+      itemsToExport,
+      `Selected_Purchase_Report_${getToday()}.pdf`,
+      "Selected Purchase Statement"
+    );
+  };
+
+  // =====================================================
+  // SINGLE PURCHASE PDF
+  // =====================================================
+
+  const handlePrintSinglePurchase = async (item) => {
+    if (!item?._id) {
+      setError("Purchase record nahi mila.");
+      return;
+    }
+
+    try {
+      setPrintingId(item._id);
+      setError("");
+
+      const productId =
+        getProductDisplayId(item);
+
+      const safeProductName = String(
+        item.productName || "Purchase"
+      )
+        .replace(/[^a-zA-Z0-9-_ ]/g, "")
+        .trim()
+        .replace(/\s+/g, "_");
+
+      const safeProductId = String(
+        productId || "ID"
+      ).replace(/[^a-zA-Z0-9-_]/g, "");
+
+      const filename =
+        `Purchase_${safeProductName}_${safeProductId}_${item.purchaseDate || getToday()}.pdf`;
 
       await generatePurchasePDF(
-        itemsToExport,
-        `Selected_Purchase_Report_${getToday()}.pdf`,
-        "Selected Purchase Statement"
+        [item],
+        filename,
+        "Purchase Entry"
       );
-    };
-
-  // =====================================================
-  // SINGLE PURCHASE PRINT
-  // =====================================================
-
-  const handlePrintSinglePurchase =
-    async (item) => {
-      if (!item?._id) {
-        setError(
-          "Purchase record nahi mila."
-        );
-        return;
-      }
-
-      try {
-        setPrintingId(
-          item._id
-        );
-
-        setError("");
-
-        const productId =
-          getProductDisplayId(
-            item
-          );
-
-        const safeProductName =
-          String(
-            item.productName ||
-              "Purchase"
-          )
-            .replace(
-              /[^a-zA-Z0-9-_ ]/g,
-              ""
-            )
-            .trim()
-            .replace(
-              /\s+/g,
-              "_"
-            );
-
-        const safeProductId =
-          String(
-            productId ||
-              "ID"
-          ).replace(
-            /[^a-zA-Z0-9-_]/g,
-            ""
-          );
-
-        const filename =
-          `Purchase_${safeProductName}_${safeProductId}_${item.purchaseDate || getToday()}.pdf`;
-
-        await generatePurchasePDF(
-          [item],
-          filename,
-          "Purchase Entry"
-        );
-      } finally {
-        setPrintingId(null);
-      }
-    };
+    } finally {
+      setPrintingId(null);
+    }
+  };
 
   // =====================================================
   // LOADING
@@ -1564,7 +1683,7 @@ const PurchasePage = () => {
     <div className="space-y-6 pb-8">
 
       {/* =====================================================
-          ANIMATION STYLES
+          ANIMATION + PRINT STYLES
       ===================================================== */}
 
       <style>{`
@@ -1605,6 +1724,7 @@ const PurchasePage = () => {
           0%, 100% {
             box-shadow: 0 0 0 rgba(99,102,241,0);
           }
+
           50% {
             box-shadow: 0 0 28px rgba(99,102,241,0.14);
           }
@@ -1662,6 +1782,88 @@ const PurchasePage = () => {
           transform: scale(1.08) rotate(1deg);
           box-shadow: 0 10px 25px rgba(15,23,42,0.14);
         }
+
+        /* =====================================================
+           PRINT
+        ===================================================== */
+
+        @media print {
+
+          @page {
+            size: A4 landscape;
+            margin: 7mm;
+          }
+
+          html,
+          body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          body * {
+            box-shadow: none !important;
+            text-shadow: none !important;
+          }
+
+          .dark,
+          .dark * {
+            background: #ffffff !important;
+            color: #111827 !important;
+          }
+
+          button,
+          input,
+          select,
+          textarea,
+          form,
+          nav,
+          aside {
+            display: none !important;
+          }
+
+          .purchase-fade-up,
+          .purchase-scale,
+          .purchase-slide,
+          .purchase-glow {
+            animation: none !important;
+            transform: none !important;
+          }
+
+          .purchase-row {
+            transform: none !important;
+          }
+
+          .purchase-action {
+            display: none !important;
+          }
+
+          .overflow-x-auto {
+            overflow: visible !important;
+          }
+
+          table {
+            page-break-inside: auto;
+          }
+
+          tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          thead {
+            display: table-header-group;
+          }
+
+          .purchase-print-hide {
+            display: none !important;
+          }
+
+          .purchase-print-only {
+            display: block !important;
+          }
+        }
       `}</style>
 
       {/* =====================================================
@@ -1692,16 +1894,11 @@ const PurchasePage = () => {
 
         <div className="flex flex-wrap items-center gap-3">
 
-          {/* SELECTED PDF */}
-
           <button
             type="button"
-            onClick={
-              handleDownloadPDF
-            }
+            onClick={handleDownloadPDF}
             className="group flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-600/20 transition-all duration-200 hover:-translate-y-1 hover:bg-red-700 hover:shadow-xl hover:shadow-red-600/25 active:scale-95"
           >
-
             <span className="transition-transform duration-200 group-hover:rotate-6 group-hover:scale-110">
               📄
             </span>
@@ -1709,25 +1906,18 @@ const PurchasePage = () => {
             Export Selected PDF (
             {selectedIds.length}
             )
-
           </button>
-
-          {/* ADD */}
 
           <button
             type="button"
-            onClick={
-              handleOpenAddModal
-            }
+            onClick={handleOpenAddModal}
             className="group flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-900/20 transition-all duration-200 hover:-translate-y-1 hover:bg-indigo-600 hover:shadow-xl hover:shadow-indigo-600/20 active:scale-95 dark:bg-white dark:text-slate-950 dark:hover:bg-indigo-500 dark:hover:text-white"
           >
-
             <span className="text-lg transition-transform duration-200 group-hover:rotate-90">
               ＋
             </span>
 
             Add Purchase
-
           </button>
 
         </div>
@@ -1739,7 +1929,6 @@ const PurchasePage = () => {
       ===================================================== */}
 
       {error && (
-
         <div className="purchase-scale flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 shadow-sm dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
 
           <span>
@@ -1748,16 +1937,13 @@ const PurchasePage = () => {
 
           <button
             type="button"
-            onClick={() =>
-              setError("")
-            }
+            onClick={() => setError("")}
             className="ml-3 rounded-lg px-2 py-1 font-bold transition hover:bg-red-100 hover:scale-110 dark:hover:bg-red-900/40"
           >
             ×
           </button>
 
         </div>
-
       )}
 
       {/* =====================================================
@@ -1766,7 +1952,7 @@ const PurchasePage = () => {
 
       <div className="purchase-fade-up flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-500/5 dark:border-slate-800 dark:bg-slate-900 dark:focus-within:border-indigo-700">
 
-        <span className="text-lg text-slate-400 transition-transform duration-200 focus-within:scale-110">
+        <span className="text-lg text-slate-400">
           🔍
         </span>
 
@@ -1775,25 +1961,19 @@ const PurchasePage = () => {
           placeholder="Search by Product Name, ID or Supplier..."
           value={searchTerm}
           onChange={(e) =>
-            setSearchTerm(
-              e.target.value
-            )
+            setSearchTerm(e.target.value)
           }
           className="w-full bg-transparent text-sm text-slate-900 caret-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:caret-white"
         />
 
         {searchTerm && (
-
           <button
             type="button"
-            onClick={() =>
-              setSearchTerm("")
-            }
-            className="rounded-lg px-2 py-1 text-xs font-bold text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 hover:scale-105 dark:hover:bg-slate-800 dark:hover:text-white"
+            onClick={() => setSearchTerm("")}
+            className="rounded-lg px-2 py-1 text-xs font-bold text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
           >
             Clear
           </button>
-
         )}
 
       </div>
@@ -1843,64 +2023,59 @@ const PurchasePage = () => {
 
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-hidden">
 
-          <table className="w-full min-w-[1150px] text-left text-sm">
+          <table className="w-full table-fixed text-left text-sm sm:table-auto sm:min-w-[1150px]">
 
             <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/60">
 
               <tr>
 
-                <th className="w-10 px-4 py-3 text-center">
+                <th className="w-10 px-2 py-3 text-center sm:px-4">
                   <input
                     type="checkbox"
                     aria-label="Select all filtered purchases"
-                    onChange={
-                      handleToggleSelectAll
-                    }
+                    onChange={handleToggleSelectAll}
                     checked={
-                      filteredPurchases.length >
-                        0 &&
+                      filteredPurchases.length > 0 &&
                       filteredPurchases.every(
                         (item) =>
-                          selectedIds.includes(
-                            item._id
-                          )
+                          selectedIds.includes(item._id)
                       )
                     }
-                    className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 transition hover:scale-110 focus:ring-indigo-500"
+                    className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600"
                   />
                 </th>
 
-                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <th className="px-2 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:px-4">
                   Product
                 </th>
 
-                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <th className="hidden px-2 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:table-cell sm:px-4">
                   Product ID
                 </th>
 
-                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <th className="hidden px-2 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:table-cell sm:px-4">
                   Date
                 </th>
 
-                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <th className="hidden px-2 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:table-cell sm:px-4">
                   Supplier
                 </th>
 
-                <th className="px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <th className="px-2 py-3 text-center text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:px-4">
                   Qty
                 </th>
 
-                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <th className="hidden px-2 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:table-cell sm:px-4">
                   Raw Cost
                 </th>
 
-                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-blue-600 dark:text-blue-400">
+                <th className="px-2 py-3 text-xs font-black uppercase tracking-wide text-blue-600 dark:text-blue-400 sm:px-4">
                   Total Expense
                 </th>
 
-                <th className="px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <th className="hidden px-1 py-3 text-center text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:table-cell sm:px-4">
                   Actions
                 </th>
 
@@ -1910,8 +2085,7 @@ const PurchasePage = () => {
 
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
 
-              {filteredPurchases.length ===
-              0 ? (
+              {filteredPurchases.length === 0 ? (
 
                 <tr>
 
@@ -1946,19 +2120,13 @@ const PurchasePage = () => {
                   (item, index) => {
 
                     const displayId =
-                      getProductDisplayId(
-                        item
-                      );
+                      getProductDisplayId(item);
 
                     return (
                       <tr
-                        key={
-                          item._id
-                        }
+                        key={item._id}
                         className={`purchase-row ${
-                          selectedIds.includes(
-                            item._id
-                          )
+                          selectedIds.includes(item._id)
                             ? "bg-indigo-50/60 dark:bg-indigo-950/20"
                             : ""
                         }`}
@@ -1971,9 +2139,7 @@ const PurchasePage = () => {
                         }}
                       >
 
-                        {/* CHECKBOX */}
-
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-2 py-3 text-center sm:px-4">
 
                           <input
                             type="checkbox"
@@ -1985,60 +2151,40 @@ const PurchasePage = () => {
                               item._id
                             )}
                             onChange={() =>
-                              handleToggleSelect(
-                                item._id
-                              )
+                              handleToggleSelect(item._id)
                             }
-                            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 transition hover:scale-110 focus:ring-indigo-500"
+                            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600"
                           />
 
                         </td>
 
-                        {/* PRODUCT */}
+                        <td className="min-w-0 px-2 py-3 sm:px-4">
 
-                        <td className="px-4 py-3">
+                          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
 
-                          <div className="flex items-center gap-3">
-
-                            <div className="group relative h-11 w-11 shrink-0">
-
-                              <img
-                                src={
-                                  getPurchaseImage(
-                                    item
-                                  )
-                                }
-                                alt={
-                                  item.productName ||
-                                  "Product"
-                                }
-                                onError={(
-                                  e
-                                ) => {
-                                  e.currentTarget.src =
-                                    DEFAULT_IMAGE;
-                                }}
-                                className="product-image-hover h-11 w-11 rounded-xl border border-slate-200 object-cover dark:border-slate-700"
-                              />
-
-                              <div className="pointer-events-none absolute inset-0 rounded-xl bg-indigo-500/0 transition group-hover:bg-indigo-500/5" />
-
-                            </div>
+                            <img
+                              src={getPurchaseImage(item)}
+                              alt={
+                                item.productName ||
+                                "Product"
+                              }
+                              onError={(e) => {
+                                e.currentTarget.src =
+                                  DEFAULT_IMAGE;
+                              }}
+                              className="product-image-hover h-9 w-9 shrink-0 rounded-xl border border-slate-200 object-cover dark:border-slate-700 sm:h-11 sm:w-11"
+                            />
 
                             <div className="min-w-0">
 
-                              <p className="max-w-[220px] truncate font-bold text-slate-800 dark:text-slate-100">
-                                {
-                                  item.productName
-                                }
+                              <p className="max-w-[110px] truncate font-bold text-slate-800 dark:text-slate-100">
+                                {item.productName}
                               </p>
 
                               <p className="mt-0.5 text-[11px] text-slate-400">
                                 Entry:{" "}
                                 {item._id
-                                  ?.slice(
-                                    -6
-                                  )
+                                  ?.slice(-6)
                                   .toUpperCase()}
                               </p>
 
@@ -2048,132 +2194,134 @@ const PurchasePage = () => {
 
                         </td>
 
-                        {/* PRODUCT ID */}
+                        <td className="hidden px-2 py-3 sm:table-cell sm:px-4">
 
-                        <td className="px-4 py-3">
-
-                          <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-bold text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-400">
-                            {
-                              displayId
-                            }
+                          <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                            {displayId}
                           </span>
 
                         </td>
 
-                        {/* DATE */}
-
-                        <td className="px-4 py-3 text-xs font-medium text-slate-600 dark:text-slate-400">
-                          {
-                            item.purchaseDate
-                          }
+                        <td className="hidden px-2 py-3 text-xs font-medium text-slate-600 sm:table-cell sm:px-4 dark:text-slate-400">
+                          {item.purchaseDate}
                         </td>
 
-                        {/* SUPPLIER */}
-
-                        <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
-                          {
-                            item.supplierName
-                          }
+                        <td className="hidden px-2 py-3 font-medium text-slate-700 sm:table-cell sm:px-4 dark:text-slate-300">
+                          {item.supplierName}
                         </td>
 
-                        {/* QTY */}
+                        <td className="px-2 py-3 text-center sm:px-4">
 
-                        <td className="px-4 py-3 text-center">
-
-                          <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700 transition hover:scale-105 dark:bg-slate-800 dark:text-slate-200">
-                            {
-                              item.quantity
-                            }
+                          <span className="inline-flex rounded-lg bg-slate-100 px-2 py-1 text-xs font-black sm:px-2.5 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                            {item.quantity}
                           </span>
 
                         </td>
 
-                        {/* RAW COST */}
-
-                        <td className="px-4 py-3 font-medium text-slate-600 dark:text-slate-400">
-                          {formatCurrency(
-                            item.rawCost
-                          )}
+                        <td className="hidden px-2 py-3 font-medium text-slate-600 dark:text-slate-400 sm:table-cell sm:px-4">
+                          {formatCurrency(item.rawCost)}
                         </td>
 
-                        {/* TOTAL */}
+                        <td className="px-2 py-3 sm:px-4">
 
-                        <td className="px-4 py-3">
-
-                          <span className="font-black text-blue-600 dark:text-blue-400">
+                          <span className="whitespace-nowrap font-black text-blue-600 dark:text-blue-400">
                             {formatCurrency(
-                              calculateTotalPurchaseCost(
-                                item
-                              )
+                              calculateTotalPurchaseCost(item)
                             )}
                           </span>
 
-                        </td>
+                          {/* MOBILE ACTIONS */}
 
-                        {/* ACTIONS */}
-
-                        <td className="px-4 py-3">
-
-                          <div className="flex items-center justify-center gap-1.5">
-
-                            {/* PRINT */}
+                          <div className="mt-2 flex items-center justify-start gap-1 border-t border-slate-100 pt-2 sm:hidden dark:border-slate-800">
 
                             <button
                               type="button"
-                              title="Print / Download PDF"
+                              title="Download PDF"
                               onClick={() =>
-                                handlePrintSinglePurchase(
-                                  item
-                                )
+                                handlePrintSinglePurchase(item)
                               }
                               disabled={
-                                printingId ===
-                                item._id
+                                printingId === item._id
                               }
-                              className="purchase-action rounded-lg p-2 text-red-600 hover:bg-red-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                              className="purchase-action flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50"
                             >
 
-                              {printingId ===
-                              item._id ? (
-
-                                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-red-200 border-t-red-600" />
-
+                              {printingId === item._id ? (
+                                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-200 border-t-red-600" />
                               ) : (
-
-                                <span>
-                                  🖨️
-                                </span>
-
+                                <span>🖨️</span>
                               )}
 
                             </button>
-
-                            {/* EDIT */}
 
                             <button
                               type="button"
                               title="Edit"
                               onClick={() =>
-                                handleOpenEditModal(
-                                  item
-                                )
+                                handleOpenEditModal(item)
                               }
-                              className="purchase-action rounded-lg p-2 text-blue-600 hover:bg-blue-50 hover:shadow-sm dark:text-blue-400 dark:hover:bg-blue-950/40"
+                              className="purchase-action flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition-all hover:bg-blue-100 dark:bg-blue-950/30 dark:text-blue-400 dark:hover:bg-blue-950/50"
                             >
                               ✏️
                             </button>
-
-                            {/* DELETE */}
 
                             <button
                               type="button"
                               title="Delete"
                               onClick={() =>
-                                handleDelete(
-                                  item._id
-                                )
+                                handleDelete(item._id)
                               }
-                              className="purchase-action rounded-lg p-2 text-rose-600 hover:bg-rose-50 hover:shadow-sm dark:text-rose-400 dark:hover:bg-rose-950/40"
+                              className="purchase-action flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 transition-all hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-950/50"
+                            >
+                              🗑️
+                            </button>
+
+                          </div>
+
+                        </td>
+
+                        <td className="hidden px-1 py-3 sm:table-cell sm:px-4">
+
+                          <div className="flex items-center justify-center gap-0.5 sm:gap-1.5">
+
+                            <button
+                              type="button"
+                              title="Download PDF"
+                              onClick={() =>
+                                handlePrintSinglePurchase(item)
+                              }
+                              disabled={
+                                printingId === item._id
+                              }
+                              className="purchase-action rounded-lg p-1.5 text-red-600 sm:p-2 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                            >
+
+                              {printingId === item._id ? (
+                                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-red-200 border-t-red-600" />
+                              ) : (
+                                <span>🖨️</span>
+                              )}
+
+                            </button>
+
+                            <button
+                              type="button"
+                              title="Edit"
+                              onClick={() =>
+                                handleOpenEditModal(item)
+                              }
+                              className="purchase-action rounded-lg p-1.5 text-blue-600 sm:p-2 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                            >
+                              ✏️
+                            </button>
+
+                            <button
+                              type="button"
+                              title="Delete"
+                              onClick={() =>
+                                handleDelete(item._id)
+                              }
+                              className="purchase-action rounded-lg p-1.5 text-rose-600 sm:p-2 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
                             >
                               🗑️
                             </button>
@@ -2210,10 +2358,7 @@ const PurchasePage = () => {
               "purchaseScale 0.25s ease-out both",
           }}
           onMouseDown={(e) => {
-            if (
-              e.target ===
-              e.currentTarget
-            ) {
+            if (e.target === e.currentTarget) {
               handleCloseModal();
             }
           }}
@@ -2223,10 +2368,6 @@ const PurchasePage = () => {
             className="purchase-scale max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
           >
 
-            {/* =================================================
-                MODAL HEADER
-            ================================================= */}
-
             <div className="mb-5 flex items-center justify-between border-b border-slate-200 pb-4 dark:border-slate-800">
 
               <div>
@@ -2234,9 +2375,7 @@ const PurchasePage = () => {
                 <div className="flex items-center gap-2">
 
                   <span className="text-2xl">
-                    {editingId
-                      ? "✏️"
-                      : "📦"}
+                    {editingId ? "✏️" : "📦"}
                   </span>
 
                   <h2 className="text-lg font-black text-slate-900 dark:text-white">
@@ -2257,9 +2396,7 @@ const PurchasePage = () => {
 
               <button
                 type="button"
-                onClick={
-                  handleCloseModal
-                }
+                onClick={handleCloseModal}
                 disabled={saving}
                 className="flex h-9 w-9 items-center justify-center rounded-xl text-xl font-bold text-slate-400 transition-all duration-200 hover:rotate-90 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-slate-800 dark:hover:text-white"
               >
@@ -2273,19 +2410,11 @@ const PurchasePage = () => {
               className="space-y-4"
             >
 
-              {/* =================================================
-                  PRODUCT + DATE
-              ================================================= */}
-
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
-                {/* PRODUCT SEARCH */}
 
                 <div
                   className="relative"
-                  ref={
-                    dropdownRef
-                  }
+                  ref={dropdownRef}
                 >
 
                   <label className="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">
@@ -2301,12 +2430,8 @@ const PurchasePage = () => {
                     <input
                       type="text"
                       placeholder="Search product name / ID..."
-                      value={
-                        productSearchQuery
-                      }
-                      onChange={(
-                        e
-                      ) => {
+                      value={productSearchQuery}
+                      onChange={(e) => {
                         setProductSearchQuery(
                           e.target.value
                         );
@@ -2315,28 +2440,18 @@ const PurchasePage = () => {
                           true
                         );
 
-                        if (
-                          !e.target.value.trim()
-                        ) {
-                          handleSelectProduct(
-                            null
-                          );
+                        if (!e.target.value.trim()) {
+                          handleSelectProduct(null);
                         }
                       }}
                       onFocus={() =>
-                        setIsProductDropdownOpen(
-                          true
-                        )
+                        setIsProductDropdownOpen(true)
                       }
-                      disabled={
-                        saving
-                      }
+                      disabled={saving}
                       className={`${INPUT_CLASS} pl-10`}
                     />
 
                   </div>
-
-                  {/* PRODUCT DROPDOWN */}
 
                   {isProductDropdownOpen && (
 
@@ -2348,8 +2463,7 @@ const PurchasePage = () => {
                       }}
                     >
 
-                      {filteredModalProducts.length ===
-                      0 ? (
+                      {filteredModalProducts.length === 0 ? (
 
                         <div className="px-4 py-5 text-center">
 
@@ -2366,26 +2480,18 @@ const PurchasePage = () => {
                       ) : (
 
                         filteredModalProducts.map(
-                          (
-                            product
-                          ) => {
+                          (product) => {
 
                             const sku =
-                              getProductSku(
-                                product
-                              );
+                              getProductSku(product);
 
                             const image =
-                              getProductImage(
-                                product
-                              );
+                              getProductImage(product);
 
                             return (
                               <button
                                 type="button"
-                                key={
-                                  product._id
-                                }
+                                key={product._id}
                                 onClick={() =>
                                   handleSelectProduct(
                                     product
@@ -2403,9 +2509,7 @@ const PurchasePage = () => {
                                     product.name ||
                                     "Product"
                                   }
-                                  onError={(
-                                    e
-                                  ) => {
+                                  onError={(e) => {
                                     e.currentTarget.src =
                                       DEFAULT_IMAGE;
                                   }}
@@ -2415,29 +2519,21 @@ const PurchasePage = () => {
                                 <div className="min-w-0 flex-1">
 
                                   <p className="truncate text-xs font-black text-slate-800 dark:text-slate-100">
-                                    {
-                                      product.name
-                                    }
+                                    {product.name}
                                   </p>
 
                                   <div className="mt-1 flex flex-wrap gap-1.5">
 
                                     {sku && (
-
                                       <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[9px] font-bold text-slate-500 dark:bg-slate-700 dark:text-slate-300">
-                                        ID:{" "}
-                                        {
-                                          sku
-                                        }
+                                        ID: {sku}
                                       </span>
-
                                     )}
 
                                     <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[9px] font-bold text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
                                       Stock:{" "}
                                       {Number(
-                                        product.stock ||
-                                          0
+                                        product.stock || 0
                                       ).toLocaleString(
                                         "en-IN"
                                       )}
@@ -2447,7 +2543,7 @@ const PurchasePage = () => {
 
                                 </div>
 
-                                <span className="text-slate-300 transition-transform duration-200 group-hover:translate-x-1">
+                                <span className="text-slate-300">
                                   →
                                 </span>
 
@@ -2464,8 +2560,6 @@ const PurchasePage = () => {
 
                 </div>
 
-                {/* DATE */}
-
                 <div>
 
                   <label className="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">
@@ -2475,38 +2569,20 @@ const PurchasePage = () => {
                   <input
                     type="date"
                     name="purchaseDate"
-                    value={
-                      formData.purchaseDate
-                    }
-                    onChange={
-                      handleChange
-                    }
+                    value={formData.purchaseDate}
+                    onChange={handleChange}
                     required
-                    disabled={
-                      saving
-                    }
-                    className={
-                      INPUT_CLASS
-                    }
+                    disabled={saving}
+                    className={INPUT_CLASS}
                   />
 
                 </div>
 
               </div>
 
-              {/* =================================================
-                  SELECTED PRODUCT PREVIEW
-              ================================================= */}
-
               {selectedProduct && (
 
-                <div
-                  className="purchase-glow overflow-hidden rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-blue-50 p-4 dark:border-indigo-900/50 dark:from-indigo-950/30 dark:via-slate-900 dark:to-blue-950/20"
-                  style={{
-                    animation:
-                      "purchaseScale 0.4s ease-out both",
-                  }}
-                >
+                <div className="purchase-glow overflow-hidden rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-blue-50 p-4 dark:border-indigo-900/50 dark:from-indigo-950/30 dark:via-slate-900 dark:to-blue-950/20">
 
                   <div className="flex items-center gap-4">
 
@@ -2520,12 +2596,8 @@ const PurchasePage = () => {
                           ) ||
                           DEFAULT_IMAGE
                         }
-                        alt={
-                          selectedProduct.name
-                        }
-                        onError={(
-                          e
-                        ) => {
+                        alt={selectedProduct.name}
+                        onError={(e) => {
                           e.currentTarget.src =
                             DEFAULT_IMAGE;
                         }}
@@ -2545,9 +2617,7 @@ const PurchasePage = () => {
                         <div>
 
                           <p className="truncate text-base font-black text-slate-900 dark:text-white">
-                            {
-                              selectedProduct.name
-                            }
+                            {selectedProduct.name}
                           </p>
 
                           <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
@@ -2565,16 +2635,13 @@ const PurchasePage = () => {
                       <div className="mt-2 flex flex-wrap gap-2">
 
                         <span className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300">
-                          🆔{" "}
-                          {formData.productSku ||
-                            "N/A"}
+                          🆔 {formData.productSku || "N/A"}
                         </span>
 
                         <span className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-bold text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400">
                           📦 Stock:{" "}
                           {Number(
-                            selectedProduct.stock ||
-                              0
+                            selectedProduct.stock || 0
                           ).toLocaleString(
                             "en-IN"
                           )}
@@ -2604,10 +2671,6 @@ const PurchasePage = () => {
 
               )}
 
-              {/* =================================================
-                  PRODUCT NAME + ID
-              ================================================= */}
-
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
                 <div>
@@ -2619,9 +2682,7 @@ const PurchasePage = () => {
                   <input
                     type="text"
                     name="productName"
-                    value={
-                      formData.productName
-                    }
+                    value={formData.productName}
                     readOnly
                     className={`${INPUT_CLASS} cursor-not-allowed bg-slate-100 dark:bg-slate-950`}
                   />
@@ -2637,9 +2698,7 @@ const PurchasePage = () => {
                   <input
                     type="text"
                     name="productSku"
-                    value={
-                      formData.productSku
-                    }
+                    value={formData.productSku}
                     readOnly
                     placeholder="Auto from product"
                     className={`${INPUT_CLASS} cursor-not-allowed bg-slate-100 font-mono dark:bg-slate-950`}
@@ -2648,10 +2707,6 @@ const PurchasePage = () => {
                 </div>
 
               </div>
-
-              {/* =================================================
-                  SUPPLIER
-              ================================================= */}
 
               <div>
 
@@ -2663,26 +2718,14 @@ const PurchasePage = () => {
                   type="text"
                   name="supplierName"
                   placeholder="Enter supplier name"
-                  value={
-                    formData.supplierName
-                  }
-                  onChange={
-                    handleChange
-                  }
+                  value={formData.supplierName}
+                  onChange={handleChange}
                   required
-                  disabled={
-                    saving
-                  }
-                  className={
-                    INPUT_CLASS
-                  }
+                  disabled={saving}
+                  className={INPUT_CLASS}
                 />
 
               </div>
-
-              {/* =================================================
-                  COST + QTY
-              ================================================= */}
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
@@ -2698,19 +2741,11 @@ const PurchasePage = () => {
                     placeholder="250"
                     min="0.01"
                     step="0.01"
-                    value={
-                      formData.rawCost
-                    }
-                    onChange={
-                      handleChange
-                    }
+                    value={formData.rawCost}
+                    onChange={handleChange}
                     required
-                    disabled={
-                      saving
-                    }
-                    className={
-                      INPUT_CLASS
-                    }
+                    disabled={saving}
+                    className={INPUT_CLASS}
                   />
 
                   {selectedProduct && (
@@ -2733,39 +2768,21 @@ const PurchasePage = () => {
                     placeholder="1"
                     min="1"
                     step="1"
-                    value={
-                      formData.quantity
-                    }
-                    onChange={
-                      handleChange
-                    }
+                    value={formData.quantity}
+                    onChange={handleChange}
                     required
-                    disabled={
-                      saving
-                    }
-                    className={
-                      INPUT_CLASS
-                    }
+                    disabled={saving}
+                    className={INPUT_CLASS}
                   />
 
                 </div>
 
               </div>
 
-              {/* =================================================
-                  TOTAL
-              ================================================= */}
+              {Number(formData.rawCost) > 0 &&
+                Number(formData.quantity) > 0 && (
 
-              {Number(
-                formData.rawCost
-              ) > 0 &&
-                Number(
-                  formData.quantity
-                ) > 0 && (
-
-                  <div
-                    className="purchase-scale rounded-2xl border border-indigo-100 bg-gradient-to-r from-slate-50 to-indigo-50 p-4 dark:border-indigo-900/40 dark:from-slate-950 dark:to-indigo-950/20"
-                  >
+                  <div className="purchase-scale rounded-2xl border border-indigo-100 bg-gradient-to-r from-slate-50 to-indigo-50 p-4 dark:border-indigo-900/40 dark:from-slate-950 dark:to-indigo-950/20">
 
                     <div className="flex items-center justify-between">
 
@@ -2777,16 +2794,12 @@ const PurchasePage = () => {
 
                         <p className="mt-1 text-[11px] text-slate-400">
                           {formatCurrency(
-                            Number(
-                              formData.rawCost
-                            )
+                            Number(formData.rawCost)
                           )}{" "}
                           ×{" "}
                           {Number(
                             formData.quantity
-                          ).toLocaleString(
-                            "en-IN"
-                          )}{" "}
+                          ).toLocaleString("en-IN")}{" "}
                           Units
                         </p>
 
@@ -2794,12 +2807,8 @@ const PurchasePage = () => {
 
                       <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">
                         {formatCurrency(
-                          Number(
-                            formData.rawCost
-                          ) *
-                            Number(
-                              formData.quantity
-                            )
+                          Number(formData.rawCost) *
+                            Number(formData.quantity)
                         )}
                       </span>
 
@@ -2808,10 +2817,6 @@ const PurchasePage = () => {
                   </div>
 
                 )}
-
-              {/* =================================================
-                  IMAGE
-              ================================================= */}
 
               <div>
 
@@ -2822,31 +2827,19 @@ const PurchasePage = () => {
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/jpg,image/webp"
-                  onChange={
-                    handleImageFileChange
-                  }
-                  disabled={
-                    saving
-                  }
-                  className={
-                    FILE_INPUT_CLASS
-                  }
+                  onChange={handleImageFileChange}
+                  disabled={saving}
+                  className={FILE_INPUT_CLASS}
                 />
 
                 {formData.productImage && (
 
-                  <div
-                    className="purchase-scale mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950"
-                  >
+                  <div className="purchase-scale mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950">
 
                     <img
-                      src={
-                        formData.productImage
-                      }
+                      src={formData.productImage}
                       alt="Product preview"
-                      onError={(
-                        e
-                      ) => {
+                      onError={(e) => {
                         e.currentTarget.src =
                           DEFAULT_IMAGE;
                       }}
@@ -2870,12 +2863,8 @@ const PurchasePage = () => {
 
                     <button
                       type="button"
-                      onClick={
-                        handleRemoveImage
-                      }
-                      disabled={
-                        saving
-                      }
+                      onClick={handleRemoveImage}
+                      disabled={saving}
                       className="rounded-lg px-3 py-2 text-xs font-bold text-rose-600 transition hover:bg-rose-50 hover:scale-105 disabled:opacity-50 dark:hover:bg-rose-950/30"
                     >
                       Remove
@@ -2890,10 +2879,6 @@ const PurchasePage = () => {
                 </p>
 
               </div>
-
-              {/* =================================================
-                  STOCK AFTER PURCHASE
-              ================================================= */}
 
               {selectedProduct && (
 
@@ -2915,20 +2900,16 @@ const PurchasePage = () => {
 
                     <div className="text-right">
 
-                      <p className="text-2xl font-black text-emerald-700 transition-all duration-300 dark:text-emerald-400">
+                      <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
 
                         {(
                           Number(
-                            selectedProduct.stock ||
-                              0
+                            selectedProduct.stock || 0
                           ) +
                           Number(
-                            formData.quantity ||
-                              0
+                            formData.quantity || 0
                           )
-                        ).toLocaleString(
-                          "en-IN"
-                        )}
+                        ).toLocaleString("en-IN")}
 
                       </p>
 
@@ -2944,10 +2925,6 @@ const PurchasePage = () => {
 
               )}
 
-              {/* =================================================
-                  ERROR
-              ================================================= */}
-
               {error && (
 
                 <div className="purchase-scale rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
@@ -2956,20 +2933,12 @@ const PurchasePage = () => {
 
               )}
 
-              {/* =================================================
-                  BUTTONS
-              ================================================= */}
-
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-800">
 
                 <button
                   type="button"
-                  onClick={
-                    handleCloseModal
-                  }
-                  disabled={
-                    saving
-                  }
+                  onClick={handleCloseModal}
+                  disabled={saving}
                   className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm active:scale-95 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   Cancel
@@ -2979,8 +2948,7 @@ const PurchasePage = () => {
                   type="submit"
                   disabled={
                     saving ||
-                    products.length ===
-                      0
+                    products.length === 0
                   }
                   className="group flex min-w-[140px] items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-indigo-600 hover:shadow-indigo-600/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-indigo-500 dark:hover:text-white"
                 >
@@ -2997,9 +2965,7 @@ const PurchasePage = () => {
 
                     <>
                       <span className="transition-transform duration-200 group-hover:scale-110">
-                        {editingId
-                          ? "✓"
-                          : "＋"}
+                        {editingId ? "✓" : "＋"}
                       </span>
 
                       {editingId
@@ -3026,3 +2992,4 @@ const PurchasePage = () => {
 };
 
 export default PurchasePage;
+

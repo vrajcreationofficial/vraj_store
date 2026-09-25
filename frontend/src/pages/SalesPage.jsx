@@ -10,7 +10,7 @@ const API_BASE_URL =
   (window.location.hostname === "localhost"
     ? "http://localhost:5000/api"
     : "https://vraj-store.onrender.com/api");
-    
+
 const SALES_API_URL = `${API_BASE_URL}/sales`;
 const PRODUCTS_API_URL = `${API_BASE_URL}/products`;
 
@@ -80,7 +80,7 @@ const createInitialFormState = () => ({
 });
 
 // =========================================================
-// HELPER - PRODUCT ID
+// PRODUCT ID
 // =========================================================
 
 const getProductId = (product) => {
@@ -94,7 +94,7 @@ const getProductId = (product) => {
 };
 
 // =========================================================
-// HELPER - PRODUCT NAME
+// PRODUCT NAME
 // =========================================================
 
 const getProductName = (product) => {
@@ -107,7 +107,7 @@ const getProductName = (product) => {
 };
 
 // =========================================================
-// HELPER - PRODUCT IMAGE
+// PRODUCT IMAGE
 // =========================================================
 
 const getProductImage = (product) => {
@@ -122,34 +122,62 @@ const getProductImage = (product) => {
 };
 
 // =========================================================
+// MONEY
+// =========================================================
+
+const formatMoney = (value) => {
+  return Number(value || 0).toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  });
+};
+
+// =========================================================
+// DATE
+// =========================================================
+
+const formatDate = (value) => {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+// =========================================================
+// PLATFORM
+// =========================================================
+
+const getPlatformName = (platform) => {
+  const value = String(platform || "").toLowerCase();
+
+  if (value === "meesho") return "Meesho";
+  if (value === "amazon") return "Amazon";
+  if (value === "flipkart") return "Flipkart";
+
+  return String(platform || "-").toUpperCase();
+};
+
+// =========================================================
 // SALES PAGE
 // =========================================================
 
 const SalesPage = () => {
-  // =======================================================
-  // PLATFORM
-  // =======================================================
-
   const [selectedPlatform, setSelectedPlatform] =
     useState("meesho");
 
-  // =======================================================
-  // SEARCH
-  // =======================================================
-
   const [searchTerm, setSearchTerm] = useState("");
-
-  // =======================================================
-  // DATA
-  // =======================================================
 
   const [sales, setSales] = useState([]);
 
   const [products, setProducts] = useState([]);
-
-  // =======================================================
-  // LOADING
-  // =======================================================
 
   const [loading, setLoading] = useState(true);
 
@@ -158,10 +186,6 @@ const SalesPage = () => {
   const [productsLoading, setProductsLoading] =
     useState(false);
 
-  // =======================================================
-  // MODALS
-  // =======================================================
-
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [editingId, setEditingId] = useState(null);
@@ -169,38 +193,18 @@ const SalesPage = () => {
   const [previewProduct, setPreviewProduct] =
     useState(null);
 
-  // =======================================================
-  // PRINT
-  // =======================================================
-
   const [printMenuOpen, setPrintMenuOpen] =
     useState(false);
 
   const [printSaleId, setPrintSaleId] =
     useState(null);
 
-  // =======================================================
-  // ERROR
-  // =======================================================
-
   const [errorMessage, setErrorMessage] =
     useState("");
 
-  // =======================================================
-  // REQUEST LOCK
-  // =======================================================
-
   const requestInProgressRef = useRef(false);
 
-  // =======================================================
-  // IMAGE PREVIEW
-  // =======================================================
-
   const previewUrlRef = useRef(null);
-
-  // =======================================================
-  // FORM
-  // =======================================================
 
   const [formData, setFormData] = useState(
     createInitialFormState()
@@ -346,7 +350,7 @@ const SalesPage = () => {
   }, []);
 
   // =========================================================
-  // CLOSE PRINT MENU ON OUTSIDE CLICK
+  // CLOSE PRINT MENU
   // =========================================================
 
   useEffect(() => {
@@ -414,7 +418,64 @@ const SalesPage = () => {
   };
 
   // =========================================================
-  // SUMMARY
+  // PRINT DATA
+  // =========================================================
+
+  const printSales = printSaleId
+    ? filteredSales.filter(
+        (item) =>
+          String(item._id) ===
+          String(printSaleId)
+      )
+    : filteredSales;
+
+  const printTotalSettlement =
+    printSales.reduce(
+      (acc, item) =>
+        acc +
+        Number(
+          item.bankSettlementAmount || 0
+        ),
+      0
+    );
+
+  const printTotalPackaging =
+    printSales.reduce(
+      (acc, item) =>
+        acc +
+        Number(
+          item.packagingCost || 0
+        ),
+      0
+    );
+
+  const printTotalColouring =
+    printSales.reduce(
+      (acc, item) =>
+        acc +
+        Number(
+          item.colouringCost || 0
+        ),
+      0
+    );
+
+  const printTotalNetMargin =
+    printSales.reduce(
+      (acc, item) =>
+        acc + calculateMargin(item),
+      0
+    );
+
+  const printTotalQty =
+    printSales.reduce(
+      (acc, item) =>
+        acc +
+        Number(item.quantity || 0),
+      0
+    );
+
+  // =========================================================
+  // SCREEN SUMMARY
   // =========================================================
 
   const totalSettlement =
@@ -477,11 +538,11 @@ const SalesPage = () => {
       setTimeout(() => {
         setPrintSaleId(null);
       }, 500);
-    }, 100);
+    }, 150);
   };
 
   // =========================================================
-  // PRINT SINGLE SALE
+  // PRINT SINGLE
   // =========================================================
 
   const handlePrintSingle = (id) => {
@@ -495,7 +556,7 @@ const SalesPage = () => {
       setTimeout(() => {
         setPrintSaleId(null);
       }, 500);
-    }, 100);
+    }, 150);
   };
 
   // =========================================================
@@ -767,14 +828,8 @@ const SalesPage = () => {
           formData.colouringCost || 0
         );
 
-      // =====================================================
-      // VALIDATION
-      // =====================================================
-
       if (!productId) {
-        alert(
-          "Product select karo."
-        );
+        alert("Product select karo.");
         return;
       }
 
@@ -786,16 +841,12 @@ const SalesPage = () => {
       }
 
       if (!platform) {
-        alert(
-          "Platform select karo."
-        );
+        alert("Platform select karo.");
         return;
       }
 
       if (!date) {
-        alert(
-          "Date select karo."
-        );
+        alert("Date select karo.");
         return;
       }
 
@@ -839,10 +890,6 @@ const SalesPage = () => {
         return;
       }
 
-      // =====================================================
-      // FORMDATA
-      // =====================================================
-
       const data = new FormData();
 
       data.append(
@@ -885,20 +932,12 @@ const SalesPage = () => {
         String(colouring)
       );
 
-      // =====================================================
-      // IMAGE
-      // =====================================================
-
       if (formData.imageFile) {
         data.append(
           "productImage",
           formData.imageFile
         );
       }
-
-      // =====================================================
-      // URL
-      // =====================================================
 
       const url = editingId
         ? `${SALES_API_URL}/${editingId}`
@@ -907,16 +946,6 @@ const SalesPage = () => {
       const method = editingId
         ? "PUT"
         : "POST";
-
-      console.log(
-        "SALE REQUEST:",
-        method,
-        url
-      );
-
-      // =====================================================
-      // API
-      // =====================================================
 
       const response =
         await fetchWithTimeout(
@@ -932,11 +961,6 @@ const SalesPage = () => {
           .json()
           .catch(() => null);
 
-      console.log(
-        "SALE RESPONSE:",
-        result
-      );
-
       if (!response.ok) {
         throw new Error(
           result?.message ||
@@ -945,16 +969,8 @@ const SalesPage = () => {
         );
       }
 
-      // =====================================================
-      // RETURNED SALE
-      // =====================================================
-
       const returnedSale =
         result?.sale;
-
-      // =====================================================
-      // LOCAL UPDATE
-      // =====================================================
 
       if (returnedSale) {
         setSales((prevSales) => {
@@ -974,10 +990,6 @@ const SalesPage = () => {
           ];
         });
       }
-
-      // =====================================================
-      // CLOSE
-      // =====================================================
 
       if (previewUrlRef.current) {
         URL.revokeObjectURL(
@@ -1084,7 +1096,7 @@ const SalesPage = () => {
   };
 
   // =========================================================
-  // PRINT ROW CHECK
+  // PRINT ROW
   // =========================================================
 
   const shouldPrintRow = (item) => {
@@ -1099,56 +1111,58 @@ const SalesPage = () => {
   };
 
   // =========================================================
-  // SKELETON LOADER
+  // LOADING
   // =========================================================
 
   if (loading) {
     return (
       <div className="space-y-6">
-        {/* HEADER SKELETON */}
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
           <div className="space-y-3">
+
             <div className="h-8 w-56 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
 
             <div className="h-4 w-80 animate-pulse rounded-md bg-slate-100 dark:bg-slate-800" />
+
           </div>
 
           <div className="flex flex-wrap gap-3">
+
             <div className="h-10 w-64 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
 
             <div className="h-10 w-40 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
 
             <div className="h-10 w-36 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
-          </div>
-        </div>
 
-        {/* SEARCH SKELETON */}
+          </div>
+
+        </div>
 
         <div className="h-11 w-full animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800" />
 
-        {/* TABLE SKELETON */}
-
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          {/* TABLE HEADER */}
 
           <div className="h-12 animate-pulse border-b border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800" />
 
-          {/* TABLE ROWS */}
-
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
+
             {[1, 2, 3, 4, 5, 6].map(
               (item) => (
                 <div
                   key={item}
                   className="flex items-center gap-4 px-4 py-4"
                 >
+
                   <div className="h-9 w-9 shrink-0 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
 
                   <div className="flex-1 space-y-2">
+
                     <div className="h-3 w-40 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
 
                     <div className="h-2.5 w-24 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+
                   </div>
 
                   <div className="hidden h-3 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800 sm:block" />
@@ -1162,18 +1176,21 @@ const SalesPage = () => {
                   <div className="h-3 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
 
                   <div className="h-7 w-24 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
+
                 </div>
               )
             )}
+
           </div>
+
         </div>
 
-        {/* SUMMARY SKELETON */}
-
         <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4 dark:border-slate-800 dark:bg-slate-900">
+
           <div className="mb-3 h-3 w-40 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+
             {[1, 2, 3, 4, 5].map(
               (item) => (
                 <div
@@ -1182,8 +1199,11 @@ const SalesPage = () => {
                 />
               )
             )}
+
           </div>
+
         </div>
+
       </div>
     );
   }
@@ -1200,82 +1220,438 @@ const SalesPage = () => {
       ===================================================== */}
 
       <style>{`
+
+        /* ===================================================
+           SCREEN
+        =================================================== */
+
+        @media screen {
+
+          .print-only {
+            display: none !important;
+          }
+
+          .print-report-header,
+          .print-filter-box,
+          .print-footer {
+            display: none !important;
+          }
+
+        }
+
+        /* ===================================================
+           PRINT
+        =================================================== */
+
         @media print {
+
           @page {
             size: A4 portrait;
             margin: 10mm;
           }
 
-          .no-print {
-            display: none !important;
+          /*
+             IMPORTANT:
+             Print mein dashboard ka koi bhi element visible
+             nahi hoga. Sirf .print-area visible rahega.
+
+             Isse:
+             Vraj Creation
+             Inventory Management
+             pawan
+             Administrator
+             P
+             Sidebar
+             Header
+             Navigation
+
+             sab print se completely remove ho jayenge.
+          */
+
+          html,
+          body {
+            width: 100% !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #111111 !important;
+            font-family: Arial, Helvetica, sans-serif !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
 
-          body {
-            background: #ffffff !important;
-            color: #000000 !important;
-            font-size: 11px !important;
+          body * {
+            visibility: hidden !important;
+          }
+
+          .print-area,
+          .print-area * {
+            visibility: visible !important;
           }
 
           .print-area {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
-            box-shadow: none !important;
-            border: none !important;
+            background: #ffffff !important;
+            color: #111111 !important;
           }
 
+          .no-print {
+            display: none !important;
+            visibility: hidden !important;
+          }
+
+          .print-only {
+            display: block !important;
+            visibility: visible !important;
+          }
+
+          /*
+             Print report should look like a normal bill.
+          */
+
+          .print-report {
+            width: 100% !important;
+            background: #ffffff !important;
+            color: #111111 !important;
+          }
+
+          .print-report-header {
+            display: flex !important;
+            align-items: flex-start !important;
+            justify-content: space-between !important;
+            gap: 20px !important;
+            width: 100% !important;
+            padding: 0 0 8px 0 !important;
+            margin: 0 0 8px 0 !important;
+            border-bottom: 2px solid #111111 !important;
+            background: #ffffff !important;
+          }
+
+          .print-company-name {
+            margin: 0 !important;
+            padding: 0 !important;
+            color: #111111 !important;
+            font-size: 19px !important;
+            line-height: 1.15 !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.3px !important;
+          }
+
+          .print-report-name {
+            margin: 3px 0 0 0 !important;
+            color: #333333 !important;
+            font-size: 11px !important;
+            line-height: 1.3 !important;
+            font-weight: 600 !important;
+          }
+
+          .print-report-meta {
+            min-width: 155px !important;
+            text-align: right !important;
+            color: #222222 !important;
+            font-size: 8.5px !important;
+            line-height: 1.6 !important;
+          }
+
+          .print-report-meta strong {
+            color: #111111 !important;
+            font-weight: 700 !important;
+          }
+
+          .print-filter-box {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 10px !important;
+            width: 100% !important;
+            margin: 0 0 8px 0 !important;
+            padding: 5px 7px !important;
+            border: 1px solid #999999 !important;
+            background: #f7f7f7 !important;
+            color: #111111 !important;
+            font-size: 8.5px !important;
+          }
+
+          .print-filter-item {
+            color: #111111 !important;
+            white-space: nowrap !important;
+          }
+
+          .print-filter-item strong {
+            font-weight: 700 !important;
+          }
+
+          /* =================================================
+             TABLE
+          ================================================= */
+
           .print-table-wrapper {
+            width: 100% !important;
+            overflow: visible !important;
+            border: 1px solid #111111 !important;
+            border-radius: 0 !important;
+            background: #ffffff !important;
+            box-shadow: none !important;
+          }
+
+          .print-table-scroll {
+            width: 100% !important;
             overflow: visible !important;
           }
 
-          table {
+          .desktop-sales-table {
+            display: table !important;
             width: 100% !important;
+            min-width: 0 !important;
             table-layout: fixed !important;
-            word-wrap: break-word !important;
+            border-collapse: collapse !important;
+            background: #ffffff !important;
+            color: #111111 !important;
           }
 
-          th,
-          td {
+          .desktop-sales-table thead {
+            display: table-header-group !important;
+          }
+
+          .desktop-sales-table tbody {
+            display: table-row-group !important;
+          }
+
+          .desktop-sales-table tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          .desktop-sales-table th {
             padding: 6px 4px !important;
-            font-size: 10px !important;
+            background: #eeeeee !important;
+            color: #111111 !important;
+            border: 1px solid #333333 !important;
+            font-size: 7.5px !important;
+            line-height: 1.25 !important;
+            font-weight: 800 !important;
+            text-transform: uppercase !important;
+            vertical-align: middle !important;
+          }
+
+          .desktop-sales-table td {
+            padding: 6px 4px !important;
+            background: #ffffff !important;
+            color: #111111 !important;
+            border: 1px solid #888888 !important;
+            font-size: 8px !important;
+            line-height: 1.3 !important;
+            vertical-align: middle !important;
+          }
+
+          .desktop-sales-table tbody tr:nth-child(even) td {
+            background: #fafafa !important;
+          }
+
+          .print-product-name {
+            color: #111111 !important;
+            font-weight: 700 !important;
+            text-decoration: none !important;
+          }
+
+          .print-id {
+            color: #333333 !important;
+            font-size: 7.5px !important;
+            font-family: "Courier New", monospace !important;
+          }
+
+          .print-number {
+            color: #111111 !important;
+            font-weight: 700 !important;
+          }
+
+          .print-margin {
+            color: #111111 !important;
+            font-weight: 800 !important;
           }
 
           .print-img {
             display: none !important;
           }
 
+          .print-actions {
+            display: none !important;
+          }
+
           .print-hidden-row {
             display: none !important;
           }
+
+          .mobile-sales-list {
+            display: none !important;
+          }
+
+          /* =================================================
+             SUMMARY - BILL STYLE
+          ================================================= */
+
+          .print-summary {
+            width: 100% !important;
+            margin-top: 8px !important;
+            padding: 7px !important;
+            border: 1px solid #111111 !important;
+            border-radius: 0 !important;
+            background: #ffffff !important;
+            color: #111111 !important;
+          }
+
+          .print-summary-title {
+            margin-bottom: 5px !important;
+            padding-bottom: 4px !important;
+            border-bottom: 1px solid #555555 !important;
+          }
+
+          .print-summary-title p {
+            color: #111111 !important;
+            font-size: 8px !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.3px !important;
+          }
+
+          .print-summary-grid {
+            display: grid !important;
+            grid-template-columns:
+              repeat(5, minmax(0, 1fr)) !important;
+            gap: 0 !important;
+            width: 100% !important;
+          }
+
+          .print-summary-item {
+            min-width: 0 !important;
+            padding: 3px 7px !important;
+            border-right: 1px solid #bbbbbb !important;
+          }
+
+          .print-summary-item:last-child {
+            border-right: none !important;
+          }
+
+          .print-summary-label {
+            color: #555555 !important;
+            font-size: 7px !important;
+            line-height: 1.3 !important;
+            font-weight: 600 !important;
+          }
+
+          .print-summary-value {
+            margin-top: 2px !important;
+            color: #111111 !important;
+            font-size: 9px !important;
+            line-height: 1.3 !important;
+            font-weight: 800 !important;
+          }
+
+          .print-profit {
+            border: none !important;
+            border-right: none !important;
+            border-radius: 0 !important;
+            background: #ffffff !important;
+          }
+
+          .print-profit-label {
+            color: #555555 !important;
+            font-size: 7px !important;
+            font-weight: 700 !important;
+          }
+
+          .print-profit-value {
+            color: #111111 !important;
+            font-size: 10px !important;
+            font-weight: 900 !important;
+          }
+
+          /* =================================================
+             FOOTER
+          ================================================= */
+
+          .print-footer {
+            display: block !important;
+            width: 100% !important;
+            margin-top: 8px !important;
+            padding-top: 5px !important;
+            border-top: 1px solid #aaaaaa !important;
+            color: #555555 !important;
+            font-size: 7px !important;
+            text-align: center !important;
+          }
+
+          /* =================================================
+             COLUMNS
+          ================================================= */
+
+          .print-col-product {
+            width: 24% !important;
+          }
+
+          .print-col-id {
+            width: 12% !important;
+          }
+
+          .print-col-date {
+            width: 11% !important;
+          }
+
+          .print-col-qty {
+            width: 6% !important;
+          }
+
+          .print-col-settlement {
+            width: 14% !important;
+          }
+
+          .print-col-packaging {
+            width: 10% !important;
+          }
+
+          .print-col-colouring {
+            width: 11% !important;
+          }
+
+          .print-col-margin {
+            width: 12% !important;
+          }
+
+          .print-page-break {
+            page-break-before: always !important;
+          }
+
         }
+
       `}</style>
 
       {/* =====================================================
-          HEADER
+          SCREEN HEADER
       ===================================================== */}
 
       <div className="no-print flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
         <div>
-          <div className="flex items-center gap-2">
 
-            <h1 className="text-2xl font-black text-slate-900 dark:text-white">
-              Marketplace Sales
-            </h1>
-
-          </div>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white">
+            Marketplace Sales
+          </h1>
 
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Manage orders, edits, settlements and profit margins
           </p>
+
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
 
-          {/* =================================================
-              PLATFORM
-          ================================================= */}
+          {/* PLATFORM */}
 
           <div className="flex rounded-xl bg-slate-200/80 p-1 dark:bg-slate-800">
 
@@ -1311,21 +1687,14 @@ const SalesPage = () => {
                     : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                 }`}
               >
-                <span>
-                  {tab.icon}
-                </span>
-
-                <span>
-                  {tab.name}
-                </span>
+                <span>{tab.icon}</span>
+                <span>{tab.name}</span>
               </button>
             ))}
 
           </div>
 
-          {/* =================================================
-              PRINT MENU
-          ================================================= */}
+          {/* PRINT */}
 
           <div
             className="relative"
@@ -1355,13 +1724,13 @@ const SalesPage = () => {
             </button>
 
             {printMenuOpen && (
-              <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-
-                {/* PRINT ALL */}
+              <div className="absolute right-0 z-40 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
 
                 <button
                   type="button"
-                  onClick={handlePrintAll}
+                  onClick={
+                    handlePrintAll
+                  }
                   className="flex w-full items-center gap-3 border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
                 >
 
@@ -1370,6 +1739,7 @@ const SalesPage = () => {
                   </span>
 
                   <div>
+
                     <p className="text-xs font-black text-slate-900 dark:text-white">
                       Print All Sales
                     </p>
@@ -1378,11 +1748,10 @@ const SalesPage = () => {
                       Print all visible{" "}
                       {selectedPlatform} sales
                     </p>
+
                   </div>
 
                 </button>
-
-                {/* INDIVIDUAL SALES */}
 
                 <div className="max-h-80 overflow-y-auto">
 
@@ -1394,7 +1763,8 @@ const SalesPage = () => {
 
                   </div>
 
-                  {filteredSales.length === 0 ? (
+                  {filteredSales.length ===
+                  0 ? (
                     <div className="px-4 pb-4 text-xs text-slate-400">
                       No sale available.
                     </div>
@@ -1464,9 +1834,7 @@ const SalesPage = () => {
 
           </div>
 
-          {/* =================================================
-              ADD SALE
-          ================================================= */}
+          {/* ADD SALE */}
 
           <button
             type="button"
@@ -1483,6 +1851,7 @@ const SalesPage = () => {
           </button>
 
         </div>
+
       </div>
 
       {/* =====================================================
@@ -1539,28 +1908,99 @@ const SalesPage = () => {
 
       <div className="print-area space-y-6">
 
-        {/* PRINT HEADER */}
+        {/* ===================================================
+            BILL STYLE PRINT HEADER
+        =================================================== */}
 
-        <div className="hidden border-b border-slate-300 pb-2 print:block">
+        <div className="print-report-header hidden">
 
-          <h2 className="text-lg font-black text-slate-900">
-            Sales & Margin Report (
-            {selectedPlatform.toUpperCase()}
-            )
-          </h2>
+          <div>
 
-          <p className="text-[10px] text-slate-600">
-            Date Generated:{" "}
-            {new Date().toLocaleDateString(
-              "en-IN"
-            )}
-          </p>
+            <h1 className="print-company-name">
+              VRAJ CREATION
+            </h1>
 
-          {printSaleId && (
-            <p className="mt-1 text-[10px] font-bold text-slate-700">
-              Individual Sale Print
+            <p className="print-report-name">
+              Marketplace Sales Report
             </p>
-          )}
+
+          </div>
+
+          <div className="print-report-meta">
+
+            <div>
+              Platform:{" "}
+              <strong>
+                {getPlatformName(
+                  selectedPlatform
+                )}
+              </strong>
+            </div>
+
+            <div>
+              Report:{" "}
+              <strong>
+                {printSaleId
+                  ? "Individual Sale"
+                  : "All Sales"}
+              </strong>
+            </div>
+
+            <div>
+              Date:{" "}
+              <strong>
+                {new Date().toLocaleDateString(
+                  "en-IN",
+                  {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  }
+                )}
+              </strong>
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* ===================================================
+            PRINT FILTER
+        =================================================== */}
+
+        <div className="print-filter-box hidden">
+
+          <div className="print-filter-item">
+
+            <strong>
+              Platform:
+            </strong>{" "}
+
+            {getPlatformName(
+              selectedPlatform
+            )}
+
+          </div>
+
+          <div className="print-filter-item">
+
+            <strong>
+              Entries:
+            </strong>{" "}
+
+            {printSales.length}
+
+          </div>
+
+          <div className="print-filter-item">
+
+            <strong>
+              Quantity:
+            </strong>{" "}
+
+            {printTotalQty}
+
+          </div>
 
         </div>
 
@@ -1568,49 +2008,69 @@ const SalesPage = () => {
             TABLE
         ===================================================== */}
 
-        <div className="print-table-wrapper overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 print:border-slate-300">
+        <div className="print-table-wrapper overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
-          <div className="overflow-x-auto print:overflow-visible">
+          <div className="print-table-scroll overflow-x-auto">
 
-            <table className="w-full text-left text-xs sm:text-sm">
+            <table className="desktop-sales-table w-full min-w-[1000px] text-left text-xs sm:text-sm">
 
-              <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400 print:border-slate-300 print:bg-slate-100 print:text-slate-800">
+              <colgroup>
+
+                <col className="print-col-product" />
+
+                <col className="print-col-id" />
+
+                <col className="print-col-date" />
+
+                <col className="print-col-qty" />
+
+                <col className="print-col-settlement" />
+
+                <col className="print-col-packaging" />
+
+                <col className="print-col-colouring" />
+
+                <col className="print-col-margin" />
+
+              </colgroup>
+
+              <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
 
                 <tr>
 
-                  <th className="w-[25%] px-3 py-3 print:w-[22%]">
+                  <th className="px-3 py-3">
                     Product
                   </th>
 
-                  <th className="w-[12%] px-3 py-3">
+                  <th className="px-3 py-3">
                     Product ID
                   </th>
 
-                  <th className="w-[11%] px-3 py-3">
+                  <th className="px-3 py-3">
                     Date
                   </th>
 
-                  <th className="w-[6%] px-2 py-3 text-center">
+                  <th className="px-2 py-3 text-center">
                     Qty
                   </th>
 
-                  <th className="w-[15%] px-3 py-3">
+                  <th className="px-3 py-3">
                     Bank Settlement
                   </th>
 
-                  <th className="w-[10%] px-3 py-3">
+                  <th className="px-3 py-3">
                     Packaging
                   </th>
 
-                  <th className="w-[11%] px-3 py-3">
+                  <th className="px-3 py-3">
                     Colouring
                   </th>
 
-                  <th className="w-[10%] px-3 py-3">
+                  <th className="px-3 py-3">
                     Margin
                   </th>
 
-                  <th className="no-print w-[10%] px-3 py-3 text-center">
+                  <th className="print-actions no-print px-3 py-3 text-center">
                     Actions
                   </th>
 
@@ -1618,10 +2078,11 @@ const SalesPage = () => {
 
               </thead>
 
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-200">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
 
                 {filteredSales.length ===
-                  0 ? (
+                0 ? (
+
                   <tr>
 
                     <td
@@ -1633,9 +2094,11 @@ const SalesPage = () => {
                     </td>
 
                   </tr>
+
                 ) : (
                   filteredSales.map(
                     (item) => {
+
                       const margin =
                         calculateMargin(
                           item
@@ -1669,7 +2132,6 @@ const SalesPage = () => {
                                 )
                               }
                               className="group flex cursor-pointer items-center gap-2"
-                              title="Click to Preview Product"
                             >
 
                               {item.productImage ? (
@@ -1681,7 +2143,7 @@ const SalesPage = () => {
                                     item.productName
                                   }
                                   loading="lazy"
-                                  className="print-img h-8 w-8 shrink-0 rounded-lg border border-slate-200 object-cover transition group-hover:scale-105 dark:border-slate-700"
+                                  className="print-img h-8 w-8 shrink-0 rounded-lg border border-slate-200 object-cover dark:border-slate-700"
                                 />
                               ) : (
                                 <div className="print-img flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-xs dark:border-slate-700 dark:bg-slate-800">
@@ -1689,9 +2151,10 @@ const SalesPage = () => {
                                 </div>
                               )}
 
-                              <span className="leading-tight font-bold text-slate-800 underline-offset-2 group-hover:text-blue-600 group-hover:underline dark:text-slate-100 dark:group-hover:text-blue-400 print:text-black">
+                              <span className="print-product-name leading-tight font-bold text-slate-800 dark:text-slate-100">
                                 {
-                                  item.productName
+                                  item.productName ||
+                                  "Unnamed Product"
                                 }
                               </span>
 
@@ -1699,82 +2162,88 @@ const SalesPage = () => {
 
                           </td>
 
-                          {/* PRODUCT ID */}
+                          {/* ID */}
 
-                          <td className="px-3 py-2.5 font-mono text-[11px] text-slate-500 print:text-slate-700">
+                          <td className="print-id px-3 py-2.5 font-mono text-[11px] text-slate-500 dark:text-slate-400">
+
                             {
-                              item.productId
+                              item.productId ||
+                              "-"
                             }
+
                           </td>
 
                           {/* DATE */}
 
-                          <td className="whitespace-nowrap px-3 py-2.5 text-[11px] text-slate-600 dark:text-slate-400 print:text-slate-700">
-                            {item.date ||
-                              item.saleDate ||
-                              "-"}
+                          <td className="whitespace-nowrap px-3 py-2.5 text-[11px] text-slate-600 dark:text-slate-400">
+
+                            {formatDate(
+                              item.date ||
+                                item.saleDate
+                            )}
+
                           </td>
 
                           {/* QTY */}
 
-                          <td className="px-2 py-2.5 text-center font-bold print:text-black">
+                          <td className="print-number px-2 py-2.5 text-center font-bold">
+
                             {
-                              item.quantity
+                              item.quantity ||
+                              0
                             }
+
                           </td>
 
                           {/* SETTLEMENT */}
 
-                          <td className="px-3 py-2.5 font-bold text-slate-900 dark:text-white print:text-black">
+                          <td className="print-number px-3 py-2.5 font-bold text-slate-900 dark:text-white">
+
                             ₹
-                            {Number(
-                              item.bankSettlementAmount ||
-                                0
-                            ).toLocaleString(
-                              "en-IN"
+                            {formatMoney(
+                              item.bankSettlementAmount
                             )}
+
                           </td>
 
                           {/* PACKAGING */}
 
-                          <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400 print:text-slate-700">
+                          <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">
+
                             ₹
-                            {Number(
-                              item.packagingCost ||
-                                0
-                            ).toLocaleString(
-                              "en-IN"
+                            {formatMoney(
+                              item.packagingCost
                             )}
+
                           </td>
 
                           {/* COLOURING */}
 
-                          <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400 print:text-slate-700">
+                          <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">
+
                             ₹
-                            {Number(
-                              item.colouringCost ||
-                                0
-                            ).toLocaleString(
-                              "en-IN"
+                            {formatMoney(
+                              item.colouringCost
                             )}
+
                           </td>
 
                           {/* MARGIN */}
 
-                          <td className="px-3 py-2.5 font-black text-emerald-600 dark:text-emerald-400 print:text-emerald-800">
+                          <td className="print-margin px-3 py-2.5 font-black text-emerald-600 dark:text-emerald-400">
+
                             ₹
-                            {margin.toLocaleString(
-                              "en-IN"
+                            {formatMoney(
+                              margin
                             )}
+
                           </td>
 
                           {/* ACTIONS */}
 
-                          <td className="no-print px-3 py-2.5 text-center">
+                          <td className="print-actions no-print px-3 py-2.5 text-center">
 
                             <div className="flex items-center justify-center gap-1">
-
-                              {/* PREVIEW */}
 
                               <button
                                 type="button"
@@ -1789,8 +2258,6 @@ const SalesPage = () => {
                                 👁️
                               </button>
 
-                              {/* PRINT */}
-
                               <button
                                 type="button"
                                 onClick={() =>
@@ -1798,13 +2265,11 @@ const SalesPage = () => {
                                     item._id
                                   )
                                 }
-                                className="rounded-lg p-1 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
-                                title="Print this sale"
+                                className="rounded-lg p-1 text-red-600 hover:bg-red-50 dark:text-red-400"
+                                title="Print"
                               >
                                 🖨️
                               </button>
-
-                              {/* EDIT */}
 
                               <button
                                 type="button"
@@ -1813,13 +2278,11 @@ const SalesPage = () => {
                                     item
                                   )
                                 }
-                                className="rounded-lg p-1 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50"
+                                className="rounded-lg p-1 text-blue-600 hover:bg-blue-50 dark:text-blue-400"
                                 title="Edit"
                               >
                                 ✏️
                               </button>
-
-                              {/* DELETE */}
 
                               <button
                                 type="button"
@@ -1828,7 +2291,7 @@ const SalesPage = () => {
                                     item._id
                                   )
                                 }
-                                className="rounded-lg p-1 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/50"
+                                className="rounded-lg p-1 text-rose-600 hover:bg-rose-50 dark:text-rose-400"
                                 title="Delete"
                               >
                                 🗑️
@@ -1853,88 +2316,368 @@ const SalesPage = () => {
         </div>
 
         {/* =====================================================
+            MOBILE LIST
+        ===================================================== */}
+
+        <div className="mobile-sales-list space-y-3 lg:hidden">
+
+          {filteredSales.length ===
+          0 ? (
+
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center dark:border-slate-700 dark:bg-slate-800/50">
+
+              <div className="mb-2 text-3xl">
+                📦
+              </div>
+
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                No sales entry found
+              </p>
+
+              <p className="mt-1 text-[11px] text-slate-400">
+                {selectedPlatform.toUpperCase()} ke liye koi sale entry nahi hai.
+              </p>
+
+            </div>
+
+          ) : (
+            filteredSales.map(
+              (item) => {
+
+                const margin =
+                  calculateMargin(
+                    item
+                  );
+
+                return (
+                  <div
+                    key={item._id}
+                    className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
+                  >
+
+                    {/* CARD HEADER */}
+
+                    <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-800/50">
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewProduct(
+                            item
+                          )
+                        }
+                        className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+                      >
+
+                        {item.productImage ? (
+                          <img
+                            src={
+                              item.productImage
+                            }
+                            alt={
+                              item.productName
+                            }
+                            loading="lazy"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-lg">
+                            🖼️
+                          </div>
+                        )}
+
+                      </button>
+
+                      <div className="min-w-0 flex-1">
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewProduct(
+                              item
+                            )
+                          }
+                          className="block max-w-full text-left"
+                        >
+
+                          <p className="truncate text-sm font-black text-slate-900 dark:text-white">
+                            {item.productName ||
+                              "Unnamed Product"}
+                          </p>
+
+                        </button>
+
+                        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+
+                          <span className="rounded-md bg-slate-200 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                            {item.productId ||
+                              "-"}
+                          </span>
+
+                          <span className="text-[10px] text-slate-400">
+                            {formatDate(
+                              item.date ||
+                                item.saleDate
+                            )}
+                          </span>
+
+                        </div>
+
+                      </div>
+
+                      <div className="shrink-0 text-right">
+
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                          Qty
+                        </p>
+
+                        <p className="text-sm font-black text-slate-900 dark:text-white">
+                          {item.quantity ||
+                            0}
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    {/* FINANCIAL */}
+
+                    <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-800/60">
+
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                          Settlement
+                        </p>
+
+                        <p className="mt-1 truncate text-sm font-black text-slate-900 dark:text-white">
+                          ₹
+                          {formatMoney(
+                            item.bankSettlementAmount
+                          )}
+                        </p>
+
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-800/60">
+
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                          Packaging
+                        </p>
+
+                        <p className="mt-1 truncate text-sm font-bold text-rose-500">
+                          ₹
+                          {formatMoney(
+                            item.packagingCost
+                          )}
+                        </p>
+
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-800/60">
+
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                          Colouring
+                        </p>
+
+                        <p className="mt-1 truncate text-sm font-bold text-rose-500">
+                          ₹
+                          {formatMoney(
+                            item.colouringCost
+                          )}
+                        </p>
+
+                      </div>
+
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 dark:border-emerald-800/50 dark:bg-emerald-950/30">
+
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                          Margin
+                        </p>
+
+                        <p className="mt-1 truncate text-sm font-black text-emerald-600 dark:text-emerald-400">
+                          ₹
+                          {formatMoney(
+                            margin
+                          )}
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    {/* ACTIONS */}
+
+                    <div className="grid grid-cols-4 gap-2 border-t border-slate-100 p-3 dark:border-slate-800">
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewProduct(
+                            item
+                          )
+                        }
+                        className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                      >
+                        <span>👁️</span>
+
+                        <span className="hidden sm:inline">
+                          View
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handlePrintSingle(
+                            item._id
+                          )
+                        }
+                        className="flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 py-2.5 text-xs font-bold text-red-600 transition hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+                      >
+                        <span>🖨️</span>
+
+                        <span className="hidden sm:inline">
+                          Print
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleOpenEditModal(
+                            item
+                          )
+                        }
+                        className="flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 py-2.5 text-xs font-bold text-blue-600 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-400"
+                      >
+                        <span>✏️</span>
+
+                        <span className="hidden sm:inline">
+                          Edit
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleDelete(
+                            item._id
+                          )
+                        }
+                        className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-xs font-bold text-rose-600 transition hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-400"
+                      >
+                        <span>🗑️</span>
+
+                        <span className="hidden sm:inline">
+                          Delete
+                        </span>
+                      </button>
+
+                    </div>
+
+                  </div>
+                );
+              }
+            )
+          )}
+
+        </div>
+
+        {/* =====================================================
             SUMMARY
         ===================================================== */}
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-900 p-4 text-white dark:border-slate-800 dark:bg-slate-950 print:border-slate-300 print:bg-slate-100 print:text-black">
+        <div className="print-summary rounded-2xl border border-slate-200 bg-slate-900 p-4 text-white dark:border-slate-800 dark:bg-slate-950">
 
-          <div className="mb-2 border-b border-slate-800 pb-1.5 print:border-slate-300">
+          <div className="print-summary-title mb-2 border-b border-slate-800 pb-1.5">
 
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 print:text-slate-700">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               {selectedPlatform.toUpperCase()} Total Summary
             </p>
 
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-5 sm:text-left print:grid-cols-5 print:text-left">
+          <div className="print-summary-grid grid grid-cols-2 gap-3 text-center sm:grid-cols-5 sm:text-left">
 
-            <div>
+            <div className="print-summary-item">
 
-              <p className="text-[10px] text-slate-400 print:text-slate-600">
+              <p className="print-summary-label text-[10px] text-slate-400">
                 Total Qty
               </p>
 
-              <p className="text-sm font-black text-white print:text-black">
-                {totalQty} units
+              <p className="print-summary-value text-sm font-black text-white">
+                {printSaleId
+                  ? printTotalQty
+                  : totalQty}{" "}
+                units
               </p>
 
             </div>
 
-            <div>
+            <div className="print-summary-item">
 
-              <p className="text-[10px] text-slate-400 print:text-slate-600">
+              <p className="print-summary-label text-[10px] text-slate-400">
                 Total Settlement
               </p>
 
-              <p className="text-sm font-black text-white print:text-black">
+              <p className="print-summary-value text-sm font-black text-white">
                 ₹
-                {totalSettlement.toLocaleString(
-                  "en-IN"
+                {formatMoney(
+                  printSaleId
+                    ? printTotalSettlement
+                    : totalSettlement
                 )}
               </p>
 
             </div>
 
-            <div>
+            <div className="print-summary-item">
 
-              <p className="text-[10px] text-slate-400 print:text-slate-600">
+              <p className="print-summary-label text-[10px] text-slate-400">
                 Total Packaging
               </p>
 
-              <p className="text-sm font-bold text-rose-300 print:text-rose-700">
+              <p className="print-summary-value text-sm font-bold text-rose-300">
                 − ₹
-                {totalPackaging.toLocaleString(
-                  "en-IN"
+                {formatMoney(
+                  printSaleId
+                    ? printTotalPackaging
+                    : totalPackaging
                 )}
               </p>
 
             </div>
 
-            <div>
+            <div className="print-summary-item">
 
-              <p className="text-[10px] text-slate-400 print:text-slate-600">
-                Total Painting
+              <p className="print-summary-label text-[10px] text-slate-400">
+                Total Colouring
               </p>
 
-              <p className="text-sm font-bold text-rose-300 print:text-rose-700">
+              <p className="print-summary-value text-sm font-bold text-rose-300">
                 − ₹
-                {totalColouring.toLocaleString(
-                  "en-IN"
+                {formatMoney(
+                  printSaleId
+                    ? printTotalColouring
+                    : totalColouring
                 )}
               </p>
 
             </div>
 
-            <div className="col-span-2 rounded-xl border border-emerald-800/50 bg-emerald-950/60 p-2 sm:col-span-1 print:col-span-1 print:border-emerald-300 print:bg-emerald-50">
+            <div className="print-profit print-summary-item rounded-xl border border-emerald-800/50 bg-emerald-950/60 p-2">
 
-              <p className="text-[10px] font-bold uppercase text-emerald-400 print:text-emerald-800">
+              <p className="print-profit-label text-[10px] font-bold uppercase text-emerald-400">
                 Net Profit
               </p>
 
-              <p className="text-base font-black text-emerald-300 print:text-emerald-900">
+              <p className="print-profit-value text-base font-black text-emerald-300">
                 ₹
-                {totalNetMargin.toLocaleString(
-                  "en-IN"
+                {formatMoney(
+                  printSaleId
+                    ? printTotalNetMargin
+                    : totalNetMargin
                 )}
               </p>
 
@@ -1944,16 +2687,26 @@ const SalesPage = () => {
 
         </div>
 
+        {/* =====================================================
+            PRINT FOOTER
+        ===================================================== */}
+
+        <div className="print-footer hidden">
+
+          Vraj Creation • Marketplace Sales Report
+
+        </div>
+
       </div>
 
       {/* =====================================================
-          PRODUCT PREVIEW MODAL
+          PRODUCT PREVIEW
       ===================================================== */}
 
       {previewProduct && (
         <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
 
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+          <div className="max-h-[95vh] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
 
             <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
 
@@ -2026,9 +2779,10 @@ const SalesPage = () => {
 
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   Order Date:{" "}
-                  {previewProduct.date ||
-                    previewProduct.saleDate ||
-                    "-"}
+                  {formatDate(
+                    previewProduct.date ||
+                      previewProduct.saleDate
+                  )}
                 </p>
 
               </div>
@@ -2058,11 +2812,8 @@ const SalesPage = () => {
 
                   <p className="font-bold text-slate-800 dark:text-white">
                     ₹
-                    {Number(
-                      previewProduct.bankSettlementAmount ||
-                        0
-                    ).toLocaleString(
-                      "en-IN"
+                    {formatMoney(
+                      previewProduct.bankSettlementAmount
                     )}
                   </p>
 
@@ -2076,11 +2827,8 @@ const SalesPage = () => {
 
                   <p className="font-medium text-rose-500">
                     ₹
-                    {Number(
-                      previewProduct.packagingCost ||
-                        0
-                    ).toLocaleString(
-                      "en-IN"
+                    {formatMoney(
+                      previewProduct.packagingCost
                     )}
                   </p>
 
@@ -2094,11 +2842,8 @@ const SalesPage = () => {
 
                   <p className="font-medium text-rose-500">
                     ₹
-                    {Number(
-                      previewProduct.colouringCost ||
-                        0
-                    ).toLocaleString(
-                      "en-IN"
+                    {formatMoney(
+                      previewProduct.colouringCost
                     )}
                   </p>
 
@@ -2114,10 +2859,10 @@ const SalesPage = () => {
 
                 <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">
                   ₹
-                  {calculateMargin(
-                    previewProduct
-                  ).toLocaleString(
-                    "en-IN"
+                  {formatMoney(
+                    calculateMargin(
+                      previewProduct
+                    )
                   )}
                 </span>
 
@@ -2175,7 +2920,7 @@ const SalesPage = () => {
 
               {/* PLATFORM + DATE */}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 
                 <div>
 
@@ -2242,7 +2987,7 @@ const SalesPage = () => {
 
               </div>
 
-              {/* PRODUCT SELECT */}
+              {/* PRODUCT */}
 
               <div>
 
@@ -2272,6 +3017,7 @@ const SalesPage = () => {
 
                   {products.map(
                     (product, index) => {
+
                       const id =
                         getProductId(
                           product
@@ -2315,7 +3061,7 @@ const SalesPage = () => {
 
               </div>
 
-              {/* AUTO PRODUCT INFO */}
+              {/* PRODUCT INFO */}
 
               <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 dark:border-blue-900/40 dark:bg-blue-950/20">
 
@@ -2388,7 +3134,7 @@ const SalesPage = () => {
 
               </div>
 
-              {/* PRODUCT IMAGE */}
+              {/* IMAGE */}
 
               <div>
 
@@ -2397,7 +3143,7 @@ const SalesPage = () => {
                 </label>
 
                 <p className="mt-1 text-[10px] text-slate-400">
-                  Product ki existing image automatically aa jayegi. Zarurat ho to new image upload kar sakte ho.
+                  Existing image automatically aa jayegi. Zarurat ho to new image upload kar sakte ho.
                 </p>
 
                 <div className="mt-2 space-y-3">
@@ -2453,7 +3199,7 @@ const SalesPage = () => {
 
               {/* AMOUNTS */}
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 
                 <div>
 
@@ -2542,7 +3288,7 @@ const SalesPage = () => {
 
               {/* BUTTONS */}
 
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="flex flex-col-reverse justify-end gap-3 pt-4 sm:flex-row">
 
                 <button
                   type="button"
@@ -2550,7 +3296,7 @@ const SalesPage = () => {
                     handleCloseModal
                   }
                   disabled={saving}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
@@ -2558,15 +3304,13 @@ const SalesPage = () => {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-xl bg-slate-950 px-5 py-2 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                  className="rounded-xl bg-slate-950 px-5 py-2.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
                 >
-
                   {saving
                     ? "Saving..."
                     : editingId
                     ? "Save Changes"
                     : "Save Entry"}
-
                 </button>
 
               </div>

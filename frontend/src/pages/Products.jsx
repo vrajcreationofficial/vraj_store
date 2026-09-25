@@ -1,6 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+
 import { useNavigate } from "react-router-dom";
+
 import api from "../services/api";
+
+// =====================================================
+// PRODUCTS
+// =====================================================
 
 const Products = () => {
   const navigate = useNavigate();
@@ -11,7 +21,8 @@ const Products = () => {
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
-  const [stockFilter, setStockFilter] = useState("all");
+  const [stockFilter, setStockFilter] =
+    useState("all");
 
   // =====================================================
   // FETCH PRODUCTS
@@ -23,13 +34,18 @@ const Products = () => {
       setError("");
 
       const response = await api.get("/products");
+
       const result = response.data;
 
       if (Array.isArray(result)) {
         setProducts(result);
-      } else if (Array.isArray(result?.products)) {
+      } else if (
+        Array.isArray(result?.products)
+      ) {
         setProducts(result.products);
-      } else if (Array.isArray(result?.data)) {
+      } else if (
+        Array.isArray(result?.data)
+      ) {
         setProducts(result.data);
       } else {
         setProducts([]);
@@ -56,6 +72,10 @@ const Products = () => {
       setLoading(false);
     }
   }, [navigate]);
+
+  // =====================================================
+  // INITIAL LOAD
+  // =====================================================
 
   useEffect(() => {
     fetchProducts();
@@ -118,7 +138,7 @@ const Products = () => {
   };
 
   // =====================================================
-  // FILTER
+  // CATEGORIES
   // =====================================================
 
   const categories = [
@@ -128,6 +148,10 @@ const Products = () => {
         .filter(Boolean)
     ),
   ];
+
+  // =====================================================
+  // FILTER PRODUCTS
+  // =====================================================
 
   const filteredProducts = products.filter(
     (product) => {
@@ -197,26 +221,32 @@ const Products = () => {
 
   if (loading) {
     return (
-      <div className="space-y-5 animate-in fade-in duration-300">
+      <div className="w-full space-y-5 overflow-x-hidden animate-in fade-in duration-300">
+
         <div className="animate-pulse">
 
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
+          {/* HEADER */}
+
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+            <div className="min-w-0">
               <div className="h-7 w-36 rounded-lg bg-slate-200 dark:bg-slate-800" />
 
-              <div className="mt-2 h-3 w-64 rounded bg-slate-200 dark:bg-slate-800" />
+              <div className="mt-2 h-3 w-64 max-w-full rounded bg-slate-200 dark:bg-slate-800" />
             </div>
 
-            <div className="flex gap-2">
-              <div className="h-9 w-20 rounded-xl bg-slate-200 dark:bg-slate-800" />
+            <div className="flex w-full gap-2 sm:w-auto">
+              <div className="h-10 flex-1 rounded-xl bg-slate-200 sm:w-20 sm:flex-none dark:bg-slate-800" />
 
-              <div className="h-9 w-28 rounded-xl bg-slate-200 dark:bg-slate-800" />
+              <div className="h-10 flex-1 rounded-xl bg-slate-200 sm:w-28 sm:flex-none dark:bg-slate-800" />
             </div>
+
           </div>
 
-          {/* Summary */}
+          {/* SUMMARY */}
+
           <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+
             {[1, 2, 3, 4].map(
               (item) => (
                 <div
@@ -225,12 +255,15 @@ const Products = () => {
                 />
               )
             )}
+
           </div>
 
-          {/* Filters */}
-          <div className="mt-5 h-16 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+          {/* FILTERS */}
 
-          {/* Table */}
+          <div className="mt-5 h-32 rounded-2xl bg-slate-200 sm:h-16 dark:bg-slate-800" />
+
+          {/* TABLE */}
+
           <div className="mt-5 overflow-hidden rounded-2xl bg-slate-200 dark:bg-slate-800">
 
             <div className="h-12 border-b border-slate-300 dark:border-slate-700" />
@@ -246,7 +279,8 @@ const Products = () => {
 
           </div>
 
-          {/* Loading text */}
+          {/* LOADING */}
+
           <div className="mt-5 flex items-center justify-center gap-2 text-xs font-bold text-slate-400">
 
             <span className="h-2 w-2 animate-bounce rounded-full bg-slate-400" />
@@ -280,27 +314,31 @@ const Products = () => {
 
   if (error) {
     return (
-      <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 rounded-2xl border border-red-200 bg-red-50 p-5 dark:border-red-900/50 dark:bg-red-950/30">
+      <div className="w-full animate-in fade-in slide-in-from-bottom-3 duration-500">
 
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-lg dark:bg-red-950/50">
-          ⚠️
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 dark:border-red-900/50 dark:bg-red-950/30">
+
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-lg dark:bg-red-950/50">
+            ⚠️
+          </div>
+
+          <h2 className="mt-3 text-base font-black text-red-800 dark:text-red-300">
+            Products could not load
+          </h2>
+
+          <p className="mt-1 break-words text-sm text-red-600 dark:text-red-400">
+            {error}
+          </p>
+
+          <button
+            type="button"
+            onClick={fetchProducts}
+            className="mt-4 w-full rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-lg active:translate-y-0 sm:w-auto"
+          >
+            ↻ Try Again
+          </button>
+
         </div>
-
-        <h2 className="mt-3 text-base font-black text-red-800 dark:text-red-300">
-          Products could not load
-        </h2>
-
-        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-
-        <button
-          type="button"
-          onClick={fetchProducts}
-          className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-lg active:translate-y-0"
-        >
-          ↻ Try Again
-        </button>
 
       </div>
     );
@@ -311,18 +349,19 @@ const Products = () => {
   // =====================================================
 
   return (
-    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-3 duration-700">
+    <div className="w-full space-y-5 overflow-x-hidden animate-in fade-in slide-in-from-bottom-3 duration-700">
 
-      {/* ================================================= */}
-      {/* HEADER */}
-      {/* ================================================= */}
+      {/* =================================================
+          HEADER
+      ================================================= */}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-        <div>
+        <div className="min-w-0">
+
           <div className="flex items-center gap-2">
 
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-950 text-sm text-white shadow-sm transition-transform duration-300 hover:rotate-6 hover:scale-110 dark:bg-white dark:text-slate-950">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-sm text-white shadow-sm transition-transform duration-300 hover:rotate-6 hover:scale-110 dark:bg-white dark:text-slate-950">
               📦
             </span>
 
@@ -335,14 +374,17 @@ const Products = () => {
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             Manage your inventory and products.
           </p>
+
         </div>
 
-        <div className="flex gap-2">
+        {/* HEADER BUTTONS */}
+
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
 
           <button
             type="button"
             onClick={fetchProducts}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md active:translate-y-0 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md active:translate-y-0 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             ↻ Refresh
           </button>
@@ -352,17 +394,18 @@ const Products = () => {
             onClick={() =>
               navigate("/products/add")
             }
-            className="rounded-lg bg-slate-950 px-3 py-2 text-xs font-bold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg active:translate-y-0 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+            className="rounded-lg bg-slate-950 px-3 py-2.5 text-xs font-bold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg active:translate-y-0 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
           >
             + Add Product
           </button>
 
         </div>
+
       </div>
 
-      {/* ================================================= */}
-      {/* SUMMARY */}
-      {/* ================================================= */}
+      {/* =================================================
+          SUMMARY
+      ================================================= */}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 
@@ -378,7 +421,9 @@ const Products = () => {
             products.filter(
               (p) =>
                 Number(p.stock || 0) >
-                Number(p.minimumStock || 5)
+                Number(
+                  p.minimumStock || 5
+                )
             ).length
           }
           icon="✅"
@@ -418,9 +463,9 @@ const Products = () => {
 
       </div>
 
-      {/* ================================================= */}
-      {/* FILTERS */}
-      {/* ================================================= */}
+      {/* =================================================
+          FILTERS
+      ================================================= */}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
 
@@ -453,7 +498,7 @@ const Products = () => {
             onChange={(e) =>
               setCategory(e.target.value)
             }
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none transition-all duration-200 hover:border-slate-300 focus:border-slate-950 focus:ring-4 focus:ring-slate-950/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-white dark:focus:ring-white/10"
+            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none transition-all duration-200 hover:border-slate-300 focus:border-slate-950 focus:ring-4 focus:ring-slate-950/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-white dark:focus:ring-white/10"
           >
             <option value="all">
               All Categories
@@ -477,7 +522,7 @@ const Products = () => {
             onChange={(e) =>
               setStockFilter(e.target.value)
             }
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none transition-all duration-200 hover:border-slate-300 focus:border-slate-950 focus:ring-4 focus:ring-slate-950/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-white dark:focus:ring-white/10"
+            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none transition-all duration-200 hover:border-slate-300 focus:border-slate-950 focus:ring-4 focus:ring-slate-950/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-white dark:focus:ring-white/10"
           >
             <option value="all">
               All Stock
@@ -500,17 +545,18 @@ const Products = () => {
         </div>
       </div>
 
-      {/* ================================================= */}
-      {/* PRODUCTS TABLE */}
-      {/* ================================================= */}
+      {/* =================================================
+          PRODUCT LIST
+      ================================================= */}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
 
-        {/* TABLE HEADER */}
+        {/* LIST HEADER */}
 
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
 
-          <div>
+          <div className="min-w-0">
+
             <h2 className="text-sm font-black">
               Product List
             </h2>
@@ -518,9 +564,14 @@ const Products = () => {
             <p className="mt-0.5 text-[11px] text-slate-400">
               {filteredProducts.length} products found
             </p>
+
           </div>
 
         </div>
+
+        {/* =================================================
+            EMPTY STATE
+        ================================================= */}
 
         {filteredProducts.length === 0 ? (
 
@@ -552,90 +603,131 @@ const Products = () => {
 
         ) : (
 
-          <div className="overflow-x-auto">
+          <>
+            {/* =================================================
+                DESKTOP TABLE
+            ================================================= */}
 
-            <table className="w-full min-w-[1100px]">
+            <div className="hidden overflow-x-auto md:block">
 
-              <thead>
+              <table className="w-full min-w-[1100px]">
 
-                <tr className="border-b border-slate-100 bg-slate-50 text-left dark:border-slate-800 dark:bg-slate-800/50">
+                <thead>
 
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Product
-                  </th>
+                  <tr className="border-b border-slate-100 bg-slate-50 text-left dark:border-slate-800 dark:bg-slate-800/50">
 
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    SKU
-                  </th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      Product
+                    </th>
 
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    HSN Code
-                  </th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      SKU
+                    </th>
 
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Category
-                  </th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      HSN Code
+                    </th>
 
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Size
-                  </th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      Category
+                    </th>
 
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Purchase
-                  </th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      Size
+                    </th>
 
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Selling
-                  </th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      Purchase
+                    </th>
 
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Stock
-                  </th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      Selling
+                    </th>
 
-                  <th className="px-4 py-2.5 text-right text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Action
-                  </th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      Stock
+                    </th>
 
-                </tr>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      Action
+                    </th>
 
-              </thead>
+                  </tr>
 
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                </thead>
 
-                {filteredProducts.map(
-                  (product, index) => (
-                    <ProductTableRow
-                      key={product._id}
-                      product={product}
-                      index={index}
-                      imageUrl={getImageUrl(
-                        product.image
-                      )}
-                      onView={() =>
-                        navigate(
-                          `/products/${product._id}`
-                        )
-                      }
-                      onEdit={() =>
-                        navigate(
-                          `/products/edit/${product._id}`
-                        )
-                      }
-                      onDelete={() =>
-                        handleDelete(
-                          product._id
-                        )
-                      }
-                    />
-                  )
-                )}
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
 
-              </tbody>
+                  {filteredProducts.map(
+                    (product, index) => (
+                      <ProductTableRow
+                        key={product._id}
+                        product={product}
+                        index={index}
+                        imageUrl={getImageUrl(
+                          product.image
+                        )}
+                        onView={() =>
+                          navigate(
+                            `/products/${product._id}`
+                          )
+                        }
+                        onEdit={() =>
+                          navigate(
+                            `/products/edit/${product._id}`
+                          )
+                        }
+                        onDelete={() =>
+                          handleDelete(
+                            product._id
+                          )
+                        }
+                      />
+                    )
+                  )}
 
-            </table>
+                </tbody>
 
-          </div>
+              </table>
 
+            </div>
+
+            {/* =================================================
+                MOBILE PRODUCT CARDS
+            ================================================= */}
+
+            <div className="block divide-y divide-slate-100 md:hidden dark:divide-slate-800">
+
+              {filteredProducts.map(
+                (product, index) => (
+                  <ProductMobileCard
+                    key={product._id}
+                    product={product}
+                    index={index}
+                    imageUrl={getImageUrl(
+                      product.image
+                    )}
+                    onView={() =>
+                      navigate(
+                        `/products/${product._id}`
+                      )
+                    }
+                    onEdit={() =>
+                      navigate(
+                        `/products/edit/${product._id}`
+                      )
+                    }
+                    onDelete={() =>
+                      handleDelete(
+                        product._id
+                      )
+                    }
+                  />
+                )
+              )}
+
+            </div>
+          </>
         )}
 
       </div>
@@ -654,12 +746,13 @@ const SummaryCard = ({
   icon,
 }) => {
   return (
-    <div className="group rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900">
+    <div className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900">
 
-      <div className="flex items-center justify-between">
+      <div className="flex min-w-0 items-center justify-between gap-2">
 
-        <div>
-          <p className="text-[11px] font-bold text-slate-400">
+        <div className="min-w-0">
+
+          <p className="truncate text-[11px] font-bold text-slate-400">
             {title}
           </p>
 
@@ -668,9 +761,10 @@ const SummaryCard = ({
               "en-IN"
             )}
           </p>
+
         </div>
 
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-base transition-all duration-300 group-hover:rotate-6 group-hover:scale-110 dark:bg-slate-800">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-base transition-all duration-300 group-hover:rotate-6 group-hover:scale-110 dark:bg-slate-800">
           {icon}
         </div>
 
@@ -805,11 +899,9 @@ const ProductTableRow = ({
       {/* SKU */}
 
       <td className="px-4 py-3">
-
         <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
           {product.sku || "-"}
         </span>
-
       </td>
 
       {/* HSN */}
@@ -926,6 +1018,260 @@ const ProductTableRow = ({
       </td>
 
     </tr>
+  );
+};
+
+// =====================================================
+// MOBILE PRODUCT CARD
+// =====================================================
+
+const ProductMobileCard = ({
+  product,
+  imageUrl,
+  onView,
+  onEdit,
+  onDelete,
+  index,
+}) => {
+  const [imageError, setImageError] =
+    useState(false);
+
+  const stock = Number(
+    product.stock || 0
+  );
+
+  const minimumStock = Number(
+    product.minimumStock || 5
+  );
+
+  let status = {
+    label: "In Stock",
+    className:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+  };
+
+  if (stock === 0) {
+    status = {
+      label: "Out of Stock",
+      className:
+        "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400",
+    };
+  } else if (stock <= minimumStock) {
+    status = {
+      label: "Low Stock",
+      className:
+        "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
+    };
+  }
+
+  const productSize =
+    product.size &&
+    String(product.size).trim()
+      ? String(product.size).trim()
+      : "--";
+
+  const productHSN =
+    product.hsnCode !== undefined &&
+    product.hsnCode !== null &&
+    String(product.hsnCode).trim()
+      ? String(product.hsnCode).trim()
+      : "--";
+
+  return (
+    <div
+      className="w-full p-4 animate-in fade-in slide-in-from-bottom-2 duration-300"
+      style={{
+        animationDelay: `${Math.min(
+          index * 50,
+          400
+        )}ms`,
+      }}
+    >
+
+      {/* =================================================
+          PRODUCT HEADER
+      ================================================= */}
+
+      <div className="flex min-w-0 items-start gap-3">
+
+        {/* IMAGE */}
+
+        <button
+          type="button"
+          onClick={onView}
+          className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 shadow-sm transition-all duration-300 hover:scale-105 dark:bg-slate-800"
+        >
+
+          {imageUrl && !imageError ? (
+            <img
+              src={imageUrl}
+              alt={
+                product.name ||
+                "Product"
+              }
+              onError={() =>
+                setImageError(true)
+              }
+              className="h-full w-full object-contain p-1"
+            />
+          ) : (
+            <span className="text-2xl">
+              📦
+            </span>
+          )}
+
+        </button>
+
+        {/* PRODUCT INFO */}
+
+        <div className="min-w-0 flex-1">
+
+          <div className="flex min-w-0 items-start justify-between gap-2">
+
+            <div className="min-w-0 flex-1">
+
+              <button
+                type="button"
+                onClick={onView}
+                className="block max-w-full text-left"
+              >
+                <h3 className="truncate text-sm font-black text-slate-900 dark:text-white">
+                  {product.name ||
+                    "Unnamed Product"}
+                </h3>
+              </button>
+
+              <p className="mt-1 truncate text-[10px] text-slate-400">
+                SKU:{" "}
+                {product.sku || "-"}
+              </p>
+
+              <p className="mt-0.5 truncate text-[10px] text-slate-400">
+                {product.category ||
+                  "No Category"}
+              </p>
+
+            </div>
+
+            {/* STATUS */}
+
+            <span
+              className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-black ${status.className}`}
+            >
+              {status.label}
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* =================================================
+          PRODUCT INFORMATION
+      ================================================= */}
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+
+        {/* HSN */}
+
+        <MobileInfoBox
+          label="HSN Code"
+          value={productHSN}
+        />
+
+        {/* SIZE */}
+
+        <MobileInfoBox
+          label="Size"
+          value={productSize}
+        />
+
+      </div>
+
+      {/* =================================================
+          PRICE / STOCK
+      ================================================= */}
+
+      <div className="mt-2 grid grid-cols-3 gap-2">
+
+        <MobileInfoBox
+          label="Purchase"
+          value={`₹${Number(
+            product.purchasePrice || 0
+          ).toLocaleString("en-IN")}`}
+        />
+
+        <MobileInfoBox
+          label="Selling"
+          value={`₹${Number(
+            product.sellingPrice || 0
+          ).toLocaleString("en-IN")}`}
+        />
+
+        <MobileInfoBox
+          label="Stock"
+          value={stock}
+        />
+
+      </div>
+
+      {/* =================================================
+          ACTIONS
+      ================================================= */}
+
+      <div className="mt-3 grid grid-cols-3 gap-2">
+
+        <button
+          type="button"
+          onClick={onView}
+          className="rounded-lg border border-slate-200 bg-white px-2 py-2.5 text-[11px] font-bold text-slate-700 transition-all duration-200 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+        >
+          👁️ View
+        </button>
+
+        <button
+          type="button"
+          onClick={onEdit}
+          className="rounded-lg border border-slate-200 bg-white px-2 py-2.5 text-[11px] font-bold text-slate-700 transition-all duration-200 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+        >
+          ✏️ Edit
+        </button>
+
+        <button
+          type="button"
+          onClick={onDelete}
+          className="rounded-lg border border-red-200 bg-red-50 px-2 py-2.5 text-[11px] font-bold text-red-600 transition-all duration-200 active:scale-95 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400"
+        >
+          🗑️ Delete
+        </button>
+
+      </div>
+
+    </div>
+  );
+};
+
+// =====================================================
+// MOBILE INFO BOX
+// =====================================================
+
+const MobileInfoBox = ({
+  label,
+  value,
+}) => {
+  return (
+    <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-950/60">
+
+      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+        {label}
+      </p>
+
+      <p className="mt-1 truncate text-xs font-black text-slate-800 dark:text-slate-100">
+        {value}
+      </p>
+
+    </div>
   );
 };
 

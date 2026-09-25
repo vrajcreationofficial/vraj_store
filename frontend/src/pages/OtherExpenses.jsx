@@ -21,6 +21,7 @@ import {
   FiCheckCircle,
   FiAlertCircle,
   FiPackage,
+  FiPrinter,
 } from "react-icons/fi";
 
 import { FaIndianRupeeSign } from "react-icons/fa6";
@@ -82,6 +83,26 @@ const getRowTotal = (item) => {
     Number(item?.purchaseCost || 0) *
     Number(item?.quantity || 0)
   );
+};
+
+const formatCurrency = (value) => {
+  return Number(value || 0).toLocaleString(
+    "en-IN",
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }
+  );
+};
+
+// Escape values before putting them into printable HTML
+const escapeHtml = (value) => {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 };
 
 // =====================================================
@@ -208,7 +229,7 @@ const OtherExpenses = () => {
   };
 
   // ===================================================
-  // INITIAL LOAD - 0.3 SECOND
+  // INITIAL LOAD
   // ===================================================
 
   useEffect(() => {
@@ -905,7 +926,7 @@ const OtherExpenses = () => {
   };
 
   // ===================================================
-  // EXPORT SELECTED PDF
+  // MANUAL PRINT REPORT
   // ===================================================
 
   const exportSelectedPDF = () => {
@@ -925,36 +946,6 @@ const OtherExpenses = () => {
         )
       );
 
-    const rows =
-      selectedData
-        .map((item, index) => {
-          const total =
-            getRowTotal(item);
-
-          const date =
-            item.purchaseDate
-              ? formatDate(
-                  item.purchaseDate
-                )
-              : "-";
-
-          return `
-            <tr>
-              <td>${index + 1}</td>
-              <td>${date}</td>
-              <td>${item.productId || "-"}</td>
-              <td>${item.productName || "-"}</td>
-              <td>${item.supplierName || "-"}</td>
-              <td>₹${Number(
-                item.purchaseCost || 0
-              ).toFixed(2)}</td>
-              <td>${item.quantity || 0}</td>
-              <td>₹${total.toFixed(2)}</td>
-            </tr>
-          `;
-        })
-        .join("");
-
     const total =
       selectedData.reduce(
         (sum, item) =>
@@ -962,15 +953,93 @@ const OtherExpenses = () => {
         0
       );
 
+    const totalQuantity =
+      selectedData.reduce(
+        (sum, item) =>
+          sum +
+          Number(
+            item.quantity || 0
+          ),
+        0
+      );
+
+    const rows =
+      selectedData
+        .map((item, index) => {
+          const rowTotal =
+            getRowTotal(item);
+
+          return `
+            <tr>
+              <td class="center">${index + 1}</td>
+
+              <td>
+                ${escapeHtml(
+                  formatDate(
+                    item.purchaseDate
+                  )
+                )}
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  item.productId || "-"
+                )}
+              </td>
+
+              <td>
+                <strong>
+                  ${escapeHtml(
+                    item.productName ||
+                      "-"
+                  )}
+                </strong>
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  item.supplierName ||
+                    "-"
+                )}
+              </td>
+
+              <td class="right">
+                ₹${formatCurrency(
+                  item.purchaseCost
+                )}
+              </td>
+
+              <td class="center">
+                ${escapeHtml(
+                  item.quantity || 0
+                )}
+              </td>
+
+              <td class="right strong">
+                ₹${formatCurrency(
+                  rowTotal
+                )}
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+
+    const generatedAt =
+      new Date().toLocaleString(
+        "en-IN"
+      );
+
     const printWindow =
       window.open(
         "",
-        "_blank"
+        "_blank",
+        "width=1200,height=800"
       );
 
     if (!printWindow) {
       alert(
-        "Please allow popups to export PDF."
+        "Please allow popups to open the print report."
       );
       return;
     }
@@ -978,167 +1047,455 @@ const OtherExpenses = () => {
     printWindow.document.write(`
       <!DOCTYPE html>
 
-      <html>
+      <html lang="en">
+
         <head>
+
+          <meta charset="UTF-8" />
+
+          <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0"
+          />
+
           <title>
-            Vraj Creation - Other Expenses
+            Vraj Creation - Other Expenses Report
           </title>
 
           <style>
+
             * {
               box-sizing: border-box;
             }
 
+            html,
             body {
-              font-family: Arial, sans-serif;
-              padding: 30px;
-              color: #222;
+              margin: 0;
+              padding: 0;
+              background: #ffffff;
+              color: #111111;
+              font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
             }
 
-            h1 {
+            body {
+              padding: 32px;
+            }
+
+            .report {
+              width: 100%;
+              max-width: 1400px;
+              margin: 0 auto;
+            }
+
+            .header {
+              display: flex;
+              align-items: flex-start;
+              justify-content: space-between;
+              gap: 20px;
+              border-bottom: 2px solid #111111;
+              padding-bottom: 18px;
+            }
+
+            .brand {
+              font-size: 26px;
+              font-weight: 800;
+              letter-spacing: 0.5px;
               margin: 0;
-              font-size: 24px;
+            }
+
+            .title {
+              font-size: 16px;
+              font-weight: 700;
+              margin-top: 5px;
             }
 
             .subtitle {
-              margin-top: 6px;
-              color: #666;
-              font-size: 13px;
+              font-size: 11px;
+              color: #555555;
+              margin-top: 5px;
+            }
+
+            .generated {
+              text-align: right;
+              font-size: 10px;
+              color: #555555;
+              line-height: 1.6;
             }
 
             .summary {
-              margin-top: 20px;
-              margin-bottom: 20px;
-              display: flex;
-              gap: 30px;
+              display: grid;
+              grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+              gap: 12px;
+              margin: 20px 0;
             }
 
             .summary-box {
-              border: 1px solid #ddd;
-              padding: 12px 18px;
-              border-radius: 8px;
+              border: 1px solid #bdbdbd;
+              border-radius: 6px;
+              padding: 12px 14px;
+              background: #ffffff;
             }
 
             .summary-label {
-              font-size: 12px;
-              color: #666;
+              font-size: 9px;
+              color: #555555;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              font-weight: 700;
             }
 
             .summary-value {
               margin-top: 5px;
-              font-size: 18px;
-              font-weight: bold;
+              font-size: 17px;
+              font-weight: 800;
+              color: #111111;
+            }
+
+            .table-wrap {
+              width: 100%;
+              overflow: visible;
             }
 
             table {
               width: 100%;
               border-collapse: collapse;
-              margin-top: 20px;
+              table-layout: fixed;
+              margin-top: 8px;
+            }
+
+            thead {
+              display: table-header-group;
             }
 
             th,
             td {
-              border: 1px solid #ddd;
-              padding: 8px;
-              font-size: 11px;
-              text-align: left;
+              border: 1px solid #bdbdbd;
+              padding: 8px 7px;
+              font-size: 9.5px;
+              vertical-align: middle;
+              word-break: break-word;
             }
 
             th {
-              background: #f3f3f3;
-              font-weight: bold;
+              background: #eeeeee;
+              color: #111111;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.2px;
             }
 
-            .total {
-              margin-top: 20px;
+            td {
+              background: #ffffff;
+            }
+
+            tbody tr {
+              page-break-inside: avoid;
+            }
+
+            .center {
+              text-align: center;
+            }
+
+            .right {
               text-align: right;
-              font-size: 18px;
-              font-weight: bold;
+            }
+
+            .strong {
+              font-weight: 800;
+            }
+
+            .grand-total {
+              display: flex;
+              justify-content: flex-end;
+              margin-top: 16px;
+            }
+
+            .grand-total-box {
+              min-width: 260px;
+              border: 2px solid #111111;
+              padding: 12px 16px;
+              display: flex;
+              justify-content: space-between;
+              gap: 30px;
+              font-size: 13px;
+              font-weight: 800;
+            }
+
+            .footer {
+              border-top: 1px solid #cccccc;
+              margin-top: 28px;
+              padding-top: 10px;
+              font-size: 9px;
+              color: #666666;
+              display: flex;
+              justify-content: space-between;
+              gap: 20px;
+            }
+
+            .print-note {
+              margin-top: 14px;
+              padding: 10px 12px;
+              border: 1px solid #cccccc;
+              background: #f8f8f8;
+              font-size: 10px;
+              color: #444444;
             }
 
             @media print {
-              body {
-                padding: 10px;
+
+              @page {
+                size: A4 landscape;
+                margin: 10mm;
               }
+
+              body {
+                padding: 0;
+              }
+
+              .report {
+                max-width: none;
+              }
+
+              .print-note {
+                display: none;
+              }
+
+              .summary-box {
+                break-inside: avoid;
+              }
+
+              table {
+                page-break-inside: auto;
+              }
+
+              tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+              }
+
+              thead {
+                display: table-header-group;
+              }
+
             }
+
+            @media screen {
+
+              .screen-toolbar {
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                display: flex;
+                justify-content: flex-end;
+                gap: 8px;
+                padding-bottom: 18px;
+              }
+
+              .screen-toolbar button {
+                border: 1px solid #222222;
+                background: #111111;
+                color: #ffffff;
+                padding: 9px 14px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: 700;
+              }
+
+              .screen-toolbar button:hover {
+                background: #333333;
+              }
+
+            }
+
           </style>
+
         </head>
 
         <body>
 
-          <h1>
-            Vraj Creation
-          </h1>
-
-          <div class="subtitle">
-            Other Expenses Report
+          <div class="screen-toolbar">
+            <button onclick="window.print()">
+              Print / Save as PDF
+            </button>
           </div>
 
-          <div class="summary">
+          <main class="report">
 
-            <div class="summary-box">
-              <div class="summary-label">
-                Selected Records
+            <header class="header">
+
+              <div>
+
+                <h1 class="brand">
+                  VRAJ CREATION
+                </h1>
+
+                <div class="title">
+                  Other Expenses Report
+                </div>
+
+                <div class="subtitle">
+                  Selected expense records
+                </div>
+
               </div>
 
-              <div class="summary-value">
-                ${selectedData.length}
+              <div class="generated">
+
+                <div>
+                  Generated:
+                  ${escapeHtml(
+                    generatedAt
+                  )}
+                </div>
+
+                <div>
+                  Records:
+                  ${selectedData.length}
+                </div>
+
               </div>
+
+            </header>
+
+            <section class="summary">
+
+              <div class="summary-box">
+
+                <div class="summary-label">
+                  Selected Records
+                </div>
+
+                <div class="summary-value">
+                  ${selectedData.length}
+                </div>
+
+              </div>
+
+              <div class="summary-box">
+
+                <div class="summary-label">
+                  Total Quantity
+                </div>
+
+                <div class="summary-value">
+                  ${totalQuantity}
+                </div>
+
+              </div>
+
+              <div class="summary-box">
+
+                <div class="summary-label">
+                  Total Expense
+                </div>
+
+                <div class="summary-value">
+                  ₹${formatCurrency(
+                    total
+                  )}
+                </div>
+
+              </div>
+
+            </section>
+
+            <div class="table-wrap">
+
+              <table>
+
+                <colgroup>
+                  <col style="width: 5%;" />
+                  <col style="width: 10%;" />
+                  <col style="width: 12%;" />
+                  <col style="width: 19%;" />
+                  <col style="width: 18%;" />
+                  <col style="width: 12%;" />
+                  <col style="width: 8%;" />
+                  <col style="width: 16%;" />
+                </colgroup>
+
+                <thead>
+
+                  <tr>
+                    <th>#</th>
+                    <th>Date</th>
+                    <th>Product ID</th>
+                    <th>Product Name</th>
+                    <th>Supplier</th>
+                    <th>Cost / Unit</th>
+                    <th>Qty</th>
+                    <th>Total</th>
+                  </tr>
+
+                </thead>
+
+                <tbody>
+                  ${rows}
+                </tbody>
+
+              </table>
+
             </div>
 
-            <div class="summary-box">
-              <div class="summary-label">
-                Selected Total
+            <div class="grand-total">
+
+              <div class="grand-total-box">
+
+                <span>
+                  Grand Total
+                </span>
+
+                <span>
+                  ₹${formatCurrency(
+                    total
+                  )}
+                </span>
+
               </div>
 
-              <div class="summary-value">
-                ₹${total.toFixed(2)}
-              </div>
             </div>
 
-          </div>
+            <div class="print-note">
+              Print manually using the
+              <strong>
+                "Print / Save as PDF"
+              </strong>
+              button above or press
+              <strong>
+                Ctrl + P
+              </strong>.
+              The report does not print automatically.
+            </div>
 
-          <table>
+            <footer class="footer">
 
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Date</th>
-                <th>Product ID</th>
-                <th>Product Name</th>
-                <th>Supplier</th>
-                <th>Cost / Unit</th>
-                <th>Qty</th>
-                <th>Total</th>
-              </tr>
-            </thead>
+              <span>
+                Vraj Creation
+              </span>
 
-            <tbody>
-              ${rows}
-            </tbody>
+              <span>
+                Other Expenses Statement
+              </span>
 
-          </table>
+            </footer>
 
-          <div class="total">
-            Grand Total: ₹${total.toFixed(2)}
-          </div>
-
-          <script>
-            window.onload = function() {
-              window.print();
-            };
-          </script>
+          </main>
 
         </body>
+
       </html>
     `);
 
     printWindow.document.close();
+    printWindow.focus();
   };
 
   // ===================================================
   // PAGE LOADING UI
-  // PRODUCTS STYLE SKELETON
   // ===================================================
 
   if (pageLoading) {
@@ -1146,8 +1503,6 @@ const OtherExpenses = () => {
       <div className="min-h-screen bg-gray-100 dark:bg-gray-950 p-4 md:p-6">
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-
-          {/* HEADER SKELETON */}
 
           <div className="p-5 border-b border-gray-200 dark:border-gray-800">
 
@@ -1167,8 +1522,6 @@ const OtherExpenses = () => {
 
           </div>
 
-          {/* SUMMARY SKELETON */}
-
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5">
 
             {[1, 2, 3].map((item) => (
@@ -1180,23 +1533,15 @@ const OtherExpenses = () => {
 
           </div>
 
-          {/* SEARCH SKELETON */}
-
           <div className="px-5 pb-5">
 
             <div className="h-11 w-full max-w-md rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
 
           </div>
 
-          {/* TABLE SKELETON */}
-
           <div className="border-t border-gray-200 dark:border-gray-800">
 
-            {/* TABLE HEADER */}
-
             <div className="h-12 bg-gray-100 dark:bg-gray-800 animate-pulse" />
-
-            {/* TABLE ROWS */}
 
             <div className="p-4 space-y-4">
 
@@ -1224,7 +1569,7 @@ const OtherExpenses = () => {
   // ===================================================
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 p-4 md:p-6 transition-colors duration-300">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 p-3 sm:p-4 md:p-6 transition-colors duration-300">
 
       {/* =================================================
           HEADER
@@ -1236,13 +1581,13 @@ const OtherExpenses = () => {
 
           <div className="flex items-center gap-3">
 
-            <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3">
+            <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 shrink-0">
 
               <FiFileText size={22} />
 
             </div>
 
-            <div>
+            <div className="min-w-0">
 
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
                 Other Expenses
@@ -1260,8 +1605,6 @@ const OtherExpenses = () => {
 
         <div className="flex flex-wrap gap-2">
 
-          {/* EXPORT */}
-
           {selectedExpenses.length > 0 && (
             <button
               type="button"
@@ -1273,15 +1616,17 @@ const OtherExpenses = () => {
               }
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium shadow-lg shadow-red-500/20 hover:-translate-y-0.5 active:scale-95 transition-all duration-200 disabled:opacity-50"
             >
-              <FiFileText />
+              <FiPrinter />
 
-              Export Selected PDF (
-              {selectedExpenses.length}
-              )
+              <span className="hidden sm:inline">
+                Print Selected
+              </span>
+
+              <span>
+                ({selectedExpenses.length})
+              </span>
             </button>
           )}
-
-          {/* ADD */}
 
           <button
             type="button"
@@ -1290,9 +1635,17 @@ const OtherExpenses = () => {
             }
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-lg shadow-blue-500/25 hover:-translate-y-0.5 hover:shadow-blue-500/40 active:scale-95 transition-all duration-200"
           >
+
             <FiPlus />
 
-            Add Other Expense
+            <span className="hidden sm:inline">
+              Add Other Expense
+            </span>
+
+            <span className="sm:hidden">
+              Add Expense
+            </span>
+
           </button>
 
         </div>
@@ -1311,13 +1664,13 @@ const OtherExpenses = () => {
             size={20}
           />
 
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
 
             <p className="font-semibold text-red-700 dark:text-red-400">
               Something went wrong
             </p>
 
-            <p className="text-sm text-red-600 dark:text-red-300 mt-0.5">
+            <p className="text-sm text-red-600 dark:text-red-300 mt-0.5 break-words">
               {errorMessage}
             </p>
 
@@ -1340,15 +1693,15 @@ const OtherExpenses = () => {
           SUMMARY
       ================================================= */}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
 
         {/* TOTAL RECORDS */}
 
-        <div className="group bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+        <div className="group bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 sm:p-5 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
 
-            <div>
+            <div className="min-w-0">
 
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Total Records
@@ -1360,7 +1713,7 @@ const OtherExpenses = () => {
 
             </div>
 
-            <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 flex items-center justify-center shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
 
               <FiPackage size={22} />
 
@@ -1372,17 +1725,17 @@ const OtherExpenses = () => {
 
         {/* TOTAL EXPENSE */}
 
-        <div className="group bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+        <div className="group bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 sm:p-5 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
 
-            <div>
+            <div className="min-w-0">
 
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Total Expense
               </p>
 
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-1 truncate">
                 ₹
                 {totalAmount.toLocaleString(
                   "en-IN",
@@ -1395,7 +1748,7 @@ const OtherExpenses = () => {
 
             </div>
 
-            <div className="w-11 h-11 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
+            <div className="w-11 h-11 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 flex items-center justify-center shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
 
               <FaIndianRupeeSign
                 size={22}
@@ -1409,17 +1762,17 @@ const OtherExpenses = () => {
 
         {/* SELECTED */}
 
-        <div className="group bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+        <div className="group bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 sm:p-5 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
 
-            <div>
+            <div className="min-w-0">
 
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Selected Total
               </p>
 
-              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+              <p className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1 truncate">
                 ₹
                 {selectedTotal.toLocaleString(
                   "en-IN",
@@ -1432,7 +1785,7 @@ const OtherExpenses = () => {
 
             </div>
 
-            <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 flex items-center justify-center shrink-0 transition-all duration-300 group-hover:scale-110">
 
               <FiCheckCircle
                 size={22}
@@ -1450,9 +1803,9 @@ const OtherExpenses = () => {
           SEARCH
       ================================================= */}
 
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 mb-6 shadow-sm hover:shadow-md transition-shadow duration-300">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-3 sm:p-4 mb-6 shadow-sm hover:shadow-md transition-shadow duration-300">
 
-        <div className="relative max-w-md">
+        <div className="relative w-full max-w-md">
 
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
 
@@ -1503,10 +1856,10 @@ const OtherExpenses = () => {
       </div>
 
       {/* =================================================
-          TABLE
+          DESKTOP TABLE
       ================================================= */}
 
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300">
+      <div className="hidden lg:block bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300">
 
         <div className="overflow-x-auto">
 
@@ -1684,7 +2037,7 @@ const OtherExpenses = () => {
 
                             </div>
                           ) : (
-                            <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 transition-all duration-300 group-hover:scale-110">
+                            <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400">
 
                               <FiImage />
 
@@ -1810,11 +2163,357 @@ const OtherExpenses = () => {
       </div>
 
       {/* =================================================
+          MOBILE / TABLET CARDS
+      ================================================= */}
+
+      <div className="lg:hidden">
+
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+
+          {/* MOBILE LIST HEADER */}
+
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-3">
+
+            <div className="flex items-center gap-3 min-w-0">
+
+              <input
+                type="checkbox"
+                checked={
+                  allFilteredSelected
+                }
+                onChange={
+                  toggleSelectAll
+                }
+                disabled={
+                  filteredExpenses.length ===
+                  0
+                }
+                className="w-4 h-4 accent-blue-600 cursor-pointer shrink-0"
+              />
+
+              <div className="min-w-0">
+
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                  Expense List
+                </p>
+
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {filteredExpenses.length} record
+                  {filteredExpenses.length !==
+                  1
+                    ? "s"
+                    : ""}
+                </p>
+
+              </div>
+
+            </div>
+
+            {selectedExpenses.length > 0 && (
+              <div className="shrink-0 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                {selectedExpenses.length} selected
+              </div>
+            )}
+
+          </div>
+
+          {/* MOBILE CONTENT */}
+
+          {filteredExpenses.length ===
+          0 ? (
+            <div className="px-4 py-14 text-center">
+
+              <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-4">
+
+                <FiPackage
+                  size={28}
+                  className="text-gray-400"
+                />
+
+              </div>
+
+              <p className="text-gray-700 dark:text-gray-300 font-semibold">
+                No Other Expenses found
+              </p>
+
+              <p className="text-sm text-gray-400 mt-1">
+                Try another search or add a new expense.
+              </p>
+
+            </div>
+          ) : (
+            <div className="p-3 sm:p-4 space-y-3">
+
+              {filteredExpenses.map(
+                (item, index) => {
+                  const rowTotal =
+                    getRowTotal(item);
+
+                  const isSelected =
+                    selectedExpenses.includes(
+                      item._id
+                    );
+
+                  return (
+                    <div
+                      key={
+                        item._id
+                      }
+                      className={`rounded-2xl border p-3 sm:p-4 transition-all duration-200 ${
+                        isSelected
+                          ? "border-blue-400 bg-blue-50/50 dark:border-blue-700 dark:bg-blue-950/20"
+                          : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900"
+                      }`}
+                      style={{
+                        animationDelay: `${Math.min(
+                          index * 35,
+                          400
+                        )}ms`,
+                      }}
+                    >
+
+                      {/* CARD TOP */}
+
+                      <div className="flex items-start gap-3">
+
+                        <input
+                          type="checkbox"
+                          checked={
+                            isSelected
+                          }
+                          onChange={() =>
+                            toggleSelection(
+                              item._id
+                            )
+                          }
+                          className="w-4 h-4 accent-blue-600 cursor-pointer mt-1 shrink-0"
+                        />
+
+                        {/* IMAGE */}
+
+                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
+
+                          {item.purchaseImage ? (
+                            <img
+                              src={
+                                item.purchaseImage
+                              }
+                              alt={
+                                item.productName ||
+                                "Expense"
+                              }
+                              className="w-full h-full object-cover"
+                              onError={(
+                                e
+                              ) => {
+                                e.currentTarget.style.display =
+                                  "none";
+
+                                if (
+                                  e.currentTarget
+                                    .nextSibling
+                                ) {
+                                  e.currentTarget.nextSibling.style.display =
+                                    "flex";
+                                }
+                              }}
+                            />
+                          ) : null}
+
+                          <div
+                            style={{
+                              display:
+                                item.purchaseImage
+                                  ? "none"
+                                  : "flex",
+                            }}
+                            className="absolute inset-0 items-center justify-center text-gray-400"
+                          >
+                            <FiImage
+                              size={22}
+                            />
+                          </div>
+
+                        </div>
+
+                        {/* PRODUCT */}
+
+                        <div className="flex-1 min-w-0">
+
+                          <div className="flex items-start justify-between gap-2">
+
+                            <div className="min-w-0">
+
+                              <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base leading-5 break-words">
+                                {item.productName ||
+                                  "Other Expense"}
+                              </h3>
+
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+
+                                <span className="inline-flex px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-[10px] sm:text-xs font-mono text-gray-700 dark:text-gray-300">
+                                  ID:{" "}
+                                  {item.productId ||
+                                    "-"}
+                                </span>
+
+                              </div>
+
+                            </div>
+
+                            <div className="text-right shrink-0">
+
+                              <p className="text-[10px] uppercase tracking-wide text-gray-400">
+                                Total
+                              </p>
+
+                              <p className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                                ₹
+                                {formatCurrency(
+                                  rowTotal
+                                )}
+                              </p>
+
+                            </div>
+
+                          </div>
+
+                        </div>
+
+                      </div>
+
+                      {/* DETAILS */}
+
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+
+                        <div className="rounded-xl bg-gray-50 dark:bg-gray-800/70 px-3 py-2.5">
+
+                          <p className="text-[10px] uppercase tracking-wide text-gray-400">
+                            Date
+                          </p>
+
+                          <p className="text-xs sm:text-sm font-medium text-gray-800 dark:text-gray-200 mt-0.5">
+                            {formatDate(
+                              item.purchaseDate
+                            )}
+                          </p>
+
+                        </div>
+
+                        <div className="rounded-xl bg-gray-50 dark:bg-gray-800/70 px-3 py-2.5">
+
+                          <p className="text-[10px] uppercase tracking-wide text-gray-400">
+                            Supplier
+                          </p>
+
+                          <p className="text-xs sm:text-sm font-medium text-gray-800 dark:text-gray-200 mt-0.5 break-words">
+                            {item.supplierName ||
+                              "-"}
+                          </p>
+
+                        </div>
+
+                        <div className="rounded-xl bg-gray-50 dark:bg-gray-800/70 px-3 py-2.5">
+
+                          <p className="text-[10px] uppercase tracking-wide text-gray-400">
+                            Cost / Unit
+                          </p>
+
+                          <p className="text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5">
+                            ₹
+                            {formatCurrency(
+                              item.purchaseCost
+                            )}
+                          </p>
+
+                        </div>
+
+                        <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 px-3 py-2.5">
+
+                          <p className="text-[10px] uppercase tracking-wide text-blue-500 dark:text-blue-400">
+                            Quantity
+                          </p>
+
+                          <p className="text-xs sm:text-sm font-bold text-blue-700 dark:text-blue-400 mt-0.5">
+                            {item.quantity ||
+                              0}
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                      {/* ACTIONS */}
+
+                      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800 flex items-center gap-2">
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openEditModal(
+                              item
+                            )
+                          }
+                          disabled={
+                            actionLoading
+                          }
+                          className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 active:scale-95 transition-all disabled:opacity-40"
+                        >
+
+                          <FiEdit />
+
+                          <span className="text-xs sm:text-sm font-medium">
+                            Edit
+                          </span>
+
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDelete(
+                              item._id
+                            )
+                          }
+                          disabled={
+                            actionLoading
+                          }
+                          className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 active:scale-95 transition-all disabled:opacity-40"
+                        >
+
+                          {deletingId ===
+                          item._id ? (
+                            <span className="w-4 h-4 rounded-full border-2 border-red-200 border-t-red-600 animate-spin" />
+                          ) : (
+                            <FiTrash2 />
+                          )}
+
+                          <span className="text-xs sm:text-sm font-medium">
+                            Delete
+                          </span>
+
+                        </button>
+
+                      </div>
+
+                    </div>
+                  );
+                }
+              )}
+
+            </div>
+          )}
+
+        </div>
+
+      </div>
+
+      {/* =================================================
           MODAL
       ================================================= */}
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
 
           <div
             className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200 ${
@@ -1828,7 +2527,7 @@ const OtherExpenses = () => {
           />
 
           <div
-            className={`relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 transition-all duration-200 ${
+            className={`relative w-full max-w-2xl max-h-[94vh] overflow-y-auto bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 transition-all duration-200 ${
               modalClosing
                 ? "opacity-0 scale-95 translate-y-3"
                 : "opacity-100 scale-100 translate-y-0"
@@ -1837,13 +2536,13 @@ const OtherExpenses = () => {
 
             {/* HEADER */}
 
-            <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur">
+            <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur">
 
-              <div>
+              <div className="min-w-0">
 
                 <div className="flex items-center gap-2">
 
-                  <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-md">
+                  <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-md shrink-0">
 
                     {editingId ? (
                       <FiEdit />
@@ -1853,7 +2552,7 @@ const OtherExpenses = () => {
 
                   </div>
 
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">
 
                     {editingId
                       ? "Edit Other Expense"
@@ -1878,7 +2577,7 @@ const OtherExpenses = () => {
                   uploadingImage ||
                   actionLoading
                 }
-                className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-900 dark:hover:text-white hover:rotate-90 transition-all duration-300 disabled:opacity-40"
+                className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-900 dark:hover:text-white hover:rotate-90 transition-all duration-300 disabled:opacity-40 shrink-0"
               >
                 <FiX size={20} />
               </button>
@@ -1891,7 +2590,7 @@ const OtherExpenses = () => {
               onSubmit={
                 handleSubmit
               }
-              className="p-6 space-y-5"
+              className="p-4 sm:p-6 space-y-5"
             >
 
               {/* PRODUCT ID */}
@@ -1999,7 +2698,7 @@ const OtherExpenses = () => {
 
               {/* COST + QUANTITY */}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                 <div>
 
@@ -2059,9 +2758,9 @@ const OtherExpenses = () => {
                   Purchase Image
                 </label>
 
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-5 bg-gray-50/70 dark:bg-gray-800/40 transition-all duration-300 hover:border-blue-400 hover:bg-blue-50/30 dark:hover:bg-blue-950/20">
+                <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-4 sm:p-5 bg-gray-50/70 dark:bg-gray-800/40 transition-all duration-300 hover:border-blue-400 hover:bg-blue-50/30 dark:hover:bg-blue-950/20">
 
-                  <div className="flex flex-col md:flex-row gap-5 items-center">
+                  <div className="flex flex-col sm:flex-row gap-5 items-center">
 
                     {/* PREVIEW */}
 
@@ -2107,7 +2806,7 @@ const OtherExpenses = () => {
 
                     {/* UPLOAD */}
 
-                    <div className="flex-1 text-center md:text-left">
+                    <div className="flex-1 text-center sm:text-left min-w-0">
 
                       <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white cursor-pointer shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-95 transition-all duration-200">
 
@@ -2135,11 +2834,11 @@ const OtherExpenses = () => {
                       </p>
 
                       {imageFile && (
-                        <div className="mt-3 flex items-center justify-center md:justify-start gap-2 text-xs text-green-600 dark:text-green-400">
+                        <div className="mt-3 flex items-center justify-center sm:justify-start gap-2 text-xs text-green-600 dark:text-green-400">
 
                           <FiCheckCircle />
 
-                          <span className="truncate max-w-[240px]">
+                          <span className="truncate max-w-[200px]">
                             {
                               imageFile.name
                             }
@@ -2180,11 +2879,11 @@ const OtherExpenses = () => {
 
               {/* TOTAL PREVIEW */}
 
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-100 dark:border-blue-900/40 p-5">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-100 dark:border-blue-900/40 p-4 sm:p-5">
 
                 <div className="absolute -right-8 -top-8 w-24 h-24 rounded-full bg-blue-500/10 animate-pulse" />
 
-                <div className="relative flex items-center justify-between">
+                <div className="relative flex items-center justify-between gap-4">
 
                   <div>
 
@@ -2198,7 +2897,7 @@ const OtherExpenses = () => {
 
                   </div>
 
-                  <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white text-right">
 
                     ₹
                     {(

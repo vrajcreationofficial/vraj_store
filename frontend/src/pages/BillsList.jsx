@@ -151,12 +151,32 @@ const money = (value) => {
 };
 
 // =====================================================
+// INVOICE TYPE HELPERS
+// =====================================================
+const normalizeInvoiceType = (value) => {
+  const type = String(value || "GST Invoice")
+    .trim()
+    .toLowerCase();
+
+  if (type === "without gst" || type === "withoutgst") {
+    return "Without GST";
+  }
+
+  if (type === "non-gst invoice" || type === "nongst invoice") {
+    return "Non-GST Invoice";
+  }
+
+  return "GST Invoice";
+};
+
+// =====================================================
 // GST CALCULATION
 // =====================================================
 const calculateGST = (
   items,
   customerStateCode,
-  customerState
+  customerState,
+  invoiceType = "GST Invoice"
 ) => {
   let taxableTotal = 0;
 
@@ -174,6 +194,12 @@ const calculateGST = (
     .trim()
     .toLowerCase();
 
+  const normalizedInvoiceType =
+    normalizeInvoiceType(invoiceType);
+
+  const isWithoutGST =
+    normalizedInvoiceType === "Without GST";
+
   const isRajasthan =
     stateCode === "08" ||
     stateName === "rajasthan";
@@ -183,7 +209,7 @@ const calculateGST = (
     const price = num(item.price);
     const itemDiscount = num(item.discount);
 
-    const gstRate = 5;
+    const gstRate = isWithoutGST ? 0 : 5;
 
     const gross = quantity * price;
 
@@ -194,21 +220,25 @@ const calculateGST = (
 
     taxableTotal += taxable;
 
-    if (isRajasthan) {
-      totalCGST +=
-        (taxable * 2.5) / 100;
+    if (!isWithoutGST) {
+      if (isRajasthan) {
+        totalCGST +=
+          (taxable * 2.5) / 100;
 
-      totalSGST +=
-        (taxable * 2.5) / 100;
-    } else {
-      totalIGST +=
-        (taxable * gstRate) / 100;
+        totalSGST +=
+          (taxable * 2.5) / 100;
+      } else {
+        totalIGST +=
+          (taxable * gstRate) / 100;
+      }
     }
   });
 
-  const totalGST = isRajasthan
-    ? totalCGST + totalSGST
-    : totalIGST;
+  const totalGST = isWithoutGST
+    ? 0
+    : isRajasthan
+      ? totalCGST + totalSGST
+      : totalIGST;
 
   return {
     taxableTotal,
@@ -243,6 +273,13 @@ const getBillPrintData = (bill) => {
           "en-IN"
         )
       : "-";
+
+  const invoiceType = normalizeInvoiceType(
+    bill.invoiceType ||
+      bill.type ||
+      bill.invoice_type ||
+      "GST Invoice"
+  );
 
   const customer =
     bill.customer || {};
@@ -317,7 +354,8 @@ const getBillPrintData = (bill) => {
   const gstData = calculateGST(
     items,
     customerStateCode,
-    customerState
+    customerState,
+    invoiceType
   );
 
   const taxableTotal =
@@ -390,6 +428,7 @@ const getBillPrintData = (bill) => {
     items,
     invoiceNo,
     formattedDate,
+    invoiceType,
     customerName,
     customerPhone,
     customerEmail,
@@ -1059,6 +1098,7 @@ const InvoiceContent = ({
     items,
     invoiceNo,
     formattedDate,
+    invoiceType,
     customerName,
     customerPhone,
     customerEmail,
@@ -1103,7 +1143,7 @@ const InvoiceContent = ({
             </p>
 
             <div className="invoice-title">
-              GST INVOICE
+              {invoiceType}
             </div>
           </div>
 
@@ -1142,11 +1182,13 @@ const InvoiceContent = ({
                 </div>
               ) : null}
 
-              <div className="customer-row">
-                <b>Customer GSTIN:</b>{" "}
-                {customerGST ||
-                  "N/A"}
-              </div>
+              {invoiceType === "GST Invoice" && (
+                <div className="customer-row">
+                  <b>Customer GSTIN:</b>{" "}
+                  {customerGST ||
+                    "N/A"}
+                </div>
+              )}
 
               <div className="customer-row">
                 <b>State Code:</b>{" "}
@@ -1181,11 +1223,13 @@ const InvoiceContent = ({
                   "N/A"}
               </div>
 
-              <div className="customer-row">
-                <b>Customer GSTIN:</b>{" "}
-                {customerGST ||
-                  "N/A"}
-              </div>
+              {invoiceType === "GST Invoice" && (
+                <div className="customer-row">
+                  <b>Customer GSTIN:</b>{" "}
+                  {customerGST ||
+                    "N/A"}
+                </div>
+              )}
 
               <div className="customer-row">
                 <b>State Code:</b>{" "}
@@ -1247,9 +1291,11 @@ const InvoiceContent = ({
                   Rate
                 </th>
 
-                <th>
-                  GST
-                </th>
+                {invoiceType === "GST Invoice" && (
+                  <th>
+                    GST
+                  </th>
+                )}
 
                 <th>
                   Taxable Value
@@ -1290,7 +1336,10 @@ const InvoiceContent = ({
                     const price =
                       num(item.price);
 
-                    const gstRate = 5;
+                    const gstRate =
+                      invoiceType === "Without GST"
+                        ? 0
+                        : 5;
 
                     const itemDiscount =
                       num(
@@ -1345,9 +1394,11 @@ const InvoiceContent = ({
                           {money(price)}
                         </td>
 
-                        <td className="center">
-                          {gstRate}%
-                        </td>
+                        {invoiceType === "GST Invoice" && (
+                          <td className="center">
+                            {gstRate}%
+                          </td>
+                        )}
 
                         <td className="right">
                           ₹
@@ -1367,7 +1418,11 @@ const InvoiceContent = ({
               ) : (
                 <tr>
                   <td
-                    colSpan="8"
+                    colSpan={
+                      invoiceType === "GST Invoice"
+                        ? 8
+                        : 7
+                    }
                     className="center"
                   >
                     No items added
@@ -1409,53 +1464,57 @@ const InvoiceContent = ({
                     </td>
                   </tr>
 
-                  {gstData.isRajasthan ? (
+                  {invoiceType === "GST Invoice" && (
                     <>
-                      <tr>
-                        <td>
-                          <b>
-                            CGST (2.5%)
-                          </b>
-                        </td>
+                      {gstData.isRajasthan ? (
+                        <>
+                          <tr>
+                            <td>
+                              <b>
+                                CGST (2.5%)
+                              </b>
+                            </td>
 
-                        <td className="right">
-                          ₹
-                          {money(
-                            gstData.totalCGST
-                          )}
-                        </td>
-                      </tr>
+                            <td className="right">
+                              ₹
+                              {money(
+                                gstData.totalCGST
+                              )}
+                            </td>
+                          </tr>
 
-                      <tr>
-                        <td>
-                          <b>
-                            SGST (2.5%)
-                          </b>
-                        </td>
+                          <tr>
+                            <td>
+                              <b>
+                                SGST (2.5%)
+                              </b>
+                            </td>
 
-                        <td className="right">
-                          ₹
-                          {money(
-                            gstData.totalSGST
-                          )}
-                        </td>
-                      </tr>
+                            <td className="right">
+                              ₹
+                              {money(
+                                gstData.totalSGST
+                              )}
+                            </td>
+                          </tr>
+                        </>
+                      ) : (
+                        <tr>
+                          <td>
+                            <b>
+                              IGST (5%)
+                            </b>
+                          </td>
+
+                          <td className="right">
+                            ₹
+                            {money(
+                              gstData.totalIGST
+                            )}
+                          </td>
+                        </tr>
+                      )}
                     </>
-                  ) : (
-                    <tr>
-                      <td>
-                        <b>
-                          IGST (5%)
-                        </b>
-                      </td>
-
-                      <td className="right">
-                        ₹
-                        {money(
-                          gstData.totalIGST
-                        )}
-                      </td>
-                    </tr>
                   )}
 
                   <tr className="total-row">
@@ -1593,7 +1652,7 @@ const InvoiceContent = ({
             </div>
 
             <div className="invoice-footer">
-              This is a computer-generated GST invoice.
+              This is a computer-generated {invoiceType || "invoice"}.
             </div>
 
           </div>

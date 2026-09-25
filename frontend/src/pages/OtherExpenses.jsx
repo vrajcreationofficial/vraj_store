@@ -95,7 +95,6 @@ const formatCurrency = (value) => {
   );
 };
 
-// Escape values before putting them into printable HTML
 const escapeHtml = (value) => {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -351,6 +350,27 @@ const OtherExpenses = () => {
         }
 
         return total + getRowTotal(item);
+      },
+      0
+    );
+  }, [selectedExpenses, expenses]);
+
+  // ===================================================
+  // SELECTED QUANTITY
+  // ===================================================
+
+  const selectedQuantity = useMemo(() => {
+    return selectedExpenses.reduce(
+      (total, id) => {
+        const item = expenses.find(
+          (expense) =>
+            expense._id === id
+        );
+
+        return (
+          total +
+          Number(item?.quantity || 0)
+        );
       },
       0
     );
@@ -926,10 +946,10 @@ const OtherExpenses = () => {
   };
 
   // ===================================================
-  // MANUAL PRINT REPORT
+  // PRINT SELECTED BILL
   // ===================================================
 
-  const exportSelectedPDF = () => {
+  const printSelectedBill = () => {
     if (
       selectedExpenses.length === 0
     ) {
@@ -963,6 +983,19 @@ const OtherExpenses = () => {
         0
       );
 
+    const generatedAt =
+      new Date().toLocaleString(
+        "en-IN"
+      );
+
+    const billNumber =
+      `EXP-${new Date()
+        .toISOString()
+        .slice(0, 10)
+        .replace(/-/g, "")}-${String(
+        selectedData.length
+      ).padStart(3, "0")}`;
+
     const rows =
       selectedData
         .map((item, index) => {
@@ -971,7 +1004,10 @@ const OtherExpenses = () => {
 
           return `
             <tr>
-              <td class="center">${index + 1}</td>
+
+              <td class="center">
+                ${index + 1}
+              </td>
 
               <td>
                 ${escapeHtml(
@@ -988,12 +1024,10 @@ const OtherExpenses = () => {
               </td>
 
               <td>
-                <strong>
-                  ${escapeHtml(
-                    item.productName ||
-                      "-"
-                  )}
-                </strong>
+                ${escapeHtml(
+                  item.productName ||
+                    "Other Expense"
+                )}
               </td>
 
               <td>
@@ -1015,36 +1049,44 @@ const OtherExpenses = () => {
                 )}
               </td>
 
-              <td class="right strong">
+              <td class="right amount">
                 ₹${formatCurrency(
                   rowTotal
                 )}
               </td>
+
             </tr>
           `;
         })
         .join("");
 
-    const generatedAt =
-      new Date().toLocaleString(
-        "en-IN"
-      );
+    // =================================================
+    // HIDDEN IFRAME
+    // NO window.open()
+    // NO about:blank
+    // =================================================
 
-    const printWindow =
-      window.open(
-        "",
-        "_blank",
-        "width=1200,height=800"
-      );
+    const iframe =
+      document.createElement("iframe");
 
-    if (!printWindow) {
-      alert(
-        "Please allow popups to open the print report."
-      );
-      return;
-    }
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "1px";
+    iframe.style.height = "1px";
+    iframe.style.border = "0";
+    iframe.style.opacity = "0";
+    iframe.style.pointerEvents = "none";
 
-    printWindow.document.write(`
+    document.body.appendChild(iframe);
+
+    const printDocument =
+      iframe.contentDocument ||
+      iframe.contentWindow.document;
+
+    printDocument.open();
+
+    printDocument.write(`
       <!DOCTYPE html>
 
       <html lang="en">
@@ -1053,13 +1095,8 @@ const OtherExpenses = () => {
 
           <meta charset="UTF-8" />
 
-          <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0"
-          />
-
           <title>
-            Vraj Creation - Other Expenses Report
+            Vraj Creation - Expense Bill
           </title>
 
           <style>
@@ -1080,102 +1117,122 @@ const OtherExpenses = () => {
                 sans-serif;
             }
 
-            body {
-              padding: 32px;
+            .page {
+              width: 210mm;
+              min-height: 297mm;
+              margin: 0 auto;
+              padding: 10mm;
+              background: #ffffff;
             }
 
-            .report {
+            .bill {
               width: 100%;
-              max-width: 1400px;
-              margin: 0 auto;
+              border: 1px solid #222222;
+              background: #ffffff;
             }
 
             .header {
               display: flex;
-              align-items: flex-start;
               justify-content: space-between;
+              align-items: flex-start;
               gap: 20px;
-              border-bottom: 2px solid #111111;
-              padding-bottom: 18px;
+              padding: 18px 20px;
+              border-bottom: 1px solid #222222;
             }
 
-            .brand {
-              font-size: 26px;
-              font-weight: 800;
-              letter-spacing: 0.5px;
+            .company {
+              flex: 1;
+            }
+
+            .company-name {
               margin: 0;
+              font-size: 25px;
+              font-weight: 800;
+              letter-spacing: 1px;
             }
 
-            .title {
-              font-size: 16px;
-              font-weight: 700;
-              margin-top: 5px;
-            }
-
-            .subtitle {
-              font-size: 11px;
-              color: #555555;
-              margin-top: 5px;
-            }
-
-            .generated {
-              text-align: right;
+            .company-subtitle {
+              margin-top: 4px;
               font-size: 10px;
               color: #555555;
-              line-height: 1.6;
+              letter-spacing: 0.4px;
             }
 
-            .summary {
-              display: grid;
-              grid-template-columns:
-                repeat(3, minmax(0, 1fr));
-              gap: 12px;
-              margin: 20px 0;
+            .company-address {
+              margin-top: 8px;
+              font-size: 10px;
+              color: #444444;
             }
 
-            .summary-box {
-              border: 1px solid #bdbdbd;
-              border-radius: 6px;
-              padding: 12px 14px;
-              background: #ffffff;
+            .bill-title {
+              min-width: 145px;
+              text-align: right;
             }
 
-            .summary-label {
-              font-size: 9px;
-              color: #555555;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-              font-weight: 700;
-            }
-
-            .summary-value {
-              margin-top: 5px;
-              font-size: 17px;
+            .bill-title h2 {
+              margin: 0;
+              font-size: 21px;
               font-weight: 800;
+              letter-spacing: 1px;
+            }
+
+            .bill-title p {
+              margin: 4px 0 0;
+              font-size: 10px;
+              color: #555555;
+            }
+
+            .bill-info {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              border-bottom: 1px solid #222222;
+            }
+
+            .info-box {
+              padding: 11px 15px;
+            }
+
+            .info-box:first-child {
+              border-right: 1px solid #222222;
+            }
+
+            .info-row {
+              display: flex;
+              gap: 8px;
+              margin-bottom: 5px;
+              font-size: 10px;
+            }
+
+            .info-row:last-child {
+              margin-bottom: 0;
+            }
+
+            .info-label {
+              width: 85px;
+              font-weight: 700;
+              color: #333333;
+            }
+
+            .info-value {
+              flex: 1;
               color: #111111;
             }
 
-            .table-wrap {
-              width: 100%;
-              overflow: visible;
+            .items-section {
+              padding: 15px;
             }
 
             table {
               width: 100%;
               border-collapse: collapse;
               table-layout: fixed;
-              margin-top: 8px;
-            }
-
-            thead {
-              display: table-header-group;
             }
 
             th,
             td {
-              border: 1px solid #bdbdbd;
+              border: 1px solid #333333;
               padding: 8px 7px;
-              font-size: 9.5px;
+              font-size: 9px;
               vertical-align: middle;
               word-break: break-word;
             }
@@ -1183,9 +1240,10 @@ const OtherExpenses = () => {
             th {
               background: #eeeeee;
               color: #111111;
+              font-size: 8.5px;
               font-weight: 800;
               text-transform: uppercase;
-              letter-spacing: 0.2px;
+              letter-spacing: 0.3px;
             }
 
             td {
@@ -1204,109 +1262,108 @@ const OtherExpenses = () => {
               text-align: right;
             }
 
-            .strong {
-              font-weight: 800;
+            .amount {
+              font-weight: 700;
+            }
+
+            .summary-wrapper {
+              display: flex;
+              justify-content: flex-end;
+              padding: 0 15px 15px;
+            }
+
+            .summary {
+              width: 290px;
+              border: 1px solid #222222;
+            }
+
+            .summary-row {
+              display: flex;
+              justify-content: space-between;
+              gap: 20px;
+              padding: 8px 11px;
+              font-size: 10px;
+              border-bottom: 1px solid #cccccc;
+            }
+
+            .summary-row:last-child {
+              border-bottom: 0;
             }
 
             .grand-total {
-              display: flex;
-              justify-content: flex-end;
-              margin-top: 16px;
-            }
-
-            .grand-total-box {
-              min-width: 260px;
-              border: 2px solid #111111;
-              padding: 12px 16px;
-              display: flex;
-              justify-content: space-between;
-              gap: 30px;
+              background: #eeeeee;
               font-size: 13px;
               font-weight: 800;
             }
 
             .footer {
-              border-top: 1px solid #cccccc;
-              margin-top: 28px;
-              padding-top: 10px;
-              font-size: 9px;
-              color: #666666;
+              border-top: 1px solid #222222;
+              padding: 12px 15px;
+            }
+
+            .footer-top {
               display: flex;
               justify-content: space-between;
               gap: 20px;
+              font-size: 9px;
+              color: #444444;
             }
 
-            .print-note {
-              margin-top: 14px;
-              padding: 10px 12px;
-              border: 1px solid #cccccc;
-              background: #f8f8f8;
-              font-size: 10px;
-              color: #444444;
+            .footer-note {
+              margin-top: 9px;
+              font-size: 8.5px;
+              color: #666666;
+            }
+
+            .signature {
+              margin-top: 28px;
+              display: flex;
+              justify-content: flex-end;
+            }
+
+            .signature-box {
+              width: 145px;
+              text-align: center;
+              font-size: 9px;
+              color: #333333;
+              padding-top: 24px;
+              border-top: 1px solid #222222;
+            }
+
+            @page {
+              size: A4 portrait;
+              margin: 0;
             }
 
             @media print {
 
-              @page {
-                size: A4 landscape;
-                margin: 10mm;
-              }
-
+              html,
               body {
+                width: 210mm;
+                min-height: 297mm;
+                margin: 0;
                 padding: 0;
+                background: #ffffff;
               }
 
-              .report {
-                max-width: none;
-              }
-
-              .print-note {
-                display: none;
-              }
-
-              .summary-box {
-                break-inside: avoid;
+              .page {
+                width: 210mm;
+                min-height: 297mm;
+                margin: 0;
+                padding: 10mm;
               }
 
               table {
                 page-break-inside: auto;
               }
 
-              tr {
-                page-break-inside: avoid;
-                page-break-after: auto;
-              }
-
               thead {
                 display: table-header-group;
               }
 
-            }
-
-            @media screen {
-
-              .screen-toolbar {
-                position: sticky;
-                top: 0;
-                z-index: 100;
-                display: flex;
-                justify-content: flex-end;
-                gap: 8px;
-                padding-bottom: 18px;
-              }
-
-              .screen-toolbar button {
-                border: 1px solid #222222;
-                background: #111111;
-                color: #ffffff;
-                padding: 9px 14px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: 700;
-              }
-
-              .screen-toolbar button:hover {
-                background: #333333;
+              tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
               }
 
             }
@@ -1317,185 +1374,303 @@ const OtherExpenses = () => {
 
         <body>
 
-          <div class="screen-toolbar">
-            <button onclick="window.print()">
-              Print / Save as PDF
-            </button>
+          <div class="page">
+
+            <div class="bill">
+
+              <header class="header">
+
+                <div class="company">
+
+                  <h1 class="company-name">
+                    VRAJ CREATION
+                  </h1>
+
+                  <div class="company-subtitle">
+                    Traditional Craft, Beautifully Made
+                  </div>
+
+                  <div class="company-address">
+                    Other Expenses / Purchase Statement
+                  </div>
+
+                </div>
+
+                <div class="bill-title">
+
+                  <h2>
+                    EXPENSE BILL
+                  </h2>
+
+                  <p>
+                    Other Expenses
+                  </p>
+
+                </div>
+
+              </header>
+
+              <section class="bill-info">
+
+                <div class="info-box">
+
+                  <div class="info-row">
+
+                    <div class="info-label">
+                      Bill No.
+                    </div>
+
+                    <div class="info-value">
+                      ${escapeHtml(
+                        billNumber
+                      )}
+                    </div>
+
+                  </div>
+
+                  <div class="info-row">
+
+                    <div class="info-label">
+                      Bill Date
+                    </div>
+
+                    <div class="info-value">
+                      ${escapeHtml(
+                        new Date().toLocaleDateString(
+                          "en-IN"
+                        )
+                      )}
+                    </div>
+
+                  </div>
+
+                  <div class="info-row">
+
+                    <div class="info-label">
+                      Records
+                    </div>
+
+                    <div class="info-value">
+                      ${selectedData.length}
+                    </div>
+
+                  </div>
+
+                </div>
+
+                <div class="info-box">
+
+                  <div class="info-row">
+
+                    <div class="info-label">
+                      Generated
+                    </div>
+
+                    <div class="info-value">
+                      ${escapeHtml(
+                        generatedAt
+                      )}
+                    </div>
+
+                  </div>
+
+                  <div class="info-row">
+
+                    <div class="info-label">
+                      Total Qty
+                    </div>
+
+                    <div class="info-value">
+                      ${totalQuantity}
+                    </div>
+
+                  </div>
+
+                  <div class="info-row">
+
+                    <div class="info-label">
+                      Statement
+                    </div>
+
+                    <div class="info-value">
+                      Other Expenses
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </section>
+
+              <section class="items-section">
+
+                <table>
+
+                  <colgroup>
+
+                    <col style="width: 5%;" />
+                    <col style="width: 10%;" />
+                    <col style="width: 12%;" />
+                    <col style="width: 21%;" />
+                    <col style="width: 18%;" />
+                    <col style="width: 11%;" />
+                    <col style="width: 7%;" />
+                    <col style="width: 16%;" />
+
+                  </colgroup>
+
+                  <thead>
+
+                    <tr>
+
+                      <th>#</th>
+                      <th>Date</th>
+                      <th>Product ID</th>
+                      <th>Product Name</th>
+                      <th>Supplier</th>
+                      <th>Rate</th>
+                      <th>Qty</th>
+                      <th>Amount</th>
+
+                    </tr>
+
+                  </thead>
+
+                  <tbody>
+
+                    ${rows}
+
+                  </tbody>
+
+                </table>
+
+              </section>
+
+              <div class="summary-wrapper">
+
+                <div class="summary">
+
+                  <div class="summary-row">
+
+                    <span>
+                      Total Records
+                    </span>
+
+                    <strong>
+                      ${selectedData.length}
+                    </strong>
+
+                  </div>
+
+                  <div class="summary-row">
+
+                    <span>
+                      Total Quantity
+                    </span>
+
+                    <strong>
+                      ${totalQuantity}
+                    </strong>
+
+                  </div>
+
+                  <div class="summary-row grand-total">
+
+                    <span>
+                      GRAND TOTAL
+                    </span>
+
+                    <strong>
+                      ₹${formatCurrency(
+                        total
+                      )}
+                    </strong>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              <footer class="footer">
+
+                <div class="footer-top">
+
+                  <span>
+                    Vraj Creation
+                  </span>
+
+                  <span>
+                    Other Expenses Statement
+                  </span>
+
+                </div>
+
+                <div class="footer-note">
+                  This is a computer generated
+                  expense statement.
+                </div>
+
+                <div class="signature">
+
+                  <div class="signature-box">
+                    Authorized Signature
+                  </div>
+
+                </div>
+
+              </footer>
+
+            </div>
+
           </div>
-
-          <main class="report">
-
-            <header class="header">
-
-              <div>
-
-                <h1 class="brand">
-                  VRAJ CREATION
-                </h1>
-
-                <div class="title">
-                  Other Expenses Report
-                </div>
-
-                <div class="subtitle">
-                  Selected expense records
-                </div>
-
-              </div>
-
-              <div class="generated">
-
-                <div>
-                  Generated:
-                  ${escapeHtml(
-                    generatedAt
-                  )}
-                </div>
-
-                <div>
-                  Records:
-                  ${selectedData.length}
-                </div>
-
-              </div>
-
-            </header>
-
-            <section class="summary">
-
-              <div class="summary-box">
-
-                <div class="summary-label">
-                  Selected Records
-                </div>
-
-                <div class="summary-value">
-                  ${selectedData.length}
-                </div>
-
-              </div>
-
-              <div class="summary-box">
-
-                <div class="summary-label">
-                  Total Quantity
-                </div>
-
-                <div class="summary-value">
-                  ${totalQuantity}
-                </div>
-
-              </div>
-
-              <div class="summary-box">
-
-                <div class="summary-label">
-                  Total Expense
-                </div>
-
-                <div class="summary-value">
-                  ₹${formatCurrency(
-                    total
-                  )}
-                </div>
-
-              </div>
-
-            </section>
-
-            <div class="table-wrap">
-
-              <table>
-
-                <colgroup>
-                  <col style="width: 5%;" />
-                  <col style="width: 10%;" />
-                  <col style="width: 12%;" />
-                  <col style="width: 19%;" />
-                  <col style="width: 18%;" />
-                  <col style="width: 12%;" />
-                  <col style="width: 8%;" />
-                  <col style="width: 16%;" />
-                </colgroup>
-
-                <thead>
-
-                  <tr>
-                    <th>#</th>
-                    <th>Date</th>
-                    <th>Product ID</th>
-                    <th>Product Name</th>
-                    <th>Supplier</th>
-                    <th>Cost / Unit</th>
-                    <th>Qty</th>
-                    <th>Total</th>
-                  </tr>
-
-                </thead>
-
-                <tbody>
-                  ${rows}
-                </tbody>
-
-              </table>
-
-            </div>
-
-            <div class="grand-total">
-
-              <div class="grand-total-box">
-
-                <span>
-                  Grand Total
-                </span>
-
-                <span>
-                  ₹${formatCurrency(
-                    total
-                  )}
-                </span>
-
-              </div>
-
-            </div>
-
-            <div class="print-note">
-              Print manually using the
-              <strong>
-                "Print / Save as PDF"
-              </strong>
-              button above or press
-              <strong>
-                Ctrl + P
-              </strong>.
-              The report does not print automatically.
-            </div>
-
-            <footer class="footer">
-
-              <span>
-                Vraj Creation
-              </span>
-
-              <span>
-                Other Expenses Statement
-              </span>
-
-            </footer>
-
-          </main>
 
         </body>
 
       </html>
     `);
 
-    printWindow.document.close();
-    printWindow.focus();
+    printDocument.close();
+
+    const startPrint = () => {
+      try {
+        iframe.contentWindow.focus();
+
+        iframe.contentWindow.print();
+      } finally {
+        setTimeout(() => {
+          if (
+            iframe &&
+            iframe.parentNode
+          ) {
+            iframe.parentNode.removeChild(
+              iframe
+            );
+          }
+        }, 1000);
+      }
+    };
+
+    if (
+      iframe.contentWindow.document.readyState ===
+      "complete"
+    ) {
+      setTimeout(
+        startPrint,
+        300
+      );
+    } else {
+      iframe.onload = () => {
+        setTimeout(
+          startPrint,
+          300
+        );
+      };
+    }
   };
 
   // ===================================================
-  // PAGE LOADING UI
+  // PAGE LOADING
   // ===================================================
 
   if (pageLoading) {
@@ -1605,17 +1780,20 @@ const OtherExpenses = () => {
 
         <div className="flex flex-wrap gap-2">
 
+          {/* PRINT */}
+
           {selectedExpenses.length > 0 && (
             <button
               type="button"
               onClick={
-                exportSelectedPDF
+                printSelectedBill
               }
               disabled={
                 actionLoading
               }
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium shadow-lg shadow-red-500/20 hover:-translate-y-0.5 active:scale-95 transition-all duration-200 disabled:opacity-50"
             >
+
               <FiPrinter />
 
               <span className="hidden sm:inline">
@@ -1625,8 +1803,11 @@ const OtherExpenses = () => {
               <span>
                 ({selectedExpenses.length})
               </span>
+
             </button>
           )}
+
+          {/* ADD */}
 
           <button
             type="button"
@@ -1695,8 +1876,6 @@ const OtherExpenses = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
 
-        {/* TOTAL RECORDS */}
-
         <div className="group bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 sm:p-5 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
 
           <div className="flex items-center justify-between gap-3">
@@ -1723,8 +1902,6 @@ const OtherExpenses = () => {
 
         </div>
 
-        {/* TOTAL EXPENSE */}
-
         <div className="group bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 sm:p-5 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
 
           <div className="flex items-center justify-between gap-3">
@@ -1736,6 +1913,7 @@ const OtherExpenses = () => {
               </p>
 
               <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-1 truncate">
+
                 ₹
                 {totalAmount.toLocaleString(
                   "en-IN",
@@ -1744,6 +1922,7 @@ const OtherExpenses = () => {
                     maximumFractionDigits: 2,
                   }
                 )}
+
               </p>
 
             </div>
@@ -1760,8 +1939,6 @@ const OtherExpenses = () => {
 
         </div>
 
-        {/* SELECTED */}
-
         <div className="group bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 sm:p-5 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
 
           <div className="flex items-center justify-between gap-3">
@@ -1773,6 +1950,7 @@ const OtherExpenses = () => {
               </p>
 
               <p className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1 truncate">
+
                 ₹
                 {selectedTotal.toLocaleString(
                   "en-IN",
@@ -1781,6 +1959,7 @@ const OtherExpenses = () => {
                     maximumFractionDigits: 2,
                   }
                 )}
+
               </p>
 
             </div>
@@ -1960,7 +2139,7 @@ const OtherExpenses = () => {
                 </tr>
               ) : (
                 filteredExpenses.map(
-                  (item, index) => {
+                  (item) => {
                     const rowTotal =
                       getRowTotal(item);
 
@@ -1970,12 +2149,6 @@ const OtherExpenses = () => {
                           item._id
                         }
                         className="group hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition-all duration-300"
-                        style={{
-                          animationDelay: `${Math.min(
-                            index * 35,
-                            400
-                          )}ms`,
-                        }}
                       >
 
                         <td className="px-4 py-3 text-center">
@@ -2014,26 +2187,8 @@ const OtherExpenses = () => {
                                 ) => {
                                   e.currentTarget.style.display =
                                     "none";
-
-                                  if (
-                                    e.currentTarget
-                                      .nextSibling
-                                  ) {
-                                    e.currentTarget.nextSibling.style.display =
-                                      "flex";
-                                  }
                                 }}
                               />
-
-                              <div
-                                style={{
-                                  display:
-                                    "none",
-                                }}
-                                className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 items-center justify-center text-gray-400"
-                              >
-                                <FiImage />
-                              </div>
 
                             </div>
                           ) : (
@@ -2077,11 +2232,15 @@ const OtherExpenses = () => {
                         </td>
 
                         <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">
+
                           ₹
                           {Number(
                             item.purchaseCost ||
                               0
-                          ).toFixed(2)}
+                          ).toFixed(
+                            2
+                          )}
+
                         </td>
 
                         <td className="px-4 py-3 text-sm text-center text-gray-700 dark:text-gray-300">
@@ -2095,10 +2254,12 @@ const OtherExpenses = () => {
                         </td>
 
                         <td className="px-4 py-3 text-sm font-bold text-right text-gray-900 dark:text-white">
+
                           ₹
                           {rowTotal.toFixed(
                             2
                           )}
+
                         </td>
 
                         <td className="px-4 py-3">
@@ -2163,14 +2324,12 @@ const OtherExpenses = () => {
       </div>
 
       {/* =================================================
-          MOBILE / TABLET CARDS
+          MOBILE CARDS
       ================================================= */}
 
       <div className="lg:hidden">
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-
-          {/* MOBILE LIST HEADER */}
 
           <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-3">
 
@@ -2217,8 +2376,6 @@ const OtherExpenses = () => {
 
           </div>
 
-          {/* MOBILE CONTENT */}
-
           {filteredExpenses.length ===
           0 ? (
             <div className="px-4 py-14 text-center">
@@ -2245,7 +2402,7 @@ const OtherExpenses = () => {
             <div className="p-3 sm:p-4 space-y-3">
 
               {filteredExpenses.map(
-                (item, index) => {
+                (item) => {
                   const rowTotal =
                     getRowTotal(item);
 
@@ -2264,15 +2421,7 @@ const OtherExpenses = () => {
                           ? "border-blue-400 bg-blue-50/50 dark:border-blue-700 dark:bg-blue-950/20"
                           : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900"
                       }`}
-                      style={{
-                        animationDelay: `${Math.min(
-                          index * 35,
-                          400
-                        )}ms`,
-                      }}
                     >
-
-                      {/* CARD TOP */}
 
                       <div className="flex items-start gap-3">
 
@@ -2288,8 +2437,6 @@ const OtherExpenses = () => {
                           }
                           className="w-4 h-4 accent-blue-600 cursor-pointer mt-1 shrink-0"
                         />
-
-                        {/* IMAGE */}
 
                         <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
 
@@ -2308,35 +2455,19 @@ const OtherExpenses = () => {
                               ) => {
                                 e.currentTarget.style.display =
                                   "none";
-
-                                if (
-                                  e.currentTarget
-                                    .nextSibling
-                                ) {
-                                  e.currentTarget.nextSibling.style.display =
-                                    "flex";
-                                }
                               }}
                             />
-                          ) : null}
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-gray-400">
 
-                          <div
-                            style={{
-                              display:
-                                item.purchaseImage
-                                  ? "none"
-                                  : "flex",
-                            }}
-                            className="absolute inset-0 items-center justify-center text-gray-400"
-                          >
-                            <FiImage
-                              size={22}
-                            />
-                          </div>
+                              <FiImage
+                                size={22}
+                              />
+
+                            </div>
+                          )}
 
                         </div>
-
-                        {/* PRODUCT */}
 
                         <div className="flex-1 min-w-0">
 
@@ -2349,7 +2480,7 @@ const OtherExpenses = () => {
                                   "Other Expense"}
                               </h3>
 
-                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              <div className="mt-1">
 
                                 <span className="inline-flex px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-[10px] sm:text-xs font-mono text-gray-700 dark:text-gray-300">
                                   ID:{" "}
@@ -2381,8 +2512,6 @@ const OtherExpenses = () => {
                         </div>
 
                       </div>
-
-                      {/* DETAILS */}
 
                       <div className="mt-4 grid grid-cols-2 gap-2">
 
@@ -2442,8 +2571,6 @@ const OtherExpenses = () => {
                         </div>
 
                       </div>
-
-                      {/* ACTIONS */}
 
                       <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800 flex items-center gap-2">
 
@@ -2509,7 +2636,7 @@ const OtherExpenses = () => {
       </div>
 
       {/* =================================================
-          MODAL
+          ADD / EDIT MODAL
       ================================================= */}
 
       {showModal && (
@@ -2533,8 +2660,6 @@ const OtherExpenses = () => {
                 : "opacity-100 scale-100 translate-y-0"
             }`}
           >
-
-            {/* HEADER */}
 
             <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur">
 
@@ -2584,16 +2709,12 @@ const OtherExpenses = () => {
 
             </div>
 
-            {/* FORM */}
-
             <form
               onSubmit={
                 handleSubmit
               }
               className="p-4 sm:p-6 space-y-5"
             >
-
-              {/* PRODUCT ID */}
 
               <div>
 
@@ -2620,8 +2741,6 @@ const OtherExpenses = () => {
 
               </div>
 
-              {/* PRODUCT NAME */}
-
               <div>
 
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -2642,8 +2761,6 @@ const OtherExpenses = () => {
                 />
 
               </div>
-
-              {/* SUPPLIER */}
 
               <div>
 
@@ -2666,8 +2783,6 @@ const OtherExpenses = () => {
                 />
 
               </div>
-
-              {/* DATE */}
 
               <div>
 
@@ -2695,8 +2810,6 @@ const OtherExpenses = () => {
                 </div>
 
               </div>
-
-              {/* COST + QUANTITY */}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
@@ -2750,21 +2863,17 @@ const OtherExpenses = () => {
 
               </div>
 
-              {/* IMAGE */}
-
               <div>
 
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Purchase Image
                 </label>
 
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-4 sm:p-5 bg-gray-50/70 dark:bg-gray-800/40 transition-all duration-300 hover:border-blue-400 hover:bg-blue-50/30 dark:hover:bg-blue-950/20">
+                <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-4 sm:p-5 bg-gray-50/70 dark:bg-gray-800/40 transition-all duration-300 hover:border-blue-400">
 
                   <div className="flex flex-col sm:flex-row gap-5 items-center">
 
-                    {/* PREVIEW */}
-
-                    <div className="relative w-32 h-32 rounded-2xl overflow-hidden bg-white dark:bg-gray-800 flex items-center justify-center shrink-0 border border-gray-200 dark:border-gray-700 shadow-sm group">
+                    <div className="relative w-32 h-32 rounded-2xl overflow-hidden bg-white dark:bg-gray-800 flex items-center justify-center shrink-0 border border-gray-200 dark:border-gray-700 shadow-sm">
 
                       {imagePreview ? (
                         <img
@@ -2772,7 +2881,7 @@ const OtherExpenses = () => {
                             imagePreview
                           }
                           alt="New Preview"
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          className="w-full h-full object-cover"
                         />
                       ) : formData.purchaseImage ? (
                         <img
@@ -2780,7 +2889,7 @@ const OtherExpenses = () => {
                             formData.purchaseImage
                           }
                           alt="Current"
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          className="w-full h-full object-cover"
                           onError={(
                             e
                           ) => {
@@ -2804,11 +2913,9 @@ const OtherExpenses = () => {
 
                     </div>
 
-                    {/* UPLOAD */}
-
                     <div className="flex-1 text-center sm:text-left min-w-0">
 
-                      <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white cursor-pointer shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-95 transition-all duration-200">
+                      <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white cursor-pointer shadow-md hover:shadow-lg active:scale-95 transition-all duration-200">
 
                         <FiUpload />
 
@@ -2853,20 +2960,12 @@ const OtherExpenses = () => {
                               uploadingImage ||
                               actionLoading
                             }
-                            className="text-red-500 hover:text-red-700 hover:scale-110 transition disabled:opacity-40"
-                            title="Remove selected image"
+                            className="text-red-500 hover:text-red-700 disabled:opacity-40"
                           >
                             <FiX />
                           </button>
 
                         </div>
-                      )}
-
-                      {formData.purchaseImage &&
-                        !imageFile && (
-                          <p className="text-xs text-blue-600 dark:text-blue-400 mt-3">
-                            Existing Cloudinary image will be kept.
-                          </p>
                       )}
 
                     </div>
@@ -2877,11 +2976,7 @@ const OtherExpenses = () => {
 
               </div>
 
-              {/* TOTAL PREVIEW */}
-
               <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-100 dark:border-blue-900/40 p-4 sm:p-5">
-
-                <div className="absolute -right-8 -top-8 w-24 h-24 rounded-full bg-blue-500/10 animate-pulse" />
 
                 <div className="relative flex items-center justify-between gap-4">
 
@@ -2923,8 +3018,6 @@ const OtherExpenses = () => {
 
               </div>
 
-              {/* BUTTONS */}
-
               <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
 
                 <button
@@ -2936,7 +3029,7 @@ const OtherExpenses = () => {
                     uploadingImage ||
                     actionLoading
                   }
-                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:-translate-y-0.5 active:scale-95 transition-all duration-200 disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 transition-all duration-200 disabled:opacity-50"
                 >
 
                   <FiX />
@@ -2951,7 +3044,7 @@ const OtherExpenses = () => {
                     actionLoading ||
                     uploadingImage
                   }
-                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-lg shadow-blue-500/20 hover:-translate-y-0.5 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-lg shadow-blue-500/20 active:scale-95 transition-all duration-200 disabled:opacity-50"
                 >
 
                   {uploadingImage ? (
@@ -2990,12 +3083,12 @@ const OtherExpenses = () => {
       )}
 
       {/* =================================================
-          ACTION LOADING OVERLAY
+          ACTION LOADING
       ================================================= */}
 
       {actionLoading &&
         !showModal && (
-          <div className="fixed inset-0 z-[60] bg-black/20 backdrop-blur-[1px] flex items-center justify-center pointer-events-none">
+          <div className="fixed inset-0 z-[80] bg-black/20 backdrop-blur-[1px] flex items-center justify-center pointer-events-none">
 
             <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl px-6 py-5 flex items-center gap-4 border border-gray-200 dark:border-gray-800">
 

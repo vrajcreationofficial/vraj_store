@@ -219,7 +219,7 @@ const createEmptyItem = () => ({
   quantity: 1,
   price: 0,
 
-  // GST ALWAYS 5%
+  // GST DEFAULT 5%
   gstRate: 5,
 });
 
@@ -310,9 +310,6 @@ const CreateBill = () => {
 
   // ===================================================
   // LOAD BUSINESS SETTINGS + DRAFT
-  // NOTE:
-  // PRODUCT DATABASE IS NOT LOADED HERE.
-  // PRODUCT ID IS MANUAL.
   // ===================================================
   useEffect(() => {
     const loadData = async () => {
@@ -365,6 +362,19 @@ const CreateBill = () => {
             });
           }
 
+          // ===========================================
+          // RESTORE INVOICE TYPE FIRST
+          // ===========================================
+          const restoredInvoiceType =
+            parsed.invoiceType ||
+            "GST Invoice";
+
+          if (parsed.invoiceType) {
+            setInvoiceType(
+              parsed.invoiceType
+            );
+          }
+
           if (
             Array.isArray(parsed.items) &&
             parsed.items.length
@@ -374,8 +384,15 @@ const CreateBill = () => {
                 ...createEmptyItem(),
                 ...item,
 
-                // GST ALWAYS 5%
-                gstRate: 5,
+                // =====================================
+                // WITHOUT GST = 0
+                // GST INVOICE = 5
+                // =====================================
+                gstRate:
+                  restoredInvoiceType ===
+                  "Without GST"
+                    ? 0
+                    : 5,
               }))
             );
           }
@@ -398,10 +415,6 @@ const CreateBill = () => {
 
           if (parsed.dueDate) {
             setDueDate(parsed.dueDate);
-          }
-
-          if (parsed.invoiceType) {
-            setInvoiceType(parsed.invoiceType);
           }
         } catch (err) {
           console.error(
@@ -630,6 +643,51 @@ const CreateBill = () => {
   };
 
   // ===================================================
+  // INVOICE TYPE CHANGE
+  // ===================================================
+  const handleInvoiceTypeChange = (value) => {
+    setInvoiceType(value);
+
+    // ===============================================
+    // WITHOUT GST = GST RATE MUST BE ZERO
+    // ===============================================
+    if (value === "Without GST") {
+      setItems((prevItems) =>
+        prevItems.map((item) => ({
+          ...item,
+          gstRate: 0,
+        }))
+      );
+
+      return;
+    }
+
+    // ===============================================
+    // GST INVOICE = GST RATE 5%
+    // ===============================================
+    if (value === "GST Invoice") {
+      setItems((prevItems) =>
+        prevItems.map((item) => ({
+          ...item,
+          gstRate: 5,
+        }))
+      );
+
+      return;
+    }
+
+    // ===============================================
+    // NON-GST EXISTING BEHAVIOUR
+    // ===============================================
+    setItems((prevItems) =>
+      prevItems.map((item) => ({
+        ...item,
+        gstRate: 0,
+      }))
+    );
+  };
+
+  // ===================================================
   // ITEM CHANGE
   // ===================================================
   const handleItemChange = (
@@ -645,11 +703,19 @@ const CreateBill = () => {
 
               [field]:
                 field === "gstRate"
-                  ? 5
+                  ? invoiceType === "Without GST"
+                    ? 0
+                    : 5
                   : value,
 
-              // GST ALWAYS 5%
-              gstRate: 5,
+              // =====================================
+              // WITHOUT GST = 0
+              // OTHERWISE EXISTING GST VALUE
+              // =====================================
+              gstRate:
+                invoiceType === "Without GST"
+                  ? 0
+                  : 5,
             }
           : item
       )
@@ -662,7 +728,17 @@ const CreateBill = () => {
   const addItemRow = () => {
     setItems((prev) => [
       ...prev,
-      createEmptyItem(),
+      {
+        ...createEmptyItem(),
+
+        // =============================================
+        // NEW ITEM GST
+        // =============================================
+        gstRate:
+          invoiceType === "Without GST"
+            ? 0
+            : 5,
+      },
     ]);
   };
 
@@ -707,9 +783,6 @@ const CreateBill = () => {
 
     // =================================================
     // GST TYPE
-    //
-    // Rajasthan = CGST 2.5 + SGST 2.5
-    // Outside Rajasthan = IGST 5
     // =================================================
     let isInterstate = false;
 
@@ -724,8 +797,20 @@ const CreateBill = () => {
     }
 
     // ===============================================
+    // IMPORTANT GST FLAG
+    // ONLY GST INVOICE CAN HAVE GST
+    // WITHOUT GST = ALWAYS ZERO
+    // ===============================================
+    const isGSTInvoice =
+      String(invoiceType || "").trim() ===
+      "GST Invoice";
+
+    const isWithoutGST =
+      String(invoiceType || "").trim() ===
+      "Without GST";
+
+    // ===============================================
     // GST GROUPS
-    // GST RATE FIXED TO 5%
     // ===============================================
     const gstGroups = {};
 
@@ -737,36 +822,44 @@ const CreateBill = () => {
         Number(item.price) || 0;
 
       // =============================================
-      // FIXED GST
+      // GST RATE
       // =============================================
-      const gstRate =
-        invoiceType === "GST Invoice"
-          ? 5
-          : 0;
+      const gstRate = isGSTInvoice
+        ? 5
+        : 0;
+
+      // =============================================
+      // EXTRA SAFETY
+      // WITHOUT GST ALWAYS ZERO
+      // =============================================
+      const finalGstRate = isWithoutGST
+        ? 0
+        : gstRate;
 
       const lineTaxable =
         quantity * price;
 
       const lineGst =
-        (lineTaxable * gstRate) / 100;
+        (lineTaxable * finalGstRate) /
+        100;
 
       subtotal += lineTaxable;
       totalTaxable += lineTaxable;
       totalGst += lineGst;
 
-      if (gstRate > 0) {
-        if (!gstGroups[gstRate]) {
-          gstGroups[gstRate] = {
-            rate: gstRate,
+      if (finalGstRate > 0) {
+        if (!gstGroups[finalGstRate]) {
+          gstGroups[finalGstRate] = {
+            rate: finalGstRate,
             taxable: 0,
             gst: 0,
           };
         }
 
-        gstGroups[gstRate].taxable +=
+        gstGroups[finalGstRate].taxable +=
           lineTaxable;
 
-        gstGroups[gstRate].gst +=
+        gstGroups[finalGstRate].gst +=
           lineGst;
       }
     });
@@ -775,19 +868,22 @@ const CreateBill = () => {
     // TAX SPLIT
     // ===============================================
     const cgst =
-      invoiceType === "GST Invoice" &&
+      isGSTInvoice &&
+      !isWithoutGST &&
       !isInterstate
         ? totalGst / 2
         : 0;
 
     const sgst =
-      invoiceType === "GST Invoice" &&
+      isGSTInvoice &&
+      !isWithoutGST &&
       !isInterstate
         ? totalGst / 2
         : 0;
 
     const igst =
-      invoiceType === "GST Invoice" &&
+      isGSTInvoice &&
+      !isWithoutGST &&
       isInterstate
         ? totalGst
         : 0;
@@ -956,13 +1052,14 @@ const CreateBill = () => {
           Number(item.price) || 0,
 
         // =========================================
-        // FIXED GST
+        // WITHOUT GST = 0
+        // GST INVOICE = 5
         // =========================================
         gstRate:
-          invoiceType ===
-          "Non-GST Invoice"
-            ? 0
-            : 5,
+          invoiceType === "GST Invoice" &&
+          invoiceType !== "Without GST"
+            ? 5
+            : 0,
       }));
 
     if (!validItems.length) {
@@ -1190,9 +1287,46 @@ const CreateBill = () => {
 
     console.log(
       "GST TYPE:",
-      calc.isInterstate
+      invoiceType === "Without GST"
+        ? "Without GST — GST 0%"
+        : invoiceType === "Non-GST Invoice"
+        ? "Non-GST Invoice"
+        : calc.isInterstate
         ? "IGST 5%"
         : "CGST 2.5% + SGST 2.5%"
+    );
+
+    console.log(
+      "GST TOTAL:",
+      invoiceType === "Without GST"
+        ? 0
+        : calc.totalGst
+    );
+
+    console.log(
+      "CGST:",
+      invoiceType === "Without GST"
+        ? 0
+        : calc.cgst
+    );
+
+    console.log(
+      "SGST:",
+      invoiceType === "Without GST"
+        ? 0
+        : calc.sgst
+    );
+
+    console.log(
+      "IGST:",
+      invoiceType === "Without GST"
+        ? 0
+        : calc.igst
+    );
+
+    console.log(
+      "GRAND TOTAL:",
+      calc.grandTotal
     );
 
     console.log(
@@ -1257,6 +1391,9 @@ const CreateBill = () => {
   // GST BREAKDOWN
   // ===================================================
   const renderGSTBreakdown = () => {
+    // ===============================================
+    // WITHOUT GST / NON GST = NO GST BREAKDOWN
+    // ===============================================
     if (
       invoiceType !== "GST Invoice"
     ) {
@@ -1574,7 +1711,7 @@ const CreateBill = () => {
                 <select
                   value={invoiceType}
                   onChange={(e) =>
-                    setInvoiceType(
+                    handleInvoiceTypeChange(
                       e.target.value
                     )
                   }
@@ -1586,6 +1723,10 @@ const CreateBill = () => {
 
                   <option value="Non-GST Invoice">
                     Non-GST Invoice
+                  </option>
+
+                  <option value="Without GST">
+                    Without GST
                   </option>
                 </select>
               </div>
@@ -1860,7 +2001,10 @@ const CreateBill = () => {
 
                       <p className="mt-1 text-sm font-black">
                         {invoiceType ===
-                        "Non-GST Invoice"
+                        "Without GST"
+                          ? "Without GST"
+                          : invoiceType ===
+                            "Non-GST Invoice"
                           ? "Non-GST"
                           : calc.isInterstate
                           ? "Inter-State — IGST 5%"
@@ -1878,520 +2022,513 @@ const CreateBill = () => {
           {/* =================================================
               PRODUCTS
           ================================================= */}
-        {/* =================================================
-    PRODUCTS
-================================================= */}
-<div className="print-card overflow-hidden rounded-3xl border border-slate-300 bg-white shadow-sm">
+          <div className="print-card overflow-hidden rounded-3xl border border-slate-300 bg-white shadow-sm">
 
-  {/* PRODUCTS HEADER */}
-  <div className="no-print flex flex-col gap-3 border-b border-slate-300 p-4 sm:p-6 md:flex-row md:items-center md:justify-between">
-
-    <div className="min-w-0">
-      <h3 className="text-sm font-black uppercase tracking-wider text-amber-600">
-        Products / Items
-      </h3>
-
-      <p className="mt-1 text-xs leading-5 text-slate-500">
-        Product ID manually enter karein.
-        Product database se koi selection nahi hoga.
-      </p>
-    </div>
-
-    <button
-      type="button"
-      onClick={addItemRow}
-      className="w-full shrink-0 rounded-xl bg-amber-600 px-4 py-3 text-xs font-bold text-white transition hover:bg-amber-700 sm:w-auto"
-    >
-      + Add Item
-    </button>
-  </div>
-
-  {/* =================================================
-      DESKTOP TABLE
-      lg and above
-  ================================================= */}
-  <div className="hidden overflow-x-auto lg:block">
-
-    <table className="w-full min-w-[1050px] border-collapse text-xs">
-
-      <thead>
-        <tr className="bg-slate-100 text-left text-[11px] font-black uppercase text-slate-600">
-
-          <th className="border p-3 text-center">
-            #
-          </th>
-
-          <th className="border p-3">
-            Product ID
-          </th>
-
-          <th className="border p-3">
-            Product Name
-          </th>
-
-          <th className="border p-3">
-            HSN
-          </th>
-
-          <th className="border p-3 text-center">
-            Qty
-          </th>
-
-          <th className="border p-3 text-right">
-            Rate
-          </th>
-
-          {invoiceType === "GST Invoice" && (
-            <th className="border p-3 text-center">
-              GST
-            </th>
-          )}
-
-          <th className="border p-3 text-right">
-            Amount
-          </th>
-
-          <th className="no-print border p-3 text-center">
-            Action
-          </th>
-
-        </tr>
-      </thead>
-
-      <tbody>
-        {items.map((item, index) => {
-          const qty =
-            Number(item.quantity) || 0;
-
-          const rate =
-            Number(item.price) || 0;
-
-          // GST ALWAYS 5%
-          const gstRate =
-            invoiceType === "GST Invoice"
-              ? 5
-              : 0;
-
-          const taxable =
-            qty * rate;
-
-          const gst =
-            (taxable * gstRate) / 100;
-
-          const total =
-            taxable + gst;
-
-          return (
-            <tr
-              key={item.id}
-              className="border-b"
-            >
-
-              {/* SERIAL */}
-              <td className="border p-2 text-center font-bold">
-                {index + 1}
-              </td>
-
-              {/* PRODUCT ID */}
-              <td className="border p-2">
-                <input
-                  type="text"
-                  value={item.productId || ""}
-                  onChange={(e) =>
-                    handleItemChange(
-                      item.id,
-                      "productId",
-                      e.target.value
-                    )
-                  }
-                  placeholder="Product ID"
-                  className="w-full min-w-[150px] rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs font-bold text-slate-800 outline-none focus:border-amber-500"
-                />
-              </td>
-
-              {/* PRODUCT NAME */}
-              <td className="border p-2">
-                <input
-                  type="text"
-                  value={item.productName || ""}
-                  onChange={(e) =>
-                    handleItemChange(
-                      item.id,
-                      "productName",
-                      e.target.value
-                    )
-                  }
-                  placeholder="Product Name"
-                  className="w-full min-w-[220px] rounded-lg border border-slate-300 bg-white p-2 text-xs text-slate-800 outline-none focus:border-amber-500"
-                />
-              </td>
-
-              {/* HSN */}
-              <td className="border p-2">
-                <input
-                  type="text"
-                  value={item.hsnCode || ""}
-                  onChange={(e) =>
-                    handleItemChange(
-                      item.id,
-                      "hsnCode",
-                      e.target.value
-                    )
-                  }
-                  placeholder="HSN"
-                  className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs text-slate-800 outline-none focus:border-amber-500"
-                />
-              </td>
-
-              {/* QTY */}
-              <td className="border p-2">
-                <input
-                  type="number"
-                  min="1"
-                  value={item.quantity}
-                  onChange={(e) =>
-                    handleItemChange(
-                      item.id,
-                      "quantity",
-                      e.target.value
-                    )
-                  }
-                  className="w-20 rounded-lg border border-slate-300 bg-white p-2 text-center text-xs text-slate-800 outline-none"
-                />
-              </td>
-
-              {/* RATE */}
-              <td className="border p-2">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={item.price}
-                  onChange={(e) =>
-                    handleItemChange(
-                      item.id,
-                      "price",
-                      e.target.value
-                    )
-                  }
-                  className="w-24 rounded-lg border border-slate-300 bg-white p-2 text-right text-xs text-slate-800 outline-none"
-                />
-              </td>
-
-              {/* GST */}
-              {invoiceType === "GST Invoice" && (
-                <td className="border p-2">
-                  <div className="flex h-[34px] w-20 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 text-xs font-black text-amber-700">
-                    5%
-                  </div>
-                </td>
-              )}
-
-              {/* AMOUNT */}
-              <td className="border p-2 text-right font-black">
-                ₹{formatCurrency(total)}
-              </td>
-
-              {/* DELETE */}
-              <td className="no-print border p-2 text-center">
-                {items.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      removeItemRow(item.id)
-                    }
-                    className="rounded-lg bg-rose-100 px-2 py-1 font-black text-rose-600 transition hover:bg-rose-200"
-                  >
-                    ✕
-                  </button>
-                )}
-              </td>
-
-            </tr>
-          );
-        })}
-      </tbody>
-
-    </table>
-  </div>
-
-  {/* =================================================
-      MOBILE / TABLET CARD VIEW
-      Below lg
-  ================================================= */}
-  <div className="space-y-4 p-3 sm:p-4 lg:hidden">
-
-    {items.map((item, index) => {
-      const qty =
-        Number(item.quantity) || 0;
-
-      const rate =
-        Number(item.price) || 0;
-
-      // GST ALWAYS 5%
-      const gstRate =
-        invoiceType === "GST Invoice"
-          ? 5
-          : 0;
-
-      const taxable =
-        qty * rate;
-
-      const gst =
-        (taxable * gstRate) / 100;
-
-      const total =
-        taxable + gst;
-
-      return (
-        <div
-          key={item.id}
-          className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
-        >
-
-          {/* =========================================
-              ITEM HEADER
-          ========================================= */}
-          <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-3 sm:px-4">
-
-            <div className="flex min-w-0 items-center gap-2">
-
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-black text-white">
-                {index + 1}
-              </span>
+            {/* PRODUCTS HEADER */}
+            <div className="no-print flex flex-col gap-3 border-b border-slate-300 p-4 sm:p-6 md:flex-row md:items-center md:justify-between">
 
               <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  Item
-                </p>
+                <h3 className="text-sm font-black uppercase tracking-wider text-amber-600">
+                  Products / Items
+                </h3>
 
-                <p className="truncate text-sm font-black text-slate-800">
-                  {item.productName?.trim() ||
-                    item.productId?.trim() ||
-                    `Product ${index + 1}`}
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Product ID manually enter karein.
+                  Product database se koi selection nahi hoga.
                 </p>
               </div>
 
-            </div>
-
-            {items.length > 1 && (
               <button
                 type="button"
-                onClick={() =>
-                  removeItemRow(item.id)
-                }
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-sm font-black text-rose-600 transition hover:bg-rose-200"
-                aria-label={`Remove item ${index + 1}`}
+                onClick={addItemRow}
+                className="w-full shrink-0 rounded-xl bg-amber-600 px-4 py-3 text-xs font-bold text-white transition hover:bg-amber-700 sm:w-auto"
               >
-                ✕
+                + Add Item
               </button>
-            )}
-
-          </div>
-
-          {/* =========================================
-              ITEM BODY
-          ========================================= */}
-          <div className="space-y-4 p-3 sm:p-4">
-
-            {/* PRODUCT ID + HSN */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-
-              {/* PRODUCT ID */}
-              <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                  Product ID
-                </label>
-
-                <input
-                  type="text"
-                  value={item.productId || ""}
-                  onChange={(e) =>
-                    handleItemChange(
-                      item.id,
-                      "productId",
-                      e.target.value
-                    )
-                  }
-                  placeholder="Enter Product ID"
-                  className="w-full min-w-0 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
-                />
-              </div>
-
-              {/* HSN */}
-              <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                  HSN Code
-                </label>
-
-                <input
-                  type="text"
-                  value={item.hsnCode || ""}
-                  onChange={(e) =>
-                    handleItemChange(
-                      item.id,
-                      "hsnCode",
-                      e.target.value
-                    )
-                  }
-                  placeholder="7326"
-                  className="w-full min-w-0 rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
-                />
-              </div>
-
             </div>
 
-            {/* PRODUCT NAME */}
-            <div>
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                Product Name
-              </label>
+            {/* =================================================
+                DESKTOP TABLE
+            ================================================= */}
+            <div className="hidden overflow-x-auto lg:block">
 
-              <input
-                type="text"
-                value={item.productName || ""}
-                onChange={(e) =>
-                  handleItemChange(
-                    item.id,
-                    "productName",
-                    e.target.value
-                  )
-                }
-                placeholder="Enter Product Name"
-                className="w-full min-w-0 rounded-xl border border-slate-300 bg-white p-3 text-sm font-medium text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
-              />
+              <table className="w-full min-w-[1050px] border-collapse text-xs">
+
+                <thead>
+                  <tr className="bg-slate-100 text-left text-[11px] font-black uppercase text-slate-600">
+
+                    <th className="border p-3 text-center">
+                      #
+                    </th>
+
+                    <th className="border p-3">
+                      Product ID
+                    </th>
+
+                    <th className="border p-3">
+                      Product Name
+                    </th>
+
+                    <th className="border p-3">
+                      HSN
+                    </th>
+
+                    <th className="border p-3 text-center">
+                      Qty
+                    </th>
+
+                    <th className="border p-3 text-right">
+                      Rate
+                    </th>
+
+                    {invoiceType === "GST Invoice" && (
+                      <th className="border p-3 text-center">
+                        GST
+                      </th>
+                    )}
+
+                    <th className="border p-3 text-right">
+                      Amount
+                    </th>
+
+                    <th className="no-print border p-3 text-center">
+                      Action
+                    </th>
+
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {items.map((item, index) => {
+                    const qty =
+                      Number(item.quantity) || 0;
+
+                    const rate =
+                      Number(item.price) || 0;
+
+                    // =========================================
+                    // ONLY GST INVOICE HAS GST
+                    // WITHOUT GST = 0
+                    // =========================================
+                    const gstRate =
+                      invoiceType === "GST Invoice"
+                        ? 5
+                        : 0;
+
+                    const taxable =
+                      qty * rate;
+
+                    const gst =
+                      (taxable * gstRate) / 100;
+
+                    const total =
+                      taxable + gst;
+
+                    return (
+                      <tr
+                        key={item.id}
+                        className="border-b"
+                      >
+
+                        {/* SERIAL */}
+                        <td className="border p-2 text-center font-bold">
+                          {index + 1}
+                        </td>
+
+                        {/* PRODUCT ID */}
+                        <td className="border p-2">
+                          <input
+                            type="text"
+                            value={item.productId || ""}
+                            onChange={(e) =>
+                              handleItemChange(
+                                item.id,
+                                "productId",
+                                e.target.value
+                              )
+                            }
+                            placeholder="Product ID"
+                            className="w-full min-w-[150px] rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs font-bold text-slate-800 outline-none focus:border-amber-500"
+                          />
+                        </td>
+
+                        {/* PRODUCT NAME */}
+                        <td className="border p-2">
+                          <input
+                            type="text"
+                            value={item.productName || ""}
+                            onChange={(e) =>
+                              handleItemChange(
+                                item.id,
+                                "productName",
+                                e.target.value
+                              )
+                            }
+                            placeholder="Product Name"
+                            className="w-full min-w-[220px] rounded-lg border border-slate-300 bg-white p-2 text-xs text-slate-800 outline-none focus:border-amber-500"
+                          />
+                        </td>
+
+                        {/* HSN */}
+                        <td className="border p-2">
+                          <input
+                            type="text"
+                            value={item.hsnCode || ""}
+                            onChange={(e) =>
+                              handleItemChange(
+                                item.id,
+                                "hsnCode",
+                                e.target.value
+                              )
+                            }
+                            placeholder="HSN"
+                            className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs text-slate-800 outline-none focus:border-amber-500"
+                          />
+                        </td>
+
+                        {/* QTY */}
+                        <td className="border p-2">
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) =>
+                              handleItemChange(
+                                item.id,
+                                "quantity",
+                                e.target.value
+                              )
+                            }
+                            className="w-20 rounded-lg border border-slate-300 bg-white p-2 text-center text-xs text-slate-800 outline-none"
+                          />
+                        </td>
+
+                        {/* RATE */}
+                        <td className="border p-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.price}
+                            onChange={(e) =>
+                              handleItemChange(
+                                item.id,
+                                "price",
+                                e.target.value
+                              )
+                            }
+                            className="w-24 rounded-lg border border-slate-300 bg-white p-2 text-right text-xs text-slate-800 outline-none"
+                          />
+                        </td>
+
+                        {/* GST */}
+                        {invoiceType === "GST Invoice" && (
+                          <td className="border p-2">
+                            <div className="flex h-[34px] w-20 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 text-xs font-black text-amber-700">
+                              5%
+                            </div>
+                          </td>
+                        )}
+
+                        {/* AMOUNT */}
+                        <td className="border p-2 text-right font-black">
+                          ₹{formatCurrency(total)}
+                        </td>
+
+                        {/* DELETE */}
+                        <td className="no-print border p-2 text-center">
+                          {items.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeItemRow(item.id)
+                              }
+                              className="rounded-lg bg-rose-100 px-2 py-1 font-black text-rose-600 transition hover:bg-rose-200"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </td>
+
+                      </tr>
+                    );
+                  })}
+                </tbody>
+
+              </table>
             </div>
 
-            {/* QTY + RATE + GST */}
-            <div
-              className={
-                invoiceType === "GST Invoice"
-                  ? "grid grid-cols-2 gap-3 sm:grid-cols-3"
-                  : "grid grid-cols-2 gap-3"
-              }
-            >
+            {/* =================================================
+                MOBILE / TABLET CARD VIEW
+            ================================================= */}
+            <div className="space-y-4 p-3 sm:p-4 lg:hidden">
 
-              {/* QTY */}
-              <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                  Quantity
-                </label>
+              {items.map((item, index) => {
+                const qty =
+                  Number(item.quantity) || 0;
 
-                <input
-                  type="number"
-                  min="1"
-                  value={item.quantity}
-                  onChange={(e) =>
-                    handleItemChange(
-                      item.id,
-                      "quantity",
-                      e.target.value
-                    )
-                  }
-                  className="w-full min-w-0 rounded-xl border border-slate-300 bg-white p-3 text-center text-sm font-bold text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
-                />
-              </div>
+                const rate =
+                  Number(item.price) || 0;
 
-              {/* RATE */}
-              <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                  Rate
-                </label>
+                // =========================================
+                // ONLY GST INVOICE HAS GST
+                // WITHOUT GST = 0
+                // =========================================
+                const gstRate =
+                  invoiceType === "GST Invoice"
+                    ? 5
+                    : 0;
 
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
-                    ₹
-                  </span>
+                const taxable =
+                  qty * rate;
 
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.price}
-                    onChange={(e) =>
-                      handleItemChange(
-                        item.id,
-                        "price",
-                        e.target.value
-                      )
-                    }
-                    className="w-full min-w-0 rounded-xl border border-slate-300 bg-white p-3 pl-8 text-right text-sm font-bold text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
-                  />
-                </div>
-              </div>
+                const gst =
+                  (taxable * gstRate) / 100;
 
-              {/* GST */}
-              {invoiceType === "GST Invoice" && (
-                <div className="col-span-2 sm:col-span-1">
-                  <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                    GST
-                  </label>
+                const total =
+                  taxable + gst;
 
-                  <div className="flex h-[46px] w-full items-center justify-center rounded-xl border border-amber-300 bg-amber-50 text-sm font-black text-amber-700">
-                    5%
+                return (
+                  <div
+                    key={item.id}
+                    className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+                  >
+
+                    {/* ITEM HEADER */}
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-3 sm:px-4">
+
+                      <div className="flex min-w-0 items-center gap-2">
+
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-black text-white">
+                          {index + 1}
+                        </span>
+
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                            Item
+                          </p>
+
+                          <p className="truncate text-sm font-black text-slate-800">
+                            {item.productName?.trim() ||
+                              item.productId?.trim() ||
+                              `Product ${index + 1}`}
+                          </p>
+                        </div>
+
+                      </div>
+
+                      {items.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            removeItemRow(item.id)
+                          }
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-sm font-black text-rose-600 transition hover:bg-rose-200"
+                          aria-label={`Remove item ${index + 1}`}
+                        >
+                          ✕
+                        </button>
+                      )}
+
+                    </div>
+
+                    {/* ITEM BODY */}
+                    <div className="space-y-4 p-3 sm:p-4">
+
+                      {/* PRODUCT ID + HSN */}
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+                        {/* PRODUCT ID */}
+                        <div>
+                          <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                            Product ID
+                          </label>
+
+                          <input
+                            type="text"
+                            value={item.productId || ""}
+                            onChange={(e) =>
+                              handleItemChange(
+                                item.id,
+                                "productId",
+                                e.target.value
+                              )
+                            }
+                            placeholder="Enter Product ID"
+                            className="w-full min-w-0 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                          />
+                        </div>
+
+                        {/* HSN */}
+                        <div>
+                          <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                            HSN Code
+                          </label>
+
+                          <input
+                            type="text"
+                            value={item.hsnCode || ""}
+                            onChange={(e) =>
+                              handleItemChange(
+                                item.id,
+                                "hsnCode",
+                                e.target.value
+                              )
+                            }
+                            placeholder="7326"
+                            className="w-full min-w-0 rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                          />
+                        </div>
+
+                      </div>
+
+                      {/* PRODUCT NAME */}
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                          Product Name
+                        </label>
+
+                        <input
+                          type="text"
+                          value={item.productName || ""}
+                          onChange={(e) =>
+                            handleItemChange(
+                              item.id,
+                              "productName",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Enter Product Name"
+                          className="w-full min-w-0 rounded-xl border border-slate-300 bg-white p-3 text-sm font-medium text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                        />
+                      </div>
+
+                      {/* QTY + RATE + GST */}
+                      <div
+                        className={
+                          invoiceType === "GST Invoice"
+                            ? "grid grid-cols-2 gap-3 sm:grid-cols-3"
+                            : "grid grid-cols-2 gap-3"
+                        }
+                      >
+
+                        {/* QTY */}
+                        <div>
+                          <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                            Quantity
+                          </label>
+
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) =>
+                              handleItemChange(
+                                item.id,
+                                "quantity",
+                                e.target.value
+                              )
+                            }
+                            className="w-full min-w-0 rounded-xl border border-slate-300 bg-white p-3 text-center text-sm font-bold text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                          />
+                        </div>
+
+                        {/* RATE */}
+                        <div>
+                          <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                            Rate
+                          </label>
+
+                          <div className="relative">
+                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+                              ₹
+                            </span>
+
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.price}
+                              onChange={(e) =>
+                                handleItemChange(
+                                  item.id,
+                                  "price",
+                                  e.target.value
+                                )
+                              }
+                              className="w-full min-w-0 rounded-xl border border-slate-300 bg-white p-3 pl-8 text-right text-sm font-bold text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                            />
+                          </div>
+                        </div>
+
+                        {/* GST */}
+                        {invoiceType === "GST Invoice" && (
+                          <div className="col-span-2 sm:col-span-1">
+                            <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                              GST
+                            </label>
+
+                            <div className="flex h-[46px] w-full items-center justify-center rounded-xl border border-amber-300 bg-amber-50 text-sm font-black text-amber-700">
+                              5%
+                            </div>
+                          </div>
+                        )}
+
+                      </div>
+
+                      {/* AMOUNT */}
+                      <div className="rounded-xl border border-slate-200 bg-white p-3">
+
+                        <div className="flex items-center justify-between gap-3">
+
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                              Item Amount
+                            </p>
+
+                            <p className="mt-1 text-xs text-slate-500">
+                              {qty} × ₹{formatCurrency(rate)}
+                              {invoiceType === "GST Invoice"
+                                ? " + GST"
+                                : ""}
+                            </p>
+                          </div>
+
+                          <div className="shrink-0 text-right">
+                            <p className="text-lg font-black text-slate-900">
+                              ₹{formatCurrency(total)}
+                            </p>
+                          </div>
+
+                        </div>
+
+                        {invoiceType === "GST Invoice" && (
+                          <div className="mt-2 border-t border-slate-100 pt-2 text-right text-[11px] font-semibold text-slate-500">
+                            Taxable: ₹
+                            {formatCurrency(taxable)}
+                            {" • "}
+                            GST 5%: ₹
+                            {formatCurrency(gst)}
+                          </div>
+                        )}
+
+                      </div>
+
+                    </div>
                   </div>
-                </div>
-              )}
-
-            </div>
-
-            {/* =========================================
-                AMOUNT
-            ========================================= */}
-            <div className="rounded-xl border border-slate-200 bg-white p-3">
-
-              <div className="flex items-center justify-between gap-3">
-
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Item Amount
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    {qty} × ₹{formatCurrency(rate)}
-                    {invoiceType === "GST Invoice"
-                      ? " + GST"
-                      : ""}
-                  </p>
-                </div>
-
-                <div className="shrink-0 text-right">
-                  <p className="text-lg font-black text-slate-900">
-                    ₹{formatCurrency(total)}
-                  </p>
-                </div>
-
-              </div>
-
-              {invoiceType === "GST Invoice" && (
-                <div className="mt-2 border-t border-slate-100 pt-2 text-right text-[11px] font-semibold text-slate-500">
-                  Taxable: ₹
-                  {formatCurrency(taxable)}
-                  {" • "}
-                  GST 5%: ₹
-                  {formatCurrency(gst)}
-                </div>
-              )}
+                );
+              })}
 
             </div>
 
           </div>
-        </div>
-      );
-    })}
-
-  </div>
-
-</div>
 
           {/* =================================================
               BOTTOM SECTION
           ================================================= */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
 
-            {/* =================================================
-                BANK DETAILS
-            ================================================= */}
+            {/* BANK DETAILS */}
             <div className="print-card rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
 
               <h3 className="mb-4 border-b border-slate-300 pb-3 text-sm font-black uppercase tracking-wider">
@@ -2494,9 +2631,7 @@ const CreateBill = () => {
 
             </div>
 
-            {/* =================================================
-                SUMMARY
-            ================================================= */}
+            {/* SUMMARY */}
             <div className="print-card rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
 
               <h3 className="mb-4 border-b border-slate-300 pb-3 text-sm font-black uppercase tracking-wider">

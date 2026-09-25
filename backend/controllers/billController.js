@@ -91,6 +91,11 @@ const generateBill = async (req, res) => {
 
       items,
       paymentStatus,
+
+      // =================================================
+      // INVOICE TYPE
+      // =================================================
+      invoiceType,
     } = req.body;
 
     // =====================================================
@@ -102,6 +107,16 @@ const generateBill = async (req, res) => {
         message: "At least one item is required.",
       });
     }
+
+    // =====================================================
+    // INVOICE TYPE
+    // =====================================================
+    const normalizedInvoiceType = String(
+      invoiceType || "GST Invoice"
+    ).trim();
+
+    const isGSTInvoice =
+      normalizedInvoiceType === "GST Invoice";
 
     // =====================================================
     // CUSTOMER DATA
@@ -207,14 +222,13 @@ const generateBill = async (req, res) => {
         0
       );
 
-      const gstRate =
-        item.gstRate !== undefined &&
-        item.gstRate !== null
-          ? Math.max(
-              Number(item.gstRate) || 0,
-              0
-            )
-          : 18;
+      // =================================================
+      // GST LOGIC
+      // GST Invoice = 5%
+      // Non-GST Invoice = 0%
+      // Without GST = 0%
+      // =================================================
+      const gstRate = isGSTInvoice ? 5 : 0;
 
       const taxableAmount =
         quantity * price;
@@ -294,6 +308,12 @@ const generateBill = async (req, res) => {
 
         newBill = await Bill.create({
           billNumber,
+
+          // =================================================
+          // INVOICE TYPE
+          // =================================================
+          invoiceType:
+            normalizedInvoiceType,
 
           // ===================================================
           // OLD CUSTOMER FIELDS
@@ -640,6 +660,21 @@ const updateBill = async (req, res) => {
       req.body;
 
     // ===================================================
+    // INVOICE TYPE
+    // ===================================================
+    const normalizedInvoiceType = String(
+      data.invoiceType ??
+      bill.invoiceType ??
+      "GST Invoice"
+    ).trim();
+
+    const isGSTInvoice =
+      normalizedInvoiceType === "GST Invoice";
+
+    bill.invoiceType =
+      normalizedInvoiceType;
+
+    // ===================================================
     // CUSTOMER DATA
     // ===================================================
     const customerData =
@@ -892,17 +927,14 @@ const updateBill = async (req, res) => {
               0
             );
 
+          // =================================================
+          // GST LOGIC
+          // GST Invoice = 5%
+          // Non-GST Invoice = 0%
+          // Without GST = 0%
+          // =================================================
           const gstRate =
-            item.gstRate !==
-              undefined &&
-            item.gstRate !== null
-              ? Math.max(
-                  Number(
-                    item.gstRate
-                  ) || 0,
-                  0
-                )
-              : 18;
+            isGSTInvoice ? 5 : 0;
 
           const taxableAmount =
             quantity * price;

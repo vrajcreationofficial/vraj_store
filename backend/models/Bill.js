@@ -16,6 +16,20 @@ const billSchema = new mongoose.Schema(
     },
 
     // =====================================================
+    // INVOICE TYPE
+    // =====================================================
+    invoiceType: {
+      type: String,
+      enum: [
+        "GST Invoice",
+        "Non-GST Invoice",
+        "Without GST",
+      ],
+      default: "GST Invoice",
+      trim: true,
+    },
+
+    // =====================================================
     // CUSTOMER INFORMATION
     // =====================================================
     customerName: {

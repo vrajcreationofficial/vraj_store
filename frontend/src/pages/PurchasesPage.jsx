@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import html2pdf from "html2pdf.js";
 import api from "../services/api";
@@ -6,7 +5,7 @@ import api from "../services/api";
 const DEFAULT_IMAGE = "https://via.placeholder.com/80";
 
 const INPUT_CLASS =
-  "w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm font-medium text-slate-900 caret-slate-900 outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-400 focus:-translate-y-[1px] focus:border-indigo-500 focus:bg-white focus:text-slate-900 focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:caret-white dark:placeholder:text-slate-500 dark:hover:border-slate-600 dark:focus:border-indigo-400 dark:focus:bg-slate-800 dark:focus:text-white dark:focus:ring-indigo-400/10";
+  "w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm font-medium text-slate-900 caret-slate-900 outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-400 focus:border-indigo-500 focus:bg-white focus:text-slate-900 focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:caret-white dark:placeholder:text-slate-500 dark:hover:border-slate-600 dark:focus:border-indigo-400 dark:focus:bg-slate-800 dark:focus:text-white dark:focus:ring-indigo-400/10";
 
 const FILE_INPUT_CLASS =
   "w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-700 outline-none transition-all duration-200 hover:border-indigo-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-indigo-500 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-200 file:px-3 file:py-2 file:text-xs file:font-bold file:text-slate-800 dark:file:bg-slate-700 dark:file:text-white";
@@ -104,13 +103,10 @@ const PurchasePage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [printingId, setPrintingId] = useState(null);
+  const [exportingPDF, setExportingPDF] = useState(false);
   const [error, setError] = useState("");
 
   const dropdownRef = useRef(null);
-
-  // =====================================================
-  // CLOSE DROPDOWN OUTSIDE
-  // =====================================================
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -132,10 +128,6 @@ const PurchasePage = () => {
     };
   }, []);
 
-  // =====================================================
-  // FETCH PURCHASES
-  // =====================================================
-
   const fetchPurchases = async () => {
     try {
       const response = await api.get("/purchases");
@@ -147,10 +139,6 @@ const PurchasePage = () => {
     }
   };
 
-  // =====================================================
-  // FETCH PRODUCTS
-  // =====================================================
-
   const fetchProducts = async () => {
     try {
       const response = await api.get("/products");
@@ -161,10 +149,6 @@ const PurchasePage = () => {
       throw error;
     }
   };
-
-  // =====================================================
-  // FETCH ALL
-  // =====================================================
 
   const fetchData = async () => {
     try {
@@ -191,10 +175,6 @@ const PurchasePage = () => {
     fetchData();
   }, []);
 
-  // =====================================================
-  // SELECTED PRODUCT
-  // =====================================================
-
   const selectedProduct = useMemo(() => {
     if (!formData.productId) {
       return null;
@@ -208,10 +188,6 @@ const PurchasePage = () => {
       ) || null
     );
   }, [products, formData.productId]);
-
-  // =====================================================
-  // FILTER PURCHASES
-  // =====================================================
 
   const filteredPurchases = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
@@ -249,10 +225,6 @@ const PurchasePage = () => {
     });
   }, [purchases, searchTerm, products]);
 
-  // =====================================================
-  // FILTER PRODUCTS
-  // =====================================================
-
   const filteredModalProducts = useMemo(() => {
     const query = productSearchQuery.trim().toLowerCase();
 
@@ -262,9 +234,7 @@ const PurchasePage = () => {
 
     return products.filter((product) => {
       const name = String(product.name || "").toLowerCase();
-
       const sku = String(getProductSku(product)).toLowerCase();
-
       const id = String(product._id || "").toLowerCase();
 
       return (
@@ -275,10 +245,6 @@ const PurchasePage = () => {
     });
   }, [products, productSearchQuery]);
 
-  // =====================================================
-  // SELECT CHECKBOX
-  // =====================================================
-
   const handleToggleSelect = (id) => {
     setSelectedIds((prev) =>
       prev.includes(id)
@@ -286,10 +252,6 @@ const PurchasePage = () => {
         : [...prev, id]
     );
   };
-
-  // =====================================================
-  // SELECT ALL
-  // =====================================================
 
   const handleToggleSelectAll = (e) => {
     if (e.target.checked) {
@@ -301,10 +263,6 @@ const PurchasePage = () => {
     }
   };
 
-  // =====================================================
-  // CALCULATE TOTAL
-  // =====================================================
-
   const calculateTotalPurchaseCost = (item) => {
     const cost = Number(item.rawCost) || 0;
     const quantity = Number(item.quantity) || 0;
@@ -312,17 +270,9 @@ const PurchasePage = () => {
     return cost * quantity;
   };
 
-  // =====================================================
-  // CURRENCY
-  // =====================================================
-
   const formatCurrency = (value) => {
     return `₹${Number(value || 0).toLocaleString("en-IN")}`;
   };
-
-  // =====================================================
-  // PRODUCT DISPLAY ID
-  // =====================================================
 
   const getProductDisplayId = (item) => {
     const matchingProduct = products.find(
@@ -340,10 +290,6 @@ const PurchasePage = () => {
     );
   };
 
-  // =====================================================
-  // PRODUCT IMAGE
-  // =====================================================
-
   const getPurchaseImage = (item) => {
     if (item.productImage) {
       return item.productImage;
@@ -358,10 +304,6 @@ const PurchasePage = () => {
     return getProductImage(matchingProduct) || DEFAULT_IMAGE;
   };
 
-  // =====================================================
-  // OPEN ADD
-  // =====================================================
-
   const handleOpenAddModal = () => {
     setEditingId(null);
     setFormData(createInitialForm());
@@ -370,10 +312,6 @@ const PurchasePage = () => {
     setError("");
     setIsModalOpen(true);
   };
-
-  // =====================================================
-  // OPEN EDIT
-  // =====================================================
 
   const handleOpenEditModal = (item) => {
     const matchingProduct = products.find(
@@ -421,10 +359,6 @@ const PurchasePage = () => {
     setIsModalOpen(true);
   };
 
-  // =====================================================
-  // CLOSE MODAL
-  // =====================================================
-
   const handleCloseModal = () => {
     if (saving) {
       return;
@@ -446,10 +380,6 @@ const PurchasePage = () => {
     setSaving(false);
   };
 
-  // =====================================================
-  // INPUT CHANGE
-  // =====================================================
-
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -458,10 +388,6 @@ const PurchasePage = () => {
       [name]: value,
     }));
   };
-
-  // =====================================================
-  // SELECT PRODUCT
-  // =====================================================
 
   const handleSelectProduct = (product) => {
     if (!product) {
@@ -502,10 +428,6 @@ const PurchasePage = () => {
     setError("");
   };
 
-  // =====================================================
-  // IMAGE UPLOAD
-  // =====================================================
-
   const handleImageFileChange = (e) => {
     const file = e.target.files?.[0];
 
@@ -536,10 +458,6 @@ const PurchasePage = () => {
     setError("");
   };
 
-  // =====================================================
-  // REMOVE IMAGE
-  // =====================================================
-
   const handleRemoveImage = () => {
     if (
       formData.productImage &&
@@ -554,10 +472,6 @@ const PurchasePage = () => {
       imageFile: null,
     }));
   };
-
-  // =====================================================
-  // DELETE
-  // =====================================================
 
   const handleDelete = async (id) => {
     const confirmed = window.confirm(
@@ -595,10 +509,6 @@ const PurchasePage = () => {
       );
     }
   };
-
-  // =====================================================
-  // SUBMIT
-  // =====================================================
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -743,10 +653,6 @@ const PurchasePage = () => {
     }
   };
 
-  // =====================================================
-  // PDF HTML - IMPROVED PRINT REPORT
-  // =====================================================
-
   const createPurchaseReportHTML = (
     itemsToExport,
     title = "Purchase Statement"
@@ -816,10 +722,10 @@ const PurchasePage = () => {
 
             <td
               style="
-                padding:9px 6px;
-                border:1px solid #cbd5e1;
+                padding:5px 3px;
+                border:1px solid #999;
                 text-align:center;
-                color:#111827;
+                color:#000;
               "
             >
               ${index + 1}
@@ -827,12 +733,12 @@ const PurchasePage = () => {
 
             <td
               style="
-                padding:9px 7px;
-                border:1px solid #cbd5e1;
+                padding:5px 4px;
+                border:1px solid #999;
                 overflow-wrap:anywhere;
                 word-break:break-word;
                 font-weight:700;
-                color:#111827;
+                color:#000;
               "
             >
               ${productName}
@@ -840,11 +746,13 @@ const PurchasePage = () => {
 
             <td
               style="
-                padding:9px 7px;
-                border:1px solid #cbd5e1;
+                padding:5px 4px;
+                border:1px solid #999;
                 font-family:monospace;
-                font-size:9px;
-                color:#374151;
+                font-size:6.5px;
+                overflow-wrap:anywhere;
+                word-break:break-word;
+                color:#000;
               "
             >
               ${escapeHtml(prodIdDisplay)}
@@ -852,9 +760,9 @@ const PurchasePage = () => {
 
             <td
               style="
-                padding:9px 7px;
-                border:1px solid #cbd5e1;
-                color:#374151;
+                padding:5px 4px;
+                border:1px solid #999;
+                color:#000;
               "
             >
               ${purchaseDate}
@@ -862,11 +770,11 @@ const PurchasePage = () => {
 
             <td
               style="
-                padding:9px 7px;
-                border:1px solid #cbd5e1;
+                padding:5px 4px;
+                border:1px solid #999;
                 overflow-wrap:anywhere;
                 word-break:break-word;
-                color:#374151;
+                color:#000;
               "
             >
               ${supplierName}
@@ -874,11 +782,11 @@ const PurchasePage = () => {
 
             <td
               style="
-                padding:9px 6px;
-                border:1px solid #cbd5e1;
+                padding:5px 3px;
+                border:1px solid #999;
                 text-align:center;
                 font-weight:700;
-                color:#111827;
+                color:#000;
               "
             >
               ${quantity.toLocaleString("en-IN")}
@@ -886,11 +794,11 @@ const PurchasePage = () => {
 
             <td
               style="
-                padding:9px 6px;
-                border:1px solid #cbd5e1;
+                padding:5px 3px;
+                border:1px solid #999;
                 text-align:right;
                 white-space:nowrap;
-                color:#374151;
+                color:#000;
               "
             >
               ₹${rawCost.toLocaleString("en-IN")}
@@ -898,12 +806,12 @@ const PurchasePage = () => {
 
             <td
               style="
-                padding:9px 6px;
-                border:1px solid #cbd5e1;
+                padding:5px 3px;
+                border:1px solid #999;
                 text-align:right;
                 white-space:nowrap;
                 font-weight:800;
-                color:#111827;
+                color:#000;
               "
             >
               ₹${totalExpense.toLocaleString("en-IN")}
@@ -917,40 +825,37 @@ const PurchasePage = () => {
     return `
       <div
         style="
-          width:1000px;
-          max-width:1000px;
+          width:740px;
+          max-width:740px;
           box-sizing:border-box;
-          background:#ffffff;
-          color:#111827;
+          background:#fff;
+          color:#000;
           font-family:Arial,Helvetica,sans-serif;
-          padding:28px;
+          padding:10px;
           margin:0;
         "
       >
-
-        <!-- REPORT HEADER -->
 
         <div
           style="
             display:flex;
             justify-content:space-between;
             align-items:flex-start;
-            gap:30px;
-            padding-bottom:18px;
-            margin-bottom:18px;
-            border-bottom:2px solid #111827;
+            padding-bottom:7px;
+            margin-bottom:7px;
+            border-bottom:1.5px solid #000;
           "
         >
 
-          <div>
+          <div style="min-width:0;flex:1;">
 
             <div
               style="
-                font-size:11px;
-                font-weight:800;
-                letter-spacing:2px;
-                color:#64748b;
-                margin-bottom:5px;
+                font-size:8px;
+                font-weight:700;
+                letter-spacing:1.5px;
+                color:#000;
+                margin-bottom:2px;
               "
             >
               VRAJ CREATION
@@ -959,9 +864,9 @@ const PurchasePage = () => {
             <h1
               style="
                 margin:0;
-                font-size:25px;
-                line-height:1.2;
-                color:#111827;
+                font-size:18px;
+                line-height:1.15;
+                color:#000;
               "
             >
               ${escapeHtml(title)}
@@ -969,9 +874,9 @@ const PurchasePage = () => {
 
             <p
               style="
-                margin:7px 0 0;
-                font-size:10px;
-                color:#64748b;
+                margin:3px 0 0;
+                font-size:7px;
+                color:#333;
               "
             >
               Purchase Management & Inventory Record
@@ -981,29 +886,28 @@ const PurchasePage = () => {
 
           <div
             style="
-              min-width:150px;
+              min-width:95px;
               text-align:right;
             "
           >
 
             <div
               style="
-                font-size:8px;
-                font-weight:800;
-                letter-spacing:1px;
+                font-size:6px;
+                font-weight:700;
                 text-transform:uppercase;
-                color:#94a3b8;
-                margin-bottom:4px;
+                color:#555;
               "
             >
-              Generated On
+              Generated
             </div>
 
             <div
               style="
-                font-size:12px;
-                font-weight:800;
-                color:#111827;
+                margin-top:2px;
+                font-size:8px;
+                font-weight:700;
+                color:#000;
               "
             >
               ${generatedDate}
@@ -1011,23 +915,22 @@ const PurchasePage = () => {
 
             <div
               style="
-                margin-top:10px;
-                font-size:8px;
-                font-weight:800;
-                letter-spacing:1px;
+                margin-top:5px;
+                font-size:6px;
+                font-weight:700;
                 text-transform:uppercase;
-                color:#94a3b8;
-                margin-bottom:4px;
+                color:#555;
               "
             >
-              Total Records
+              Records
             </div>
 
             <div
               style="
-                font-size:18px;
+                margin-top:1px;
+                font-size:11px;
                 font-weight:900;
-                color:#111827;
+                color:#000;
               "
             >
               ${itemsToExport.length}
@@ -1037,32 +940,27 @@ const PurchasePage = () => {
 
         </div>
 
-        <!-- SUMMARY -->
-
         <div
           style="
             display:grid;
             grid-template-columns:repeat(4,1fr);
-            gap:9px;
-            margin-bottom:18px;
+            gap:5px;
+            margin-bottom:7px;
           "
         >
 
           <div
             style="
-              border:1px solid #cbd5e1;
-              background:#f8fafc;
-              padding:11px;
-              border-radius:6px;
+              border:1px solid #999;
+              padding:5px;
             "
           >
             <div
               style="
-                font-size:8px;
-                font-weight:800;
+                font-size:6px;
+                font-weight:700;
                 text-transform:uppercase;
-                letter-spacing:.5px;
-                color:#64748b;
+                color:#555;
               "
             >
               Purchase Qty
@@ -1070,40 +968,28 @@ const PurchasePage = () => {
 
             <div
               style="
-                margin-top:5px;
-                font-size:16px;
+                margin-top:2px;
+                font-size:11px;
                 font-weight:900;
-                color:#111827;
+                color:#000;
               "
             >
               ${totalQty.toLocaleString("en-IN")}
-              <span
-                style="
-                  font-size:9px;
-                  font-weight:600;
-                  color:#64748b;
-                "
-              >
-                Units
-              </span>
             </div>
           </div>
 
           <div
             style="
-              border:1px solid #cbd5e1;
-              background:#f8fafc;
-              padding:11px;
-              border-radius:6px;
+              border:1px solid #999;
+              padding:5px;
             "
           >
             <div
               style="
-                font-size:8px;
-                font-weight:800;
+                font-size:6px;
+                font-weight:700;
                 text-transform:uppercase;
-                letter-spacing:.5px;
-                color:#64748b;
+                color:#555;
               "
             >
               Records
@@ -1111,10 +997,10 @@ const PurchasePage = () => {
 
             <div
               style="
-                margin-top:5px;
-                font-size:16px;
+                margin-top:2px;
+                font-size:11px;
                 font-weight:900;
-                color:#111827;
+                color:#000;
               "
             >
               ${itemsToExport.length}
@@ -1123,30 +1009,27 @@ const PurchasePage = () => {
 
           <div
             style="
-              border:1px solid #cbd5e1;
-              background:#f8fafc;
-              padding:11px;
-              border-radius:6px;
+              border:1px solid #999;
+              padding:5px;
             "
           >
             <div
               style="
-                font-size:8px;
-                font-weight:800;
+                font-size:6px;
+                font-weight:700;
                 text-transform:uppercase;
-                letter-spacing:.5px;
-                color:#64748b;
+                color:#555;
               "
             >
-              Raw Cost / Unit Total
+              Raw Cost
             </div>
 
             <div
               style="
-                margin-top:5px;
-                font-size:16px;
+                margin-top:2px;
+                font-size:11px;
                 font-weight:900;
-                color:#111827;
+                color:#000;
               "
             >
               ₹${totalRawCost.toLocaleString("en-IN")}
@@ -1155,19 +1038,16 @@ const PurchasePage = () => {
 
           <div
             style="
-              border:2px solid #111827;
-              background:#f1f5f9;
-              padding:10px;
-              border-radius:6px;
+              border:1.5px solid #000;
+              padding:5px;
             "
           >
             <div
               style="
-                font-size:8px;
-                font-weight:800;
+                font-size:6px;
+                font-weight:700;
                 text-transform:uppercase;
-                letter-spacing:.5px;
-                color:#475569;
+                color:#333;
               "
             >
               Total Expense
@@ -1175,10 +1055,10 @@ const PurchasePage = () => {
 
             <div
               style="
-                margin-top:5px;
-                font-size:17px;
+                margin-top:2px;
+                font-size:11px;
                 font-weight:900;
-                color:#111827;
+                color:#000;
               "
             >
               ₹${totalExp.toLocaleString("en-IN")}
@@ -1187,40 +1067,38 @@ const PurchasePage = () => {
 
         </div>
 
-        <!-- TABLE -->
-
         <table
           style="
             width:100%;
             border-collapse:collapse;
             table-layout:fixed;
-            font-size:9px;
-            line-height:1.35;
+            font-size:7px;
+            line-height:1.2;
           "
         >
 
           <colgroup>
             <col style="width:4%;" />
-            <col style="width:21%;" />
-            <col style="width:12%;" />
+            <col style="width:23%;" />
             <col style="width:11%;" />
-            <col style="width:18%;" />
+            <col style="width:11%;" />
+            <col style="width:17%;" />
             <col style="width:7%;" />
-            <col style="width:12%;" />
-            <col style="width:15%;" />
+            <col style="width:13%;" />
+            <col style="width:14%;" />
           </colgroup>
 
           <thead>
 
-            <tr style="background:#e2e8f0;">
+            <tr style="background:#eeeeee;">
 
               <th
                 style="
-                  padding:9px 6px;
-                  border:1px solid #94a3b8;
-                  font-size:8px;
+                  padding:5px 3px;
+                  border:1px solid #777;
+                  font-size:6.5px;
                   font-weight:900;
-                  color:#111827;
+                  color:#000;
                   text-align:center;
                 "
               >
@@ -1229,11 +1107,11 @@ const PurchasePage = () => {
 
               <th
                 style="
-                  padding:9px 7px;
-                  border:1px solid #94a3b8;
-                  font-size:8px;
+                  padding:5px 4px;
+                  border:1px solid #777;
+                  font-size:6.5px;
                   font-weight:900;
-                  color:#111827;
+                  color:#000;
                   text-align:left;
                 "
               >
@@ -1242,11 +1120,11 @@ const PurchasePage = () => {
 
               <th
                 style="
-                  padding:9px 7px;
-                  border:1px solid #94a3b8;
-                  font-size:8px;
+                  padding:5px 4px;
+                  border:1px solid #777;
+                  font-size:6.5px;
                   font-weight:900;
-                  color:#111827;
+                  color:#000;
                   text-align:left;
                 "
               >
@@ -1255,11 +1133,11 @@ const PurchasePage = () => {
 
               <th
                 style="
-                  padding:9px 7px;
-                  border:1px solid #94a3b8;
-                  font-size:8px;
+                  padding:5px 4px;
+                  border:1px solid #777;
+                  font-size:6.5px;
                   font-weight:900;
-                  color:#111827;
+                  color:#000;
                   text-align:left;
                 "
               >
@@ -1268,11 +1146,11 @@ const PurchasePage = () => {
 
               <th
                 style="
-                  padding:9px 7px;
-                  border:1px solid #94a3b8;
-                  font-size:8px;
+                  padding:5px 4px;
+                  border:1px solid #777;
+                  font-size:6.5px;
                   font-weight:900;
-                  color:#111827;
+                  color:#000;
                   text-align:left;
                 "
               >
@@ -1281,11 +1159,11 @@ const PurchasePage = () => {
 
               <th
                 style="
-                  padding:9px 6px;
-                  border:1px solid #94a3b8;
-                  font-size:8px;
+                  padding:5px 3px;
+                  border:1px solid #777;
+                  font-size:6.5px;
                   font-weight:900;
-                  color:#111827;
+                  color:#000;
                   text-align:center;
                 "
               >
@@ -1294,11 +1172,11 @@ const PurchasePage = () => {
 
               <th
                 style="
-                  padding:9px 6px;
-                  border:1px solid #94a3b8;
-                  font-size:8px;
+                  padding:5px 3px;
+                  border:1px solid #777;
+                  font-size:6.5px;
                   font-weight:900;
-                  color:#111827;
+                  color:#000;
                   text-align:right;
                 "
               >
@@ -1307,11 +1185,11 @@ const PurchasePage = () => {
 
               <th
                 style="
-                  padding:9px 6px;
-                  border:1px solid #94a3b8;
-                  font-size:8px;
+                  padding:5px 3px;
+                  border:1px solid #777;
+                  font-size:6.5px;
                   font-weight:900;
-                  color:#111827;
+                  color:#000;
                   text-align:right;
                 "
               >
@@ -1330,10 +1208,10 @@ const PurchasePage = () => {
                   <td
                     colspan="8"
                     style="
-                      padding:25px;
+                      padding:12px;
                       text-align:center;
-                      border:1px solid #cbd5e1;
-                      color:#64748b;
+                      border:1px solid #777;
+                      color:#333;
                     "
                   >
                     No purchase records found.
@@ -1345,11 +1223,9 @@ const PurchasePage = () => {
 
         </table>
 
-        <!-- TOTAL BOX -->
-
         <div
           style="
-            margin-top:18px;
+            margin-top:7px;
             display:flex;
             justify-content:flex-end;
           "
@@ -1357,9 +1233,9 @@ const PurchasePage = () => {
 
           <table
             style="
-              width:330px;
+              width:240px;
               border-collapse:collapse;
-              font-size:9px;
+              font-size:7px;
             "
           >
 
@@ -1369,9 +1245,9 @@ const PurchasePage = () => {
 
                 <td
                   style="
-                    padding:8px;
-                    border:1px solid #cbd5e1;
-                    color:#475569;
+                    padding:4px;
+                    border:1px solid #999;
+                    color:#333;
                   "
                 >
                   Total Purchase Qty
@@ -1379,11 +1255,11 @@ const PurchasePage = () => {
 
                 <td
                   style="
-                    padding:8px;
-                    border:1px solid #cbd5e1;
+                    padding:4px;
+                    border:1px solid #999;
                     text-align:right;
                     font-weight:800;
-                    color:#111827;
+                    color:#000;
                   "
                 >
                   ${totalQty.toLocaleString("en-IN")} Units
@@ -1395,9 +1271,9 @@ const PurchasePage = () => {
 
                 <td
                   style="
-                    padding:8px;
-                    border:1px solid #cbd5e1;
-                    color:#475569;
+                    padding:4px;
+                    border:1px solid #999;
+                    color:#333;
                   "
                 >
                   Total Records
@@ -1405,11 +1281,11 @@ const PurchasePage = () => {
 
                 <td
                   style="
-                    padding:8px;
-                    border:1px solid #cbd5e1;
+                    padding:4px;
+                    border:1px solid #999;
                     text-align:right;
                     font-weight:800;
-                    color:#111827;
+                    color:#000;
                   "
                 >
                   ${itemsToExport.length}
@@ -1421,24 +1297,23 @@ const PurchasePage = () => {
 
                 <td
                   style="
-                    padding:9px;
-                    border:2px solid #111827;
+                    padding:5px;
+                    border:1.5px solid #000;
                     font-weight:900;
-                    color:#111827;
-                    background:#f8fafc;
+                    color:#000;
                   "
                 >
-                  GRAND TOTAL EXPENSE
+                  GRAND TOTAL
                 </td>
 
                 <td
                   style="
-                    padding:9px;
-                    border:2px solid #111827;
+                    padding:5px;
+                    border:1.5px solid #000;
                     text-align:right;
                     font-weight:900;
-                    color:#111827;
-                    background:#f8fafc;
+                    color:#000;
+                    white-space:nowrap;
                   "
                 >
                   ₹${totalExp.toLocaleString("en-IN")}
@@ -1452,19 +1327,15 @@ const PurchasePage = () => {
 
         </div>
 
-        <!-- FOOTER -->
-
         <div
           style="
-            margin-top:24px;
-            padding-top:10px;
-            border-top:1px solid #cbd5e1;
+            margin-top:7px;
+            padding-top:4px;
+            border-top:1px solid #aaa;
             display:flex;
             justify-content:space-between;
-            align-items:center;
-            gap:20px;
-            font-size:8px;
-            color:#64748b;
+            font-size:6px;
+            color:#555;
           "
         >
 
@@ -1482,10 +1353,6 @@ const PurchasePage = () => {
     `;
   };
 
-  // =====================================================
-  // GENERATE PDF
-  // =====================================================
-
   const generatePurchasePDF = async (
     itemsToExport,
     filename,
@@ -1498,10 +1365,15 @@ const PurchasePage = () => {
       return;
     }
 
+    if (exportingPDF) {
+      return;
+    }
+
     let wrapper = null;
 
     try {
       setError("");
+      setExportingPDF(true);
 
       const reportHTML =
         createPurchaseReportHTML(
@@ -1514,9 +1386,10 @@ const PurchasePage = () => {
       wrapper.style.position = "fixed";
       wrapper.style.left = "-100000px";
       wrapper.style.top = "0";
-      wrapper.style.width = "1000px";
+      wrapper.style.width = "740px";
+      wrapper.style.maxWidth = "740px";
       wrapper.style.background = "#ffffff";
-      wrapper.style.color = "#111827";
+      wrapper.style.color = "#000000";
       wrapper.style.zIndex = "-9999";
 
       wrapper.innerHTML = reportHTML;
@@ -1524,48 +1397,58 @@ const PurchasePage = () => {
       document.body.appendChild(wrapper);
 
       await new Promise((resolve) =>
-        setTimeout(resolve, 700)
+        requestAnimationFrame(resolve)
       );
 
+      const reportElement =
+        wrapper.firstElementChild;
+
+      if (!reportElement) {
+        throw new Error(
+          "Purchase report element not found"
+        );
+      }
+
       const options = {
-        margin: [5, 5, 5, 5],
+        margin: [3, 3, 3, 3],
 
         filename,
 
         image: {
           type: "jpeg",
-          quality: 0.98,
+          quality: 0.85,
         },
 
         html2canvas: {
-          scale: 2,
+          scale: 1.25,
           useCORS: true,
           allowTaint: true,
           backgroundColor: "#ffffff",
           logging: false,
           scrollX: 0,
           scrollY: 0,
-          windowWidth: 1000,
-          windowHeight: 1400,
+          windowWidth: 740,
+          windowHeight: 1050,
         },
 
         jsPDF: {
           unit: "mm",
           format: "a4",
-          orientation: "landscape",
+          orientation: "portrait",
           compress: true,
         },
 
         pagebreak: {
-          mode: ["css", "legacy"],
+          mode: ["css"],
           avoid: ["tr"],
         },
       };
 
       await html2pdf()
         .set(options)
-        .from(wrapper.firstElementChild)
+        .from(reportElement)
         .save();
+
     } catch (error) {
       console.error(
         "PDF GENERATION ERROR:",
@@ -1579,12 +1462,10 @@ const PurchasePage = () => {
       if (wrapper) {
         wrapper.remove();
       }
+
+      setExportingPDF(false);
     }
   };
-
-  // =====================================================
-  // SELECTED PDF
-  // =====================================================
 
   const handleDownloadPDF = async () => {
     const itemsToExport = purchases.filter(
@@ -1605,10 +1486,6 @@ const PurchasePage = () => {
       "Selected Purchase Statement"
     );
   };
-
-  // =====================================================
-  // SINGLE PURCHASE PDF
-  // =====================================================
 
   const handlePrintSinglePurchase = async (item) => {
     if (!item?._id) {
@@ -1647,18 +1524,11 @@ const PurchasePage = () => {
     }
   };
 
-  // =====================================================
-  // LOADING
-  // =====================================================
-
   if (loading) {
     return (
       <div className="flex min-h-[500px] items-center justify-center">
-
         <div className="text-center">
-
           <div className="relative mx-auto mb-5 h-14 w-14">
-
             <div className="absolute inset-0 animate-ping rounded-full bg-indigo-500/20" />
 
             <div className="relative flex h-14 w-14 animate-spin items-center justify-center rounded-full border-4 border-slate-200 border-t-indigo-600 dark:border-slate-700 dark:border-t-indigo-400">
@@ -1666,15 +1536,12 @@ const PurchasePage = () => {
                 📦
               </span>
             </div>
-
           </div>
 
           <p className="animate-pulse text-sm font-bold text-slate-500 dark:text-slate-400">
             Loading purchases...
           </p>
-
         </div>
-
       </div>
     );
   }
@@ -1682,16 +1549,13 @@ const PurchasePage = () => {
   return (
     <div className="space-y-6 pb-8">
 
-      {/* =====================================================
-          ANIMATION + PRINT STYLES
-      ===================================================== */}
-
       <style>{`
         @keyframes purchaseFadeUp {
           from {
             opacity: 0;
             transform: translateY(18px);
           }
+
           to {
             opacity: 1;
             transform: translateY(0);
@@ -1703,6 +1567,7 @@ const PurchasePage = () => {
             opacity: 0;
             transform: scale(0.94);
           }
+
           to {
             opacity: 1;
             transform: scale(1);
@@ -1714,19 +1579,10 @@ const PurchasePage = () => {
             opacity: 0;
             transform: translateX(-12px);
           }
+
           to {
             opacity: 1;
             transform: translateX(0);
-          }
-        }
-
-        @keyframes purchaseGlow {
-          0%, 100% {
-            box-shadow: 0 0 0 rgba(99,102,241,0);
-          }
-
-          50% {
-            box-shadow: 0 0 28px rgba(99,102,241,0.14);
           }
         }
 
@@ -1742,15 +1598,10 @@ const PurchasePage = () => {
           animation: purchaseSlide 0.35s ease-out both;
         }
 
-        .purchase-glow {
-          animation: purchaseGlow 2.5s ease-in-out infinite;
-        }
-
         .purchase-row {
           transition:
             transform 180ms ease,
-            background-color 180ms ease,
-            box-shadow 180ms ease;
+            background-color 180ms ease;
         }
 
         .purchase-row:hover {
@@ -1760,8 +1611,7 @@ const PurchasePage = () => {
         .purchase-action {
           transition:
             transform 160ms ease,
-            background-color 160ms ease,
-            box-shadow 160ms ease;
+            background-color 160ms ease;
         }
 
         .purchase-action:hover {
@@ -1779,19 +1629,14 @@ const PurchasePage = () => {
         }
 
         .product-image-hover:hover {
-          transform: scale(1.08) rotate(1deg);
-          box-shadow: 0 10px 25px rgba(15,23,42,0.14);
+          transform: scale(1.08);
         }
-
-        /* =====================================================
-           PRINT
-        ===================================================== */
 
         @media print {
 
           @page {
-            size: A4 landscape;
-            margin: 7mm;
+            size: A4 portrait;
+            margin: 5mm;
           }
 
           html,
@@ -1810,7 +1655,7 @@ const PurchasePage = () => {
           .dark,
           .dark * {
             background: #ffffff !important;
-            color: #111827 !important;
+            color: #000000 !important;
           }
 
           button,
@@ -1825,8 +1670,7 @@ const PurchasePage = () => {
 
           .purchase-fade-up,
           .purchase-scale,
-          .purchase-slide,
-          .purchase-glow {
+          .purchase-slide {
             animation: none !important;
             transform: none !important;
           }
@@ -1866,14 +1710,9 @@ const PurchasePage = () => {
         }
       `}</style>
 
-      {/* =====================================================
-          HEADER
-      ===================================================== */}
-
       <div className="purchase-fade-up flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
         <div>
-
           <div className="flex items-center gap-2">
 
             <span className="text-3xl">
@@ -1889,7 +1728,6 @@ const PurchasePage = () => {
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Track raw materials, supplier details and purchase costs
           </p>
-
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -1897,21 +1735,28 @@ const PurchasePage = () => {
           <button
             type="button"
             onClick={handleDownloadPDF}
-            className="group flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-600/20 transition-all duration-200 hover:-translate-y-1 hover:bg-red-700 hover:shadow-xl hover:shadow-red-600/25 active:scale-95"
+            disabled={
+              selectedIds.length === 0 ||
+              exportingPDF
+            }
+            className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800"
           >
-            <span className="transition-transform duration-200 group-hover:rotate-6 group-hover:scale-110">
-              📄
-            </span>
-
-            Export Selected PDF (
-            {selectedIds.length}
-            )
+            {exportingPDF ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-800 dark:border-slate-600 dark:border-t-white" />
+                Generating...
+              </>
+            ) : (
+              <>
+                📄 Export PDF ({selectedIds.length})
+              </>
+            )}
           </button>
 
           <button
             type="button"
             onClick={handleOpenAddModal}
-            className="group flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-900/20 transition-all duration-200 hover:-translate-y-1 hover:bg-indigo-600 hover:shadow-xl hover:shadow-indigo-600/20 active:scale-95 dark:bg-white dark:text-slate-950 dark:hover:bg-indigo-500 dark:hover:text-white"
+            className="group flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:-translate-y-1 hover:bg-indigo-600 active:scale-95 dark:bg-white dark:text-slate-950 dark:hover:bg-indigo-500 dark:hover:text-white"
           >
             <span className="text-lg transition-transform duration-200 group-hover:rotate-90">
               ＋
@@ -1921,15 +1766,10 @@ const PurchasePage = () => {
           </button>
 
         </div>
-
       </div>
 
-      {/* =====================================================
-          ERROR
-      ===================================================== */}
-
       {error && (
-        <div className="purchase-scale flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 shadow-sm dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+        <div className="purchase-scale flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
 
           <span>
             ⚠️ {error}
@@ -1938,7 +1778,7 @@ const PurchasePage = () => {
           <button
             type="button"
             onClick={() => setError("")}
-            className="ml-3 rounded-lg px-2 py-1 font-bold transition hover:bg-red-100 hover:scale-110 dark:hover:bg-red-900/40"
+            className="ml-3 rounded-lg px-2 py-1 font-bold transition hover:bg-red-100 dark:hover:bg-red-900/40"
           >
             ×
           </button>
@@ -1946,11 +1786,7 @@ const PurchasePage = () => {
         </div>
       )}
 
-      {/* =====================================================
-          SEARCH
-      ===================================================== */}
-
-      <div className="purchase-fade-up flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-500/5 dark:border-slate-800 dark:bg-slate-900 dark:focus-within:border-indigo-700">
+      <div className="purchase-fade-up flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
         <span className="text-lg text-slate-400">
           🔍
@@ -1978,30 +1814,22 @@ const PurchasePage = () => {
 
       </div>
 
-      {/* =====================================================
-          TABLE
-      ===================================================== */}
-
-      <div className="purchase-fade-up overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow duration-300 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900">
+      <div className="purchase-fade-up overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
         <div className="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
 
           <div>
-
             <h2 className="text-xl font-black text-slate-900 dark:text-white">
               Purchase Statement
             </h2>
 
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               Generated:{" "}
-              {new Date().toLocaleDateString(
-                "en-IN"
-              )}
+              {new Date().toLocaleDateString("en-IN")}
             </p>
-
           </div>
 
-          <div className="rounded-xl bg-slate-50 px-4 py-2 text-left dark:bg-slate-800 sm:text-right">
+          <div className="rounded-xl bg-slate-50 px-4 py-2 dark:bg-slate-800">
 
             <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
               Total Entries / Selected
@@ -2023,15 +1851,15 @@ const PurchasePage = () => {
 
         </div>
 
-        <div className="overflow-hidden">
+        <div className="overflow-x-auto">
 
-          <table className="w-full table-fixed text-left text-sm sm:table-auto sm:min-w-[1150px]">
+          <table className="w-full min-w-[1000px] text-left text-sm">
 
             <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/60">
 
               <tr>
 
-                <th className="w-10 px-2 py-3 text-center sm:px-4">
+                <th className="w-10 px-4 py-3 text-center">
                   <input
                     type="checkbox"
                     aria-label="Select all filtered purchases"
@@ -2047,35 +1875,35 @@ const PurchasePage = () => {
                   />
                 </th>
 
-                <th className="px-2 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:px-4">
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Product
                 </th>
 
-                <th className="hidden px-2 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:table-cell sm:px-4">
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Product ID
                 </th>
 
-                <th className="hidden px-2 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:table-cell sm:px-4">
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Date
                 </th>
 
-                <th className="hidden px-2 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:table-cell sm:px-4">
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Supplier
                 </th>
 
-                <th className="px-2 py-3 text-center text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:px-4">
+                <th className="px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Qty
                 </th>
 
-                <th className="hidden px-2 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:table-cell sm:px-4">
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Raw Cost
                 </th>
 
-                <th className="px-2 py-3 text-xs font-black uppercase tracking-wide text-blue-600 dark:text-blue-400 sm:px-4">
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-blue-600 dark:text-blue-400">
                   Total Expense
                 </th>
 
-                <th className="hidden px-1 py-3 text-center text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:table-cell sm:px-4">
+                <th className="px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Actions
                 </th>
 
@@ -2096,7 +1924,7 @@ const PurchasePage = () => {
 
                     <div className="purchase-scale flex flex-col items-center justify-center">
 
-                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-3xl shadow-inner dark:bg-slate-800">
+                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-3xl dark:bg-slate-800">
                         📦
                       </div>
 
@@ -2139,7 +1967,7 @@ const PurchasePage = () => {
                         }}
                       >
 
-                        <td className="px-2 py-3 text-center sm:px-4">
+                        <td className="px-4 py-3 text-center">
 
                           <input
                             type="checkbox"
@@ -2151,16 +1979,18 @@ const PurchasePage = () => {
                               item._id
                             )}
                             onChange={() =>
-                              handleToggleSelect(item._id)
+                              handleToggleSelect(
+                                item._id
+                              )
                             }
                             className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600"
                           />
 
                         </td>
 
-                        <td className="min-w-0 px-2 py-3 sm:px-4">
+                        <td className="px-4 py-3">
 
-                          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                          <div className="flex items-center gap-3">
 
                             <img
                               src={getPurchaseImage(item)}
@@ -2172,12 +2002,12 @@ const PurchasePage = () => {
                                 e.currentTarget.src =
                                   DEFAULT_IMAGE;
                               }}
-                              className="product-image-hover h-9 w-9 shrink-0 rounded-xl border border-slate-200 object-cover dark:border-slate-700 sm:h-11 sm:w-11"
+                              className="product-image-hover h-11 w-11 rounded-xl border border-slate-200 object-cover dark:border-slate-700"
                             />
 
                             <div className="min-w-0">
 
-                              <p className="max-w-[110px] truncate font-bold text-slate-800 dark:text-slate-100">
+                              <p className="max-w-[220px] truncate font-bold text-slate-800 dark:text-slate-100">
                                 {item.productName}
                               </p>
 
@@ -2194,7 +2024,7 @@ const PurchasePage = () => {
 
                         </td>
 
-                        <td className="hidden px-2 py-3 sm:table-cell sm:px-4">
+                        <td className="px-4 py-3">
 
                           <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                             {displayId}
@@ -2202,98 +2032,56 @@ const PurchasePage = () => {
 
                         </td>
 
-                        <td className="hidden px-2 py-3 text-xs font-medium text-slate-600 sm:table-cell sm:px-4 dark:text-slate-400">
+                        <td className="px-4 py-3 text-xs font-medium text-slate-600 dark:text-slate-400">
                           {item.purchaseDate}
                         </td>
 
-                        <td className="hidden px-2 py-3 font-medium text-slate-700 sm:table-cell sm:px-4 dark:text-slate-300">
+                        <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
                           {item.supplierName}
                         </td>
 
-                        <td className="px-2 py-3 text-center sm:px-4">
+                        <td className="px-4 py-3 text-center">
 
-                          <span className="inline-flex rounded-lg bg-slate-100 px-2 py-1 text-xs font-black sm:px-2.5 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                          <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                             {item.quantity}
                           </span>
 
                         </td>
 
-                        <td className="hidden px-2 py-3 font-medium text-slate-600 dark:text-slate-400 sm:table-cell sm:px-4">
+                        <td className="px-4 py-3 font-medium text-slate-600 dark:text-slate-400">
                           {formatCurrency(item.rawCost)}
                         </td>
 
-                        <td className="px-2 py-3 sm:px-4">
+                        <td className="px-4 py-3">
 
                           <span className="whitespace-nowrap font-black text-blue-600 dark:text-blue-400">
                             {formatCurrency(
-                              calculateTotalPurchaseCost(item)
+                              calculateTotalPurchaseCost(
+                                item
+                              )
                             )}
                           </span>
 
-                          {/* MOBILE ACTIONS */}
-
-                          <div className="mt-2 flex items-center justify-start gap-1 border-t border-slate-100 pt-2 sm:hidden dark:border-slate-800">
-
-                            <button
-                              type="button"
-                              title="Download PDF"
-                              onClick={() =>
-                                handlePrintSinglePurchase(item)
-                              }
-                              disabled={
-                                printingId === item._id
-                              }
-                              className="purchase-action flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50"
-                            >
-
-                              {printingId === item._id ? (
-                                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-200 border-t-red-600" />
-                              ) : (
-                                <span>🖨️</span>
-                              )}
-
-                            </button>
-
-                            <button
-                              type="button"
-                              title="Edit"
-                              onClick={() =>
-                                handleOpenEditModal(item)
-                              }
-                              className="purchase-action flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition-all hover:bg-blue-100 dark:bg-blue-950/30 dark:text-blue-400 dark:hover:bg-blue-950/50"
-                            >
-                              ✏️
-                            </button>
-
-                            <button
-                              type="button"
-                              title="Delete"
-                              onClick={() =>
-                                handleDelete(item._id)
-                              }
-                              className="purchase-action flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 transition-all hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-950/50"
-                            >
-                              🗑️
-                            </button>
-
-                          </div>
-
                         </td>
 
-                        <td className="hidden px-1 py-3 sm:table-cell sm:px-4">
+                        <td className="px-4 py-3">
 
-                          <div className="flex items-center justify-center gap-0.5 sm:gap-1.5">
+                          <div className="flex items-center justify-center gap-1.5">
 
                             <button
                               type="button"
                               title="Download PDF"
                               onClick={() =>
-                                handlePrintSinglePurchase(item)
+                                handlePrintSinglePurchase(
+                                  item
+                                )
                               }
                               disabled={
-                                printingId === item._id
+                                printingId ===
+                                item._id ||
+                                exportingPDF
                               }
-                              className="purchase-action rounded-lg p-1.5 text-red-600 sm:p-2 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                              className="purchase-action rounded-lg p-2 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/40"
                             >
 
                               {printingId === item._id ? (
@@ -2308,9 +2096,11 @@ const PurchasePage = () => {
                               type="button"
                               title="Edit"
                               onClick={() =>
-                                handleOpenEditModal(item)
+                                handleOpenEditModal(
+                                  item
+                                )
                               }
-                              className="purchase-action rounded-lg p-1.5 text-blue-600 sm:p-2 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                              className="purchase-action rounded-lg p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40"
                             >
                               ✏️
                             </button>
@@ -2321,7 +2111,7 @@ const PurchasePage = () => {
                               onClick={() =>
                                 handleDelete(item._id)
                               }
-                              className="purchase-action rounded-lg p-1.5 text-rose-600 sm:p-2 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                              className="purchase-action rounded-lg p-2 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
                             >
                               🗑️
                             </button>
@@ -2345,12 +2135,7 @@ const PurchasePage = () => {
 
       </div>
 
-      {/* =====================================================
-          MODAL
-      ===================================================== */}
-
       {isModalOpen && (
-
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           style={{
@@ -2364,9 +2149,7 @@ const PurchasePage = () => {
           }}
         >
 
-          <div
-            className="purchase-scale max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
-          >
+          <div className="purchase-scale max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
 
             <div className="mb-5 flex items-center justify-between border-b border-slate-200 pb-4 dark:border-slate-800">
 
@@ -2454,13 +2237,8 @@ const PurchasePage = () => {
                   </div>
 
                   {isProductDropdownOpen && (
-
                     <div
                       className="absolute left-0 right-0 z-[60] mt-2 max-h-72 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
-                      style={{
-                        animation:
-                          "purchaseScale 0.18s ease-out both",
-                      }}
                     >
 
                       {filteredModalProducts.length === 0 ? (
@@ -2555,7 +2333,6 @@ const PurchasePage = () => {
                       )}
 
                     </div>
-
                   )}
 
                 </div>
@@ -2581,8 +2358,7 @@ const PurchasePage = () => {
               </div>
 
               {selectedProduct && (
-
-                <div className="purchase-glow overflow-hidden rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-blue-50 p-4 dark:border-indigo-900/50 dark:from-indigo-950/30 dark:via-slate-900 dark:to-blue-950/20">
+                <div className="overflow-hidden rounded-2xl border border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
 
                   <div className="flex items-center gap-4">
 
@@ -2604,10 +2380,6 @@ const PurchasePage = () => {
                         className="product-image-hover h-20 w-20 rounded-2xl border-2 border-white object-cover shadow-lg dark:border-slate-800"
                       />
 
-                      <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs text-white shadow-md">
-                        ✓
-                      </div>
-
                     </div>
 
                     <div className="min-w-0 flex-1">
@@ -2626,39 +2398,35 @@ const PurchasePage = () => {
 
                         </div>
 
-                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-                          ✓ Selected
+                        <span className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-black text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                          Selected
                         </span>
 
                       </div>
 
                       <div className="mt-2 flex flex-wrap gap-2">
 
-                        <span className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300">
-                          🆔 {formData.productSku || "N/A"}
+                        <span className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
+                          ID: {formData.productSku || "N/A"}
                         </span>
 
-                        <span className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-bold text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400">
-                          📦 Stock:{" "}
+                        <span className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
+                          Stock:{" "}
                           {Number(
                             selectedProduct.stock || 0
-                          ).toLocaleString(
-                            "en-IN"
-                          )}
+                          ).toLocaleString("en-IN")}
                         </span>
 
                         {selectedProduct.purchasePrice !==
                           undefined &&
                           selectedProduct.purchasePrice !==
                             null && (
-
-                            <span className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-bold text-indigo-600 shadow-sm dark:bg-slate-800 dark:text-indigo-400">
-                              💰 Purchase:{" "}
+                            <span className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
+                              Purchase:{" "}
                               {formatCurrency(
                                 selectedProduct.purchasePrice
                               )}
                             </span>
-
                           )}
 
                       </div>
@@ -2668,7 +2436,6 @@ const PurchasePage = () => {
                   </div>
 
                 </div>
-
               )}
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -2749,8 +2516,8 @@ const PurchasePage = () => {
                   />
 
                   {selectedProduct && (
-                    <p className="mt-1.5 text-[10px] font-medium text-indigo-500 dark:text-indigo-400">
-                      ✓ Auto-filled from product purchase price
+                    <p className="mt-1.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                      Auto-filled from product purchase price
                     </p>
                   )}
 
@@ -2781,8 +2548,7 @@ const PurchasePage = () => {
 
               {Number(formData.rawCost) > 0 &&
                 Number(formData.quantity) > 0 && (
-
-                  <div className="purchase-scale rounded-2xl border border-indigo-100 bg-gradient-to-r from-slate-50 to-indigo-50 p-4 dark:border-indigo-900/40 dark:from-slate-950 dark:to-indigo-950/20">
+                  <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
 
                     <div className="flex items-center justify-between">
 
@@ -2805,7 +2571,7 @@ const PurchasePage = () => {
 
                       </div>
 
-                      <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">
+                      <span className="text-xl font-black text-slate-900 dark:text-white">
                         {formatCurrency(
                           Number(formData.rawCost) *
                             Number(formData.quantity)
@@ -2815,7 +2581,6 @@ const PurchasePage = () => {
                     </div>
 
                   </div>
-
                 )}
 
               <div>
@@ -2833,7 +2598,6 @@ const PurchasePage = () => {
                 />
 
                 {formData.productImage && (
-
                   <div className="purchase-scale mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950">
 
                     <img
@@ -2853,10 +2617,7 @@ const PurchasePage = () => {
                       </p>
 
                       <p className="mt-0.5 text-[10px] text-slate-400">
-                        Automatically loaded from product
-                        {formData.imageFile
-                          ? " or replaced with uploaded image"
-                          : ""}
+                        Product image preview
                       </p>
 
                     </div>
@@ -2865,13 +2626,12 @@ const PurchasePage = () => {
                       type="button"
                       onClick={handleRemoveImage}
                       disabled={saving}
-                      className="rounded-lg px-3 py-2 text-xs font-bold text-rose-600 transition hover:bg-rose-50 hover:scale-105 disabled:opacity-50 dark:hover:bg-rose-950/30"
+                      className="rounded-lg px-3 py-2 text-xs font-bold text-rose-600 transition hover:bg-rose-50 disabled:opacity-50 dark:hover:bg-rose-950/30"
                     >
                       Remove
                     </button>
 
                   </div>
-
                 )}
 
                 <p className="mt-1.5 text-[10px] text-slate-400">
@@ -2881,18 +2641,17 @@ const PurchasePage = () => {
               </div>
 
               {selectedProduct && (
-
-                <div className="purchase-glow rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50 px-4 py-4 dark:border-emerald-900/40 dark:from-emerald-950/20 dark:to-green-950/20">
+                <div className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-4 dark:border-slate-700 dark:bg-slate-950">
 
                   <div className="flex items-center justify-between gap-3">
 
                     <div>
 
-                      <p className="text-xs font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                      <p className="text-xs font-black uppercase tracking-wide text-slate-600 dark:text-slate-300">
                         Stock After Purchase
                       </p>
 
-                      <p className="mt-1 text-[11px] text-emerald-700/70 dark:text-emerald-400/70">
+                      <p className="mt-1 text-[11px] text-slate-400">
                         Backend automatically updates Product stock.
                       </p>
 
@@ -2900,8 +2659,7 @@ const PurchasePage = () => {
 
                     <div className="text-right">
 
-                      <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
-
+                      <p className="text-2xl font-black text-slate-900 dark:text-white">
                         {(
                           Number(
                             selectedProduct.stock || 0
@@ -2910,10 +2668,9 @@ const PurchasePage = () => {
                             formData.quantity || 0
                           )
                         ).toLocaleString("en-IN")}
-
                       </p>
 
-                      <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500">
+                      <p className="text-[10px] font-bold text-slate-500">
                         Units
                       </p>
 
@@ -2922,15 +2679,12 @@ const PurchasePage = () => {
                   </div>
 
                 </div>
-
               )}
 
               {error && (
-
                 <div className="purchase-scale rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
                   ⚠️ {error}
                 </div>
-
               )}
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-800">
@@ -2939,7 +2693,7 @@ const PurchasePage = () => {
                   type="button"
                   onClick={handleCloseModal}
                   disabled={saving}
-                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm active:scale-95 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-600 transition-all duration-200 hover:bg-slate-50 hover:shadow-sm active:scale-95 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
@@ -2950,21 +2704,17 @@ const PurchasePage = () => {
                     saving ||
                     products.length === 0
                   }
-                  className="group flex min-w-[140px] items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-indigo-600 hover:shadow-indigo-600/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-indigo-500 dark:hover:text-white"
+                  className="group flex min-w-[140px] items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:bg-indigo-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-indigo-500 dark:hover:text-white"
                 >
 
                   {saving ? (
-
                     <>
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white dark:border-slate-400/30 dark:border-t-slate-900" />
-
                       Saving...
                     </>
-
                   ) : (
-
                     <>
-                      <span className="transition-transform duration-200 group-hover:scale-110">
+                      <span>
                         {editingId ? "✓" : "＋"}
                       </span>
 
@@ -2972,7 +2722,6 @@ const PurchasePage = () => {
                         ? "Update Record"
                         : "Save Record"}
                     </>
-
                   )}
 
                 </button>
@@ -2984,7 +2733,6 @@ const PurchasePage = () => {
           </div>
 
         </div>
-
       )}
 
     </div>
@@ -2992,4 +2740,3 @@ const PurchasePage = () => {
 };
 
 export default PurchasePage;
-

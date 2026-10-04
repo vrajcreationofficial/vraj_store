@@ -73,6 +73,21 @@ const AdminLayout = ({ children }) => {
       path: "/other-expenses",
       icon: "💸",
     },
+
+    // ===================================================
+    // DAILY WAGES
+    // ===================================================
+    {
+      name: "Daily Wages",
+      path: "/daily-wages",
+      icon: "👷",
+    },
+    {
+      name: "Wages Records",
+      path: "/daily-wages/list",
+      icon: "📋",
+    },
+
     {
       name: "User Approvals",
       path: "/admin/approvals",
@@ -95,6 +110,7 @@ const AdminLayout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white">
+
       {/* =================================================
           MOBILE OVERLAY
       ================================================= */}
@@ -119,6 +135,7 @@ const AdminLayout = ({ children }) => {
             LOGO SECTION
         ================================================= */}
         <div className="flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 px-5 dark:border-slate-800 lg:h-20">
+
           <img
             src={logoImg}
             alt="Vraj Creation Logo"
@@ -150,11 +167,13 @@ const AdminLayout = ({ children }) => {
             MENU
         ================================================= */}
         <nav className="flex-1 overflow-y-auto px-3 py-5">
+
           <p className="mb-3 px-3 text-xs font-bold uppercase tracking-wider text-slate-400">
             Main Menu
           </p>
 
           <div className="space-y-1">
+
             {menuItems.map((item) => (
               <NavLink
                 key={item.path}
@@ -172,9 +191,12 @@ const AdminLayout = ({ children }) => {
                   {item.icon}
                 </span>
 
-                <span>{item.name}</span>
+                <span>
+                  {item.name}
+                </span>
               </NavLink>
             ))}
+
           </div>
         </nav>
       </aside>
@@ -183,14 +205,17 @@ const AdminLayout = ({ children }) => {
           RIGHT SIDE MAIN WRAPPER
       ================================================= */}
       <div className="flex min-h-screen flex-col lg:pl-64">
+
         {/* =================================================
             TOP HEADER
         ================================================= */}
         <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:px-6 lg:h-20 lg:px-8">
+
           {/* =================================================
               LEFT
           ================================================= */}
           <div className="flex items-center gap-3">
+
             {/* Mobile menu */}
             <button
               type="button"
@@ -223,6 +248,7 @@ const AdminLayout = ({ children }) => {
               RIGHT
           ================================================= */}
           <div className="flex items-center gap-3">
+
             {/* =================================================
                 DARK MODE
             ================================================= */}
@@ -250,6 +276,7 @@ const AdminLayout = ({ children }) => {
                 USER PROFILE DROPDOWN
             ================================================= */}
             <div className="relative">
+
               <button
                 type="button"
                 onClick={() =>
@@ -258,8 +285,10 @@ const AdminLayout = ({ children }) => {
                 className="flex items-center gap-2 rounded-xl p-1.5 transition hover:bg-slate-100 dark:hover:bg-slate-800"
                 aria-label="Open user menu"
               >
+
                 {/* USER INFO */}
                 <div className="hidden text-right sm:block">
+
                   <p className="text-sm font-bold">
                     {user?.name || "Admin"}
                   </p>
@@ -267,15 +296,18 @@ const AdminLayout = ({ children }) => {
                   <p className="text-xs text-slate-400">
                     Administrator
                   </p>
+
                 </div>
 
                 {/* USER AVATAR */}
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 font-bold text-white dark:bg-white dark:text-slate-950">
+
                   {user?.name
                     ? user.name
                         .charAt(0)
                         .toUpperCase()
                     : "A"}
+
                 </div>
 
                 {/* ARROW */}
@@ -288,6 +320,7 @@ const AdminLayout = ({ children }) => {
                 >
                   ▼
                 </span>
+
               </button>
 
               {/* =================================================
@@ -295,8 +328,10 @@ const AdminLayout = ({ children }) => {
               ================================================= */}
               {profileOpen && (
                 <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+
                   {/* Profile */}
                   <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+
                     <p className="truncate text-sm font-bold">
                       {user?.name || "Admin"}
                     </p>
@@ -304,6 +339,7 @@ const AdminLayout = ({ children }) => {
                     <p className="truncate text-xs text-slate-400">
                       Administrator
                     </p>
+
                   </div>
 
                   {/* Logout */}
@@ -320,8 +356,10 @@ const AdminLayout = ({ children }) => {
                       Logout
                     </span>
                   </button>
+
                 </div>
               )}
+
             </div>
           </div>
         </header>
@@ -332,6 +370,7 @@ const AdminLayout = ({ children }) => {
         <main className="w-full flex-1 p-4 sm:p-6 lg:p-8">
           {children}
         </main>
+
       </div>
     </div>
   );

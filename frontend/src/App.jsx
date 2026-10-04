@@ -1,75 +1,82 @@
-import {
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
+// Auth
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
+// Layout
+import AdminLayout from "./components/AdminLayout";
+
+// Dashboard
 import Dashboard from "./pages/Dashboard";
+
+// Products
 import Products from "./pages/Products";
 import AddProduct from "./pages/AddProduct";
 import EditProduct from "./pages/EditProduct";
 import ProductView from "./pages/ProductView";
 
+// Accounts
 import SalesPage from "./pages/SalesPage";
 import PurchasesPage from "./pages/PurchasesPage";
 import OtherExpenses from "./pages/OtherExpenses";
 
+// Admin
 import AdminApprovals from "./pages/AdminApprovals";
 
+// Bills
 import CreateBill from "./pages/CreateBill";
 import BillsList from "./pages/BillsList";
 import EditBill from "./pages/EditBill";
 
-import AdminLayout from "./components/AdminLayout";
+// Daily Wages
+import DailyWagesForm from "./pages/DailyWagesForm";
+import DailyWagesList from "./pages/DailyWagesList";
 
-import {
-  AuthProvider,
-  useAuth,
-} from "./context/AuthContext";
+/* =========================================================
+   LOADING SCREEN
+========================================================= */
 
-const ProtectedRoute = ({
-  children,
-}) => {
-  const {
-    user,
-    loading,
-  } = useAuth();
+const LoadingScreen = ({ message = "Loading Vraj Creation..." }) => {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <div className="text-center">
+        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-950 dark:border-slate-700 dark:border-t-white" />
+
+        <p className="mt-4 text-sm font-bold text-slate-500 dark:text-slate-400">
+          {message}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+/* =========================================================
+   PROTECTED ROUTE
+========================================================= */
+
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="text-center">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-950 dark:border-slate-700 dark:border-t-white" />
-
-          <p className="mt-4 text-sm font-bold text-slate-500 dark:text-slate-400">
-            Checking authentication...
-          </p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen message="Checking authentication..." />;
   }
 
-  const token =
-    localStorage.getItem("token");
+  const token = localStorage.getItem("token");
 
   if (!token || !user) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-      />
-    );
+    return <Navigate to="/login" replace />;
   }
 
   return children;
 };
 
-const AdminPage = ({
-  children,
-}) => {
+/* =========================================================
+   ADMIN PAGE WRAPPER
+========================================================= */
+
+const AdminPage = ({ children }) => {
   return (
     <ProtectedRoute>
       <AdminLayout>
@@ -81,45 +88,32 @@ const AdminPage = ({
   );
 };
 
+/* =========================================================
+   APP ROUTES
+========================================================= */
+
 const AppRoutes = () => {
-  const {
-    user,
-    loading,
-  } = useAuth();
+  const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="text-center">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-950 dark:border-slate-700 dark:border-t-white" />
-
-          <p className="mt-4 text-sm font-bold text-slate-500 dark:text-slate-400">
-            Loading Vraj Creation...
-          </p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
-  const token =
-    localStorage.getItem("token");
+  const token = localStorage.getItem("token");
 
-  const isAuthenticated =
-    Boolean(
-      token && user
-    );
+  const isAuthenticated = Boolean(token && user);
 
   return (
     <Routes>
+      {/* =====================================================
+          AUTH ROUTES
+      ===================================================== */}
 
       <Route
         path="/login"
         element={
           isAuthenticated ? (
-            <Navigate
-              to="/dashboard"
-              replace
-            />
+            <Navigate to="/dashboard" replace />
           ) : (
             <Login />
           )
@@ -130,15 +124,16 @@ const AppRoutes = () => {
         path="/register"
         element={
           isAuthenticated ? (
-            <Navigate
-              to="/dashboard"
-              replace
-            />
+            <Navigate to="/dashboard" replace />
           ) : (
             <Register />
           )
         }
       />
+
+      {/* =====================================================
+          DASHBOARD
+      ===================================================== */}
 
       <Route
         path="/dashboard"
@@ -148,6 +143,10 @@ const AppRoutes = () => {
           </AdminPage>
         }
       />
+
+      {/* =====================================================
+          BILLING
+      ===================================================== */}
 
       <Route
         path="/create-bill"
@@ -166,6 +165,19 @@ const AppRoutes = () => {
           </AdminPage>
         }
       />
+
+      <Route
+        path="/edit-bill/:id"
+        element={
+          <AdminPage>
+            <EditBill />
+          </AdminPage>
+        }
+      />
+
+      {/* =====================================================
+          PRODUCTS
+      ===================================================== */}
 
       <Route
         path="/products"
@@ -203,6 +215,10 @@ const AppRoutes = () => {
         }
       />
 
+      {/* =====================================================
+          SALES
+      ===================================================== */}
+
       <Route
         path="/sales"
         element={
@@ -211,6 +227,10 @@ const AppRoutes = () => {
           </AdminPage>
         }
       />
+
+      {/* =====================================================
+          PURCHASES
+      ===================================================== */}
 
       <Route
         path="/purchases"
@@ -221,6 +241,10 @@ const AppRoutes = () => {
         }
       />
 
+      {/* =====================================================
+          OTHER EXPENSES
+      ===================================================== */}
+
       <Route
         path="/other-expenses"
         element={
@@ -229,6 +253,32 @@ const AppRoutes = () => {
           </AdminPage>
         }
       />
+
+      {/* =====================================================
+          DAILY WAGES
+      ===================================================== */}
+
+      <Route
+        path="/daily-wages"
+        element={
+          <AdminPage>
+            <DailyWagesForm />
+          </AdminPage>
+        }
+      />
+
+      <Route
+        path="/daily-wages/list"
+        element={
+          <AdminPage>
+            <DailyWagesList />
+          </AdminPage>
+        }
+      />
+
+      {/* =====================================================
+          ADMIN APPROVALS
+      ===================================================== */}
 
       <Route
         path="/admin/approvals"
@@ -239,46 +289,40 @@ const AppRoutes = () => {
         }
       />
 
-      <Route
-        path="/edit-bill/:id"
-        element={
-          <AdminPage>
-            <EditBill />
-          </AdminPage>
-        }
-      />
+      {/* =====================================================
+          ROOT
+      ===================================================== */}
 
       <Route
         path="/"
         element={
           <Navigate
-            to={
-              isAuthenticated
-                ? "/dashboard"
-                : "/login"
-            }
+            to={isAuthenticated ? "/dashboard" : "/login"}
             replace
           />
         }
       />
+
+      {/* =====================================================
+          404 / UNKNOWN ROUTE
+      ===================================================== */}
 
       <Route
         path="*"
         element={
           <Navigate
-            to={
-              isAuthenticated
-                ? "/dashboard"
-                : "/login"
-            }
+            to={isAuthenticated ? "/dashboard" : "/login"}
             replace
           />
         }
       />
-
     </Routes>
   );
 };
+
+/* =========================================================
+   APP
+========================================================= */
 
 function App() {
   return (

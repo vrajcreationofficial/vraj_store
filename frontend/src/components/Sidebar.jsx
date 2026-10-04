@@ -33,6 +33,19 @@ const Sidebar = () => {
       path: "/invoices",
       icon: "🧾",
     },
+
+    // Daily Wages
+    {
+      name: "Daily Wages",
+      path: "/daily-wages",
+      icon: "👷",
+    },
+    {
+      name: "Wages Records",
+      path: "/daily-wages/list",
+      icon: "📋",
+    },
+
     {
       name: "User Approvals",
       path: "/admin/approvals",
@@ -42,9 +55,7 @@ const Sidebar = () => {
 
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900 text-slate-100 shadow-xl">
-      {/* =================================================
-          LOGO SECTION
-      ================================================= */}
+      {/* LOGO SECTION */}
       <div className="shrink-0 border-b border-slate-800 px-4 py-5">
         <div className="flex items-center gap-3 px-2">
           <img
@@ -65,9 +76,7 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* =================================================
-          NAVIGATION MENU
-      ================================================= */}
+      {/* NAVIGATION MENU */}
       <nav className="flex-1 overflow-y-auto px-4 py-5">
         <p className="mb-3 px-3 text-xs font-bold uppercase tracking-wider text-slate-500">
           Main Menu

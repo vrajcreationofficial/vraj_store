@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import html2pdf from "html2pdf.js";
 import api from "../services/api";
 
 const DEFAULT_IMAGE = "https://via.placeholder.com/80";
@@ -1353,136 +1352,146 @@ const PurchasePage = () => {
     `;
   };
 
-  const generatePurchasePDF = async (
+  // Print report in the browser print dialog (no automatic PDF download).
+  const printPurchaseReport = async (
     itemsToExport,
-    filename,
+    _filename,
     title
   ) => {
-    if (!itemsToExport.length) {
-      setError(
-        "PDF ke liye purchase record nahi mila."
-      );
+    if (!itemsToExport?.length) {
+      setError("Print ke liye purchase record nahi mila.");
       return;
     }
 
-    if (exportingPDF) {
-      return;
-    }
-
-    let wrapper = null;
+    let iframe;
 
     try {
       setError("");
       setExportingPDF(true);
 
-      const reportHTML =
-        createPurchaseReportHTML(
-          itemsToExport,
-          title
-        );
-
-      wrapper = document.createElement("div");
-
-      wrapper.style.position = "fixed";
-      wrapper.style.left = "-100000px";
-      wrapper.style.top = "0";
-      wrapper.style.width = "740px";
-      wrapper.style.maxWidth = "740px";
-      wrapper.style.background = "#ffffff";
-      wrapper.style.color = "#000000";
-      wrapper.style.zIndex = "-9999";
-
-      wrapper.innerHTML = reportHTML;
-
-      document.body.appendChild(wrapper);
-
-      await new Promise((resolve) =>
-        requestAnimationFrame(resolve)
+      const reportHTML = createPurchaseReportHTML(
+        itemsToExport,
+        title
       );
 
-      const reportElement =
-        wrapper.firstElementChild;
+      iframe = document.createElement("iframe");
+      iframe.setAttribute("title", "Purchase report print preview");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "1px";
+      iframe.style.height = "1px";
+      iframe.style.border = "0";
+      iframe.style.opacity = "0";
+      iframe.style.pointerEvents = "none";
+      document.body.appendChild(iframe);
 
-      if (!reportElement) {
-        throw new Error(
-          "Purchase report element not found"
-        );
-      }
+      const printDocument =
+        iframe.contentDocument || iframe.contentWindow.document;
 
-      const options = {
-        margin: [3, 3, 3, 3],
+      printDocument.open();
+      printDocument.write(`<!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8" />
+            <title>Vraj Creation - ${escapeHtml(title)}</title>
+            <style>
+              @page { size: A4 portrait; margin: 10mm; }
+              * { box-sizing: border-box; }
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                background: #fff !important;
+                color: #111 !important;
+                font-family: Arial, Helvetica, sans-serif !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              body > div {
+                width: 100% !important;
+                max-width: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: #fff !important;
+                color: #111 !important;
+              }
+              h1 {
+                font-size: 28px !important;
+                line-height: 1.2 !important;
+                margin: 5px 0 !important;
+              }
+              table {
+                width: 100% !important;
+                font-size: 11px !important;
+                line-height: 1.35 !important;
+                border-collapse: collapse !important;
+                table-layout: fixed !important;
+              }
+              th {
+                font-size: 10px !important;
+                padding: 10px 7px !important;
+                background: #eee !important;
+                color: #111 !important;
+                border: 1px solid #555 !important;
+              }
+              td {
+                font-size: 11px !important;
+                line-height: 1.35 !important;
+                padding: 9px 7px !important;
+                border: 1px solid #777 !important;
+                color: #111 !important;
+              }
+              tr { break-inside: avoid; page-break-inside: avoid; }
+              @media screen {
+                body { padding: 12px !important; }
+              }
+            </style>
+          </head>
+          <body>${reportHTML}</body>
+        </html>`);
+      printDocument.close();
 
-        filename,
-
-        image: {
-          type: "jpeg",
-          quality: 0.85,
-        },
-
-        html2canvas: {
-          scale: 1.25,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: "#ffffff",
-          logging: false,
-          scrollX: 0,
-          scrollY: 0,
-          windowWidth: 740,
-          windowHeight: 1050,
-        },
-
-        jsPDF: {
-          unit: "mm",
-          format: "a4",
-          orientation: "portrait",
-          compress: true,
-        },
-
-        pagebreak: {
-          mode: ["css"],
-          avoid: ["tr"],
-        },
+      const printWindow = iframe.contentWindow;
+      const cleanup = () => {
+        if (iframe?.parentNode) iframe.parentNode.removeChild(iframe);
       };
 
-      await html2pdf()
-        .set(options)
-        .from(reportElement)
-        .save();
-
+      printWindow.onafterprint = cleanup;
+      window.setTimeout(() => {
+        try {
+          printWindow.focus();
+          printWindow.print();
+        } catch (printError) {
+          console.error("PURCHASE PRINT ERROR:", printError);
+          setError("Print dialog open nahi ho pa raha. Please try again.");
+          cleanup();
+        }
+      }, 250);
     } catch (error) {
-      console.error(
-        "PDF GENERATION ERROR:",
-        error
-      );
-
-      setError(
-        "PDF generate nahi ho pa raha. Please try again."
-      );
+      console.error("PURCHASE PRINT ERROR:", error);
+      setError("Purchase report print nahi ho pa rahi. Please try again.");
+      if (iframe?.parentNode) iframe.parentNode.removeChild(iframe);
     } finally {
-      if (wrapper) {
-        wrapper.remove();
-      }
-
       setExportingPDF(false);
     }
   };
 
   const handleDownloadPDF = async () => {
-    const itemsToExport = purchases.filter(
-      (item) =>
-        selectedIds.includes(item._id)
+    const itemsToExport = purchases.filter((item) =>
+      selectedIds.includes(item._id)
     );
 
     if (!itemsToExport.length) {
       setError(
-        "PDF export ke liye table mein se kam se kam ek purchase select karein."
+        "Print ke liye table mein se kam se kam ek purchase select karein."
       );
       return;
     }
 
-    await generatePurchasePDF(
+    await printPurchaseReport(
       itemsToExport,
-      `Selected_Purchase_Report_${getToday()}.pdf`,
+      "",
       "Selected Purchase Statement"
     );
   };
@@ -1497,26 +1506,9 @@ const PurchasePage = () => {
       setPrintingId(item._id);
       setError("");
 
-      const productId =
-        getProductDisplayId(item);
-
-      const safeProductName = String(
-        item.productName || "Purchase"
-      )
-        .replace(/[^a-zA-Z0-9-_ ]/g, "")
-        .trim()
-        .replace(/\s+/g, "_");
-
-      const safeProductId = String(
-        productId || "ID"
-      ).replace(/[^a-zA-Z0-9-_]/g, "");
-
-      const filename =
-        `Purchase_${safeProductName}_${safeProductId}_${item.purchaseDate || getToday()}.pdf`;
-
-      await generatePurchasePDF(
+      await printPurchaseReport(
         [item],
-        filename,
+        "",
         "Purchase Entry"
       );
     } finally {
@@ -1744,11 +1736,11 @@ const PurchasePage = () => {
             {exportingPDF ? (
               <>
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-800 dark:border-slate-600 dark:border-t-white" />
-                Generating...
+                Preparing print...
               </>
             ) : (
               <>
-                📄 Export PDF ({selectedIds.length})
+                🖨️ Print Selected ({selectedIds.length})
               </>
             )}
           </button>
@@ -2070,7 +2062,7 @@ const PurchasePage = () => {
 
                             <button
                               type="button"
-                              title="Download PDF"
+                              title="Print Purchase"
                               onClick={() =>
                                 handlePrintSinglePurchase(
                                   item

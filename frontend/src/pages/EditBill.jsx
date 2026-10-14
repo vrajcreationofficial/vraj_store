@@ -86,12 +86,28 @@ const getProductId = (product) => {
     product?.sku ||
     product?.product_id ||
     product?.productId ||
+    product?.productID ||
     product?.productCode ||
     product?.code ||
     product?._id ||
     product?.id ||
     ""
   );
+};
+
+const getProductIdentifiers = (product) => {
+  return [
+    product?.sku,
+    product?.product_id,
+    product?.productId,
+    product?.productID,
+    product?.productCode,
+    product?.code,
+    product?._id,
+    product?.id,
+  ]
+    .filter((value) => value !== undefined && value !== null && String(value).trim())
+    .map((value) => String(value).trim().toLowerCase());
 };
 
 const getProductName = (product) => {
@@ -138,13 +154,9 @@ const findProductById = (products, productId) => {
   }
 
   return (
-    products.find((product) => {
-      const dbId = String(getProductId(product))
-        .trim()
-        .toLowerCase();
-
-      return dbId === enteredId;
-    }) || null
+    products.find((product) =>
+      getProductIdentifiers(product).includes(enteredId)
+    ) || null
   );
 };
 
@@ -562,13 +574,19 @@ const EditBill = () => {
         // PRODUCTS
         // ---------------------------------------------
 
+        const productsData = productsResponse?.data;
+
         const products =
-          Array.isArray(productsResponse?.data)
-            ? productsResponse.data
-            : Array.isArray(
-                productsResponse?.data?.products
-              )
-            ? productsResponse.data.products
+          Array.isArray(productsData)
+            ? productsData
+            : Array.isArray(productsData?.products)
+            ? productsData.products
+            : Array.isArray(productsData?.data)
+            ? productsData.data
+            : Array.isArray(productsData?.data?.products)
+            ? productsData.data.products
+            : Array.isArray(productsData?.result)
+            ? productsData.result
             : [];
 
         setDbProducts(products);
@@ -880,15 +898,14 @@ const EditBill = () => {
     // -----------------------------------------------
 
     if (!selectedProduct) {
+      // Product catalog mein ID na mile to bhi invoice mein manual item add ho sake.
+      // Product Name, HSN aur Rate fields editable rahenge.
       setItems((prev) =>
         prev.map((item) =>
           item.id === rowId
             ? {
                 ...item,
                 productId,
-                productName: "",
-                hsnCode: "",
-                price: 0,
                 gstRate: VRAJ_GST_RATE,
               }
             : item
@@ -2153,7 +2170,7 @@ const EditBill = () => {
                             {item.productId &&
                               !matchedProduct && (
                                 <p className="mt-1 text-[11px] font-semibold text-orange-600">
-                                  Product ID not found
+                                  New/manual product — enter details below
                                 </p>
                               )}
 
@@ -2168,12 +2185,25 @@ const EditBill = () => {
 
                             <input
                               type="text"
-                              value={
-                                item.productName
+                              value={item.productName}
+                              readOnly={Boolean(matchedProduct)}
+                              onChange={(e) =>
+                                handleItemChange(
+                                  item.id,
+                                  "productName",
+                                  e.target.value
+                                )
                               }
-                              readOnly
-                              className="w-full min-w-[180px] rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 px-2 py-2 outline-none cursor-not-allowed"
-                              placeholder="Auto-filled from Product ID"
+                              className={`w-full min-w-[180px] rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500 ${
+                                matchedProduct
+                                  ? "bg-slate-100 dark:bg-slate-800/80 cursor-not-allowed"
+                                  : "bg-white dark:bg-slate-800"
+                              }`}
+                              placeholder={
+                                matchedProduct
+                                  ? "Auto-filled from Product ID"
+                                  : "Enter product name"
+                              }
                             />
 
                           </td>

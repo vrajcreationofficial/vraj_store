@@ -1,4 +1,4 @@
-const Bill = require("../models/Bill");
+﻿const Bill = require("../models/Bill");
 
 // =====================================================
 // GET NEXT UNIQUE BILL NUMBER
@@ -658,6 +658,42 @@ const updateBill = async (req, res) => {
 
     const data =
       req.body;
+
+    // ===================================================
+    // UPDATE INVOICE NUMBER
+    // ===================================================
+    const requestedInvoiceNumber = String(
+      data.billNumber ??
+      data.invoiceNumber ??
+      data.invoiceNo ??
+      bill.billNumber ??
+      ""
+    ).trim();
+
+    if (!requestedInvoiceNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice Number is required.",
+      });
+    }
+
+    // Prevent duplicate invoice numbers
+    const duplicateBill = await Bill.findOne({
+      billNumber: requestedInvoiceNumber,
+      _id: { $ne: bill._id },
+    })
+      .select("_id")
+      .lean();
+
+    if (duplicateBill) {
+      return res.status(409).json({
+        success: false,
+        message: "This Invoice Number is already in use.",
+      });
+    }
+
+    // Update MongoDB document before bill.save()
+    bill.billNumber = requestedInvoiceNumber;
 
     // ===================================================
     // INVOICE TYPE

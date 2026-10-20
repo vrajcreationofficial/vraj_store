@@ -197,8 +197,7 @@ const calculateGST = (
   const normalizedInvoiceType =
     normalizeInvoiceType(invoiceType);
 
-  const isWithoutGST =
-    normalizedInvoiceType === "Without GST";
+  const isGSTInvoice = normalizedInvoiceType === "GST Invoice";
 
   const isRajasthan =
     stateCode === "08" ||
@@ -209,7 +208,7 @@ const calculateGST = (
     const price = num(item.price);
     const itemDiscount = num(item.discount);
 
-    const gstRate = isWithoutGST ? 0 : 5;
+    const gstRate = isGSTInvoice ? 5 : 0;
 
     const gross = quantity * price;
 
@@ -220,7 +219,7 @@ const calculateGST = (
 
     taxableTotal += taxable;
 
-    if (!isWithoutGST) {
+    if (isGSTInvoice) {
       if (isRajasthan) {
         totalCGST +=
           (taxable * 2.5) / 100;
@@ -234,7 +233,7 @@ const calculateGST = (
     }
   });
 
-  const totalGST = isWithoutGST
+  const totalGST = !isGSTInvoice
     ? 0
     : isRajasthan
       ? totalCGST + totalSGST
@@ -317,6 +316,13 @@ const getBillPrintData = (bill) => {
     customer.gstIn ||
     customer.GSTIN ||
     bill.customerGSTIN ||
+    "";
+
+  const customerPAN =
+    customer.panNumber ||
+    customer.pan ||
+    bill.panNumber ||
+    bill.customerPAN ||
     "";
 
   const customerPincode =
@@ -433,6 +439,7 @@ const getBillPrintData = (bill) => {
     customerPhone,
     customerEmail,
     customerGST,
+    customerPAN,
     customerStateCode,
     placeOfSupply,
     gstData,
@@ -1103,6 +1110,7 @@ const InvoiceContent = ({
     customerPhone,
     customerEmail,
     customerGST,
+    customerPAN,
     customerStateCode,
     placeOfSupply,
     gstData,
@@ -1187,6 +1195,13 @@ const InvoiceContent = ({
                   <b>Customer GSTIN:</b>{" "}
                   {customerGST ||
                     "N/A"}
+                </div>
+              )}
+
+              {customerPAN && (
+                <div className="customer-row">
+                  <b>Customer PAN:</b>{" "}
+                  {customerPAN}
                 </div>
               )}
 
@@ -1337,9 +1352,7 @@ const InvoiceContent = ({
                       num(item.price);
 
                     const gstRate =
-                      invoiceType === "Without GST"
-                        ? 0
-                        : 5;
+                      invoiceType === "GST Invoice" ? 5 : 0;
 
                     const itemDiscount =
                       num(
@@ -2026,6 +2039,30 @@ const BillsList = () => {
   const [bills, setBills] =
     useState([]);
 
+  // Show only one invoice type at a time; each type has its own list.
+  const [selectedInvoiceType, setSelectedInvoiceType] =
+    useState("GST Invoice");
+
+  const invoiceTypes = [
+    "GST Invoice",
+    "Non-GST Invoice",
+    "Without GST",
+  ];
+
+  const getBillInvoiceType = (bill) =>
+    normalizeInvoiceType(
+      bill?.invoiceType || bill?.type || bill?.invoice_type || "GST Invoice"
+    );
+
+  const filteredBills = bills.filter(
+    (bill) => getBillInvoiceType(bill) === selectedInvoiceType
+  );
+
+  const invoiceTypeCounts = invoiceTypes.reduce((counts, type) => {
+    counts[type] = bills.filter((bill) => getBillInvoiceType(bill) === type).length;
+    return counts;
+  }, {});
+
   const [loading, setLoading] =
     useState(true);
 
@@ -2583,6 +2620,36 @@ const BillsList = () => {
           </div>
         )}
 
+        {/* INVOICE TYPE TABS: each type is displayed in a separate list */}
+        <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {invoiceTypes.map((type) => {
+            const active = selectedInvoiceType === type;
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setSelectedInvoiceType(type)}
+                className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${
+                  active
+                    ? "border-amber-500 bg-amber-500/10 text-amber-600 shadow-sm"
+                    : darkMode
+                      ? "border-gray-800 bg-gray-900 text-gray-300 hover:bg-gray-800"
+                      : "border-gray-200 bg-white text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <span>{type}</span>
+                <span className={`ml-3 rounded-full px-2.5 py-1 text-xs ${active ? "bg-amber-500 text-white" : darkMode ? "bg-gray-800" : "bg-gray-100"}`}>
+                  {invoiceTypeCounts[type] || 0}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className={`mb-3 text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+          {selectedInvoiceType} List ({filteredBills.length})
+        </div>
+
         {/* =================================================
             DESKTOP TABLE
         ================================================= */}
@@ -2668,7 +2735,7 @@ const BillsList = () => {
                 }`}
               >
 
-                {bills.length === 0 ? (
+                {filteredBills.length === 0 ? (
                   <tr>
                     <td
                       colSpan="5"
@@ -2692,7 +2759,7 @@ const BillsList = () => {
                               : "text-gray-600"
                           }`}
                         >
-                          No bills found
+                          No invoices in this list
                         </p>
 
                         <p
@@ -2702,13 +2769,13 @@ const BillsList = () => {
                               : "text-gray-400"
                           }`}
                         >
-                          Generate your first bill to see it here.
+                          Generate a new invoice of this type to see it here.
                         </p>
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  bills.map(
+                  filteredBills.map(
                     (bill) => {
 
                       const id =
@@ -2886,7 +2953,7 @@ const BillsList = () => {
         ================================================= */}
         <div className="space-y-3 md:hidden">
 
-          {bills.length === 0 ? (
+          {filteredBills.length === 0 ? (
             <div
               className={`rounded-xl border px-5 py-16 text-center shadow-sm ${
                 darkMode
@@ -2906,7 +2973,7 @@ const BillsList = () => {
                     : "text-gray-600"
                 }`}
               >
-                No bills found
+                No invoices in this list
               </p>
 
               <p
@@ -2916,12 +2983,12 @@ const BillsList = () => {
                     : "text-gray-400"
                 }`}
               >
-                Generate your first bill to see it here.
+                Generate a new invoice of this type to see it here.
               </p>
 
             </div>
           ) : (
-            bills.map(
+            filteredBills.map(
               (bill) => (
                 <MobileBillCard
                   key={
@@ -2964,6 +3031,11 @@ const BillsList = () => {
             }`}
           >
 
+            Showing {selectedInvoiceType}: {" "}
+            <span className={`font-semibold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
+              {filteredBills.length}
+            </span>
+            <span className="mx-2">•</span>
             Total bills:{" "}
 
             <span

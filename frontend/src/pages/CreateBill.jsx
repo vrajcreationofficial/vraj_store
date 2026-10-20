@@ -193,6 +193,40 @@ const formatCurrency = (value) => {
   });
 };
 
+
+// =====================================================
+// SEPARATE INVOICE SERIES BY TYPE (INDIAN FINANCIAL YEAR)
+// GST: VC/GST/2026-27/0001
+// Non-GST: VC/NG/2026-27/0001
+// Without GST: VC/WOG/2026-27/0001
+// =====================================================
+const getFinancialYear = (date = new Date()) => {
+  const year = date.getFullYear();
+  const startYear = date.getMonth() >= 3 ? year : year - 1;
+  return `${startYear}-${String(startYear + 1).slice(-2)}`;
+};
+
+const getInvoicePrefix = (type, financialYear = getFinancialYear()) => {
+  const code = type === "GST Invoice"
+    ? "GST"
+    : type === "Non-GST Invoice"
+      ? "NG"
+      : "WOG";
+  return `VC/${code}/${financialYear}/`;
+};
+
+const getNextInvoiceNumber = (type, bills = []) => {
+  const prefix = getInvoicePrefix(type);
+  const maxSequence = (Array.isArray(bills) ? bills : []).reduce((max, bill) => {
+    const savedType = bill.invoiceType || bill.type || bill.invoice_type || "GST Invoice";
+    const number = String(bill.invoiceNo || bill.billNumber || "");
+    if (savedType !== type || !number.startsWith(prefix)) return max;
+    const sequence = Number(number.slice(prefix.length));
+    return Number.isFinite(sequence) ? Math.max(max, sequence) : max;
+  }, 0);
+  return `${prefix}${String(maxSequence + 1).padStart(4, "0")}`;
+};
+
 // =====================================================
 // DEFAULT CUSTOMER
 // =====================================================
@@ -264,14 +298,14 @@ const CreateBill = () => {
   // INVOICE
   // ===================================================
   const [invoiceNo, setInvoiceNo] = useState(
-    `VC-${Date.now().toString().slice(-6)}`
+    getNextInvoiceNumber("GST Invoice")
   );
 
   const [invoiceDate, setInvoiceDate] = useState(
     new Date().toISOString().split("T")[0]
   );
 
-  const [dueDate, setDueDate] = useState("");
+  const [panNumber, setPanNumber] = useState("");
 
   const [invoiceType, setInvoiceType] =
     useState("GST Invoice");
@@ -350,6 +384,8 @@ const CreateBill = () => {
       const savedDraft = sessionStorage.getItem(
         "vraj_bill_draft"
       );
+      let hasSavedInvoiceNo = false;
+      let seriesTypeForLoad = "GST Invoice";
 
       if (savedDraft) {
         try {
@@ -368,6 +404,7 @@ const CreateBill = () => {
           const restoredInvoiceType =
             parsed.invoiceType ||
             "GST Invoice";
+          seriesTypeForLoad = restoredInvoiceType;
 
           if (parsed.invoiceType) {
             setInvoiceType(
@@ -389,10 +426,7 @@ const CreateBill = () => {
                 // GST INVOICE = 5
                 // =====================================
                 gstRate:
-                  restoredInvoiceType ===
-                  "Without GST"
-                    ? 0
-                    : 5,
+                  restoredInvoiceType === "GST Invoice" ? 5 : 0,
               }))
             );
           }
@@ -407,20 +441,38 @@ const CreateBill = () => {
 
           if (parsed.invoiceNo) {
             setInvoiceNo(parsed.invoiceNo);
+            hasSavedInvoiceNo = true;
           }
 
           if (parsed.invoiceDate) {
             setInvoiceDate(parsed.invoiceDate);
           }
 
-          if (parsed.dueDate) {
-            setDueDate(parsed.dueDate);
+          if (parsed.panNumber) {
+            setPanNumber(String(parsed.panNumber).toUpperCase());
           }
+
         } catch (err) {
           console.error(
             "Draft restore error:",
             err
           );
+        }
+      }
+
+      // Load the next number from saved invoices, including a fresh session.
+      if (!hasSavedInvoiceNo) {
+        try {
+          const billsResponse = await api.get("/bills");
+          const savedBills = Array.isArray(billsResponse.data?.bills)
+            ? billsResponse.data.bills
+            : Array.isArray(billsResponse.data)
+              ? billsResponse.data
+              : [];
+          setInvoiceNo(getNextInvoiceNumber(seriesTypeForLoad, savedBills));
+        } catch (seriesError) {
+          console.error("Could not load invoice series:", seriesError);
+          setInvoiceNo(getNextInvoiceNumber(seriesTypeForLoad));
         }
       }
     };
@@ -438,7 +490,7 @@ const CreateBill = () => {
       shippingCharges,
       invoiceNo,
       invoiceDate,
-      dueDate,
+      panNumber,
       invoiceType,
     };
 
@@ -452,7 +504,7 @@ const CreateBill = () => {
     shippingCharges,
     invoiceNo,
     invoiceDate,
-    dueDate,
+    panNumber,
     invoiceType,
   ]);
 
@@ -645,8 +697,22 @@ const CreateBill = () => {
   // ===================================================
   // INVOICE TYPE CHANGE
   // ===================================================
-  const handleInvoiceTypeChange = (value) => {
+  const handleInvoiceTypeChange = async (value) => {
     setInvoiceType(value);
+
+    // Find the next available number within this invoice type's own series.
+    try {
+      const billsResponse = await api.get("/bills");
+      const savedBills = Array.isArray(billsResponse.data?.bills)
+        ? billsResponse.data.bills
+        : Array.isArray(billsResponse.data)
+          ? billsResponse.data
+          : [];
+      setInvoiceNo(getNextInvoiceNumber(value, savedBills));
+    } catch (seriesError) {
+      console.error("Could not load invoice series:", seriesError);
+      setInvoiceNo(getNextInvoiceNumber(value));
+    }
 
     // ===============================================
     // WITHOUT GST = GST RATE MUST BE ZERO
@@ -703,9 +769,9 @@ const CreateBill = () => {
 
               [field]:
                 field === "gstRate"
-                  ? invoiceType === "Without GST"
-                    ? 0
-                    : 5
+                  ? invoiceType === "GST Invoice"
+                    ? 5
+                    : 0
                   : value,
 
               // =====================================
@@ -713,9 +779,7 @@ const CreateBill = () => {
               // OTHERWISE EXISTING GST VALUE
               // =====================================
               gstRate:
-                invoiceType === "Without GST"
-                  ? 0
-                  : 5,
+                invoiceType === "GST Invoice" ? 5 : 0,
             }
           : item
       )
@@ -735,9 +799,7 @@ const CreateBill = () => {
         // NEW ITEM GST
         // =============================================
         gstRate:
-          invoiceType === "Without GST"
-            ? 0
-            : 5,
+          invoiceType === "GST Invoice" ? 5 : 0,
       },
     ]);
   };
@@ -1084,6 +1146,8 @@ const CreateBill = () => {
       gstin:
         customer.gstin?.trim() || "",
 
+      panNumber: panNumber.trim().toUpperCase(),
+
       billingAddress:
         customer.billingAddress?.trim() || "",
 
@@ -1113,7 +1177,7 @@ const CreateBill = () => {
     const payload = {
       invoiceNo,
       invoiceDate,
-      dueDate,
+      panNumber: panNumber.trim().toUpperCase(),
       invoiceType,
 
       // CUSTOMER OBJECT
@@ -1362,7 +1426,7 @@ const CreateBill = () => {
       // REDIRECT
       // =============================================
       setTimeout(() => {
-        navigate("/bills");
+        navigate("/invoices");
       }, 1200);
     } catch (err) {
       console.error(
@@ -1545,7 +1609,7 @@ const CreateBill = () => {
           <button
             type="button"
             onClick={() =>
-              navigate("/bills")
+              navigate("/invoices")
             }
             className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-slate-700"
           >
@@ -1684,21 +1748,18 @@ const CreateBill = () => {
                 />
               </div>
 
-              {/* DUE DATE */}
+              {/* CUSTOMER PAN NUMBER */}
               <div>
                 <label className="mb-1 block text-xs font-bold uppercase text-slate-500">
-                  Due Date
+                  PAN Number
                 </label>
-
                 <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) =>
-                    setDueDate(
-                      e.target.value
-                    )
-                  }
-                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-800 outline-none focus:border-amber-500"
+                  type="text"
+                  value={panNumber}
+                  onChange={(e) => setPanNumber(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))}
+                  maxLength={10}
+                  placeholder="Enter PAN Number (optional)"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm uppercase text-slate-800 outline-none focus:border-amber-500"
                 />
               </div>
 
